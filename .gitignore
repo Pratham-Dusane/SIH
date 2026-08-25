@@ -45,6 +45,7 @@ htmlcov/
 
 # ─── Local databases, data storage & models ───
 _data/
+_demo_data/
 _storage/
 *.db
 *.sqlite
@@ -61,6 +62,9 @@ _storage/
 .env.*.local
 frontend/.env.local
 backend/.env
+!.env.example
+!*.env.example
+!**/.env.example
 
 # ─── Logs & debug ───
 *.log

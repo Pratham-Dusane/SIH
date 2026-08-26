@@ -15,7 +15,10 @@ import random
 from pathlib import Path
 from typing import Optional
 
-from .bigearthnet import LABEL_NAMES, NUM_CLASSES
+try:
+    from .bigearthnet import LABEL_NAMES, NUM_CLASSES
+except ImportError:
+    from bigearthnet import LABEL_NAMES, NUM_CLASSES
 
 
 # ── Question/Answer template banks ─────────────────────────────────────────

@@ -234,7 +234,14 @@ def build_manifest(
             split_map = split_data
 
     # Find all S2 patches
-    s2_patches = sorted([d for d in s2_path.iterdir() if d.is_dir()])
+    if s2_path.is_dir():
+        s2_patches = sorted([d for d in s2_path.iterdir() if d.is_dir()])
+        if not s2_patches:
+            # Fallback: find parent directories of any .tif files
+            tif_files = list(s2_path.rglob("*.tif"))[:5000]
+            s2_patches = sorted(list(set(p.parent for p in tif_files)))
+    else:
+        s2_patches = []
     print(f"Found {len(s2_patches)} S2 patches")
 
     manifest = []

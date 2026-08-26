@@ -166,7 +166,7 @@ def build_manifest(
         caption_files.append(root / f"{split}_captions.json")
 
     # ── Load main JSON files (VRSBench_train.json or split json files) ─────────
-    json_candidates = list(root.glob("*.json")) + list(root.rglob("*.json"))
+    json_candidates = list(root.glob("*.json")) + list(root.glob("*/*.json"))
     for jf in json_candidates:
         if "manifest" in jf.name.lower():
             continue

@@ -105,24 +105,30 @@ def build_manifest(
 
     manifest = []
 
-    # Try standard RSVQA JSON format + recursive rglob fallback
+    # Try standard RSVQA JSON format
     for split in ["train", "val", "test"]:
         # Look for questions and answers files
         q_candidates = [
+            root / f"LR_{split}" / f"LR_questions_{split}.json",
+            root / f"LR_{split}" / f"questions_{split}.json",
+            root / f"LR_{split}" / f"questions.json",
             root / f"Questions" / f"{split}.json",
             root / f"{variant}_questions_{split}.json",
             root / f"questions_{split}.json",
             root / f"{split}_questions.json",
             root / f"LR_questions_{split}.json",
-        ] + list(root.rglob(f"*{split}*.json"))
+        ]
 
         a_candidates = [
+            root / f"LR_{split}" / f"LR_answers_{split}.json",
+            root / f"LR_{split}" / f"answers_{split}.json",
+            root / f"LR_{split}" / f"answers.json",
             root / f"Answers" / f"{split}.json",
             root / f"{variant}_answers_{split}.json",
             root / f"answers_{split}.json",
             root / f"{split}_answers.json",
             root / f"LR_answers_{split}.json",
-        ] + list(root.rglob(f"*{split}*.json"))
+        ]
 
         q_file = next((f for f in q_candidates if f.exists()), None)
         a_file = next((f for f in a_candidates if f.exists()), None)

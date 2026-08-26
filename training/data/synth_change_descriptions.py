@@ -205,12 +205,16 @@ def build_synthetic_dataset(
         root / "label" / split,
         root / split / "masks",
         root / "masks" / split,
-    ]
-    mask_dir = next((d for d in mask_dirs if d.exists()), None)
+        root / "label",
+        root / "labels",
+        root / "masks",
+        root,
+    ] + [d for d in root.rglob("*label*") if d.is_dir()] + [d for d in root.rglob("*mask*") if d.is_dir()]
+    mask_dir = next((d for d in mask_dirs if d.exists() and any(d.glob("*.png")) or any(d.glob("*.tif"))), None)
 
     # Find image directories
-    a_dirs = [root / split / "A", root / "A" / split, root / split / "images_A"]
-    b_dirs = [root / split / "B", root / "B" / split, root / split / "images_B"]
+    a_dirs = [root / split / "A", root / "A" / split, root / split / "images_A", root / "A"] + [d for d in root.rglob("A") if d.is_dir()]
+    b_dirs = [root / split / "B", root / "B" / split, root / split / "images_B", root / "B"] + [d for d in root.rglob("B") if d.is_dir()]
     a_dir = next((d for d in a_dirs if d.exists()), None)
     b_dir = next((d for d in b_dirs if d.exists()), None)
 

@@ -105,7 +105,7 @@ def build_manifest(
 
     manifest = []
 
-    # Try standard RSVQA JSON format
+    # Try standard RSVQA JSON format + recursive rglob fallback
     for split in ["train", "val", "test"]:
         # Look for questions and answers files
         q_candidates = [
@@ -113,13 +113,16 @@ def build_manifest(
             root / f"{variant}_questions_{split}.json",
             root / f"questions_{split}.json",
             root / f"{split}_questions.json",
-        ]
+            root / f"LR_questions_{split}.json",
+        ] + list(root.rglob(f"*{split}*.json"))
+
         a_candidates = [
             root / f"Answers" / f"{split}.json",
             root / f"{variant}_answers_{split}.json",
             root / f"answers_{split}.json",
             root / f"{split}_answers.json",
-        ]
+            root / f"LR_answers_{split}.json",
+        ] + list(root.rglob(f"*{split}*.json"))
 
         q_file = next((f for f in q_candidates if f.exists()), None)
         a_file = next((f for f in a_candidates if f.exists()), None)
@@ -187,7 +190,7 @@ def build_manifest(
 def _find_image(root: Path, img_id) -> Optional[Path]:
     """Find an image file by ID in common RSVQA directory layouts."""
     img_id_str = str(img_id)
-    search_dirs = [root / "Images", root / "images", root]
+    search_dirs = [root / "Images", root / "images", root / "Images_LR", root]
     extensions = [".png", ".tif", ".tiff", ".jpg", ".jpeg"]
 
     for d in search_dirs:
@@ -197,6 +200,13 @@ def _find_image(root: Path, img_id) -> Optional[Path]:
             candidate = d / f"{img_id_str}{ext}"
             if candidate.exists():
                 return candidate
+
+    # Recursive fallback
+    for ext in extensions:
+        matches = list(root.rglob(f"{img_id_str}{ext}"))
+        if matches:
+            return matches[0]
+
     return None
 
 

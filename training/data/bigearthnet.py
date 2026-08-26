@@ -74,7 +74,12 @@ class BigEarthNetTextDataset(Dataset):
     ):
         with open(manifest, "r") as f:
             all_rows = json.load(f)
-        self.rows = [r for r in all_rows if r["split"] == split]
+        self.rows = [r for r in all_rows if r.get("split", "train") == split]
+        if len(self.rows) == 0 and len(all_rows) > 0:
+            # Fallback for small or unsplit manifests
+            self.rows = all_rows[:int(len(all_rows)*0.8)] if split == "train" else all_rows[int(len(all_rows)*0.8):]
+            if len(self.rows) == 0:
+                self.rows = all_rows
         self.tok = tokenizer
         self.augment = augment and (split == "train")
         self.patch_size = patch_size
@@ -260,8 +265,11 @@ def build_manifest(
         # Get text annotation
         text = text_map.get(patch_id, "")
 
-        # Get split
-        split = split_map.get(patch_id, "train")
+        # Get split (default 80% train, 20% val if not in split_map)
+        if patch_id in split_map:
+            split = split_map[patch_id]
+        else:
+            split = "val" if (len(manifest) % 5 == 0) else "train"
 
         manifest.append({
             "patch_id": patch_id,

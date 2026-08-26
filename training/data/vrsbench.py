@@ -165,61 +165,41 @@ def build_manifest(
     for split in ["train", "val", "test"]:
         caption_files.append(root / f"{split}_captions.json")
 
-    for cf in caption_files:
-        if not cf.exists():
+    # ── Load main JSON files (VRSBench_train.json or split json files) ─────────
+    json_candidates = list(root.glob("*.json")) + list(root.rglob("*.json"))
+    for jf in json_candidates:
+        if "manifest" in jf.name.lower():
             continue
-        with open(cf, "r") as f:
-            cap_data = json.load(f)
+        try:
+            with open(jf, "r") as f:
+                data = json.load(f)
 
-        if isinstance(cap_data, dict):
-            for img_id, caption in cap_data.items():
-                entry = manifest_map.setdefault(img_id, _empty_entry(img_id, root))
-                entry["caption"] = caption if isinstance(caption, str) else caption.get("caption", "")
-        elif isinstance(cap_data, list):
-            for item in cap_data:
-                img_id = str(item.get("image_id", item.get("img_id", "")))
-                entry = manifest_map.setdefault(img_id, _empty_entry(img_id, root))
-                entry["caption"] = item.get("caption", "")
+            if isinstance(data, list):
+                for item in data:
+                    img_id = str(item.get("image_id", item.get("img_id", item.get("id", ""))))
+                    if not img_id:
+                        continue
+                    entry = manifest_map.setdefault(img_id, _empty_entry(img_id, root))
 
-    # ── Load QA pairs ───────────────────────────────────────────────────
-    qa_files = [root / "qa.json", root / "questions.json"]
-    for split in ["train", "val", "test"]:
-        qa_files.append(root / f"{split}_qa.json")
+                    if "caption" in item and not entry["caption"]:
+                        entry["caption"] = item["caption"]
+                    if "question" in item and "answer" in item:
+                        entry["qa"].append({"question": item["question"], "answer": str(item["answer"])})
+                    if "qa" in item and isinstance(item["qa"], list):
+                        entry["qa"].extend(item["qa"])
+                    if "referring" in item and isinstance(item["referring"], list):
+                        entry["referring"].extend(item["referring"])
 
-    for qf in qa_files:
-        if not qf.exists():
-            continue
-        with open(qf, "r") as f:
-            qa_data = json.load(f)
-
-        if isinstance(qa_data, list):
-            for item in qa_data:
-                img_id = str(item.get("image_id", item.get("img_id", "")))
-                entry = manifest_map.setdefault(img_id, _empty_entry(img_id, root))
-                entry["qa"].append({
-                    "question": item.get("question", ""),
-                    "answer": item.get("answer", ""),
-                })
-
-    # ── Load referring expressions ──────────────────────────────────────
-    ref_files = [root / "referring.json", root / "grounding.json"]
-    for split in ["train", "val", "test"]:
-        ref_files.append(root / f"{split}_referring.json")
-
-    for rf in ref_files:
-        if not rf.exists():
-            continue
-        with open(rf, "r") as f:
-            ref_data = json.load(f)
-
-        if isinstance(ref_data, list):
-            for item in ref_data:
-                img_id = str(item.get("image_id", item.get("img_id", "")))
-                entry = manifest_map.setdefault(img_id, _empty_entry(img_id, root))
-                entry["referring"].append({
-                    "phrase": item.get("phrase", item.get("expression", "")),
-                    "bbox": item.get("bbox", [0, 0, 0, 0]),
-                })
+            elif isinstance(data, dict):
+                for img_id, item in data.items():
+                    entry = manifest_map.setdefault(str(img_id), _empty_entry(str(img_id), root))
+                    if isinstance(item, str):
+                        entry["caption"] = item
+                    elif isinstance(item, dict):
+                        if "caption" in item: entry["caption"] = item["caption"]
+                        if "qa" in item: entry["qa"].extend(item["qa"])
+        except Exception:
+            pass
 
     # ── Assign splits and resolve image paths ───────────────────────────
     manifest = []
@@ -256,7 +236,7 @@ def _empty_entry(img_id: str, root: Path) -> dict:
 
 
 def _find_image(root: Path, img_id: str) -> Optional[Path]:
-    search_dirs = [root / "images", root / "Images", root]
+    search_dirs = [root / "images", root / "Images", root / "Images_train", root / "Images_val", root]
     extensions = [".png", ".jpg", ".jpeg", ".tif", ".tiff"]
     for d in search_dirs:
         if not d.exists():
@@ -265,6 +245,13 @@ def _find_image(root: Path, img_id: str) -> Optional[Path]:
             candidate = d / f"{img_id}{ext}"
             if candidate.exists():
                 return candidate
+
+    # Recursive fallback
+    for ext in extensions:
+        matches = list(root.rglob(f"{img_id}{ext}"))
+        if matches:
+            return matches[0]
+
     return None
 
 

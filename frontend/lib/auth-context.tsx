@@ -69,7 +69,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      if (err?.code === 'auth/popup-closed-by-user') {
+        // User closed the popup window before completing sign-in
+        throw new Error('Sign-in cancelled (popup was closed).');
+      }
+      throw err;
+    }
   };
 
   const signInWithEmail = async (email: string, pass: string) => {

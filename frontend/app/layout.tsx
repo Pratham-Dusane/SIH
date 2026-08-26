@@ -24,8 +24,11 @@ import { AuthProvider } from "@/lib/auth-context";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex">
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        <meta name="darkreader-lock" content="darkreader-lock" />
+      </head>
+      <body suppressHydrationWarning className="min-h-full flex">
         <AuthProvider>
           <TooltipProvider>
             {children}

@@ -381,7 +381,13 @@ def train(args):
         manifest_path = args.manifest or data_cfg.get("manifest", "bigearthnet_manifest.json")
         train_ds = BigEarthNetTextDataset(manifest_path, split="train", tokenizer=tokenizer, augment=True)
         val_ds = BigEarthNetTextDataset(manifest_path, split="val", tokenizer=tokenizer, augment=False)
+        if len(train_ds) == 0:
+            print("[Warning] bigearthnet_manifest.json contained 0 train entries. Falling back to synthetic data pipeline.")
+            train_ds = SyntheticBigEarthNet(size=128, patch_size=data_cfg.get("image_size", 120))
+        if len(val_ds) == 0:
+            val_ds = SyntheticBigEarthNet(size=32, patch_size=data_cfg.get("image_size", 120))
         batch_size = args.batch_size or train_cfg.get("batch_size", 256)
+        batch_size = min(batch_size, len(train_ds))
 
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,

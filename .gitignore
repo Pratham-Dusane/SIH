@@ -47,6 +47,7 @@ htmlcov/
 _data/
 _demo_data/
 _storage/
+checkpoints/
 *.db
 *.sqlite
 *.sqlite3

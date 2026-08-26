@@ -1,0 +1,58 @@
+# SatQuery AI — M1 RS-CLIP Training Configuration (PRD §7.2)
+#
+# Dual-encoder contrastive adaptation on BigEarthNet S1+S2
+# Two vision towers (optical 12-band, SAR 2-band) + shared text tower
+# Three contrastive terms: text↔optical, text↔SAR, optical↔SAR
+
+# ── Model ─────────────────────────────────────────────────────────────
+model:
+  base: "ViT-B-16"
+  pretrained: "laion2b_s34b_b88k"
+  optical_channels: 12        # S2: 12 bands
+  sar_channels: 2             # S1: VV, VH
+
+# ── Training (PRD §7.2 exact values) ─────────────────────────────────
+training:
+  epochs: 20
+  batch_size: 256             # per-GPU; contrastive learning needs large batches
+  lr: 1.0e-5                  # vision towers
+  text_lr: 5.0e-6             # lower: the text tower is already good, only needs domain drift
+  warmup_steps: 500
+  weight_decay: 0.2
+  freeze_text_epochs: 2       # let the vision towers catch up before the text tower moves
+  precision: "bf16"
+  grad_checkpointing: true
+
+# ── Data ──────────────────────────────────────────────────────────────
+data:
+  image_size: 120             # BigEarthNet patch size; interpolate pos-embed from 224
+  manifest: "bigearthnet_manifest.json"
+  num_workers: 4
+  pin_memory: true
+
+# ── Contrastive loss weights (PRD §7.2) ───────────────────────────────
+loss:
+  w_text_optical: 1.0         # text ↔ optical
+  w_text_sar: 1.0             # text ↔ SAR
+  w_optical_sar: 0.5          # optical ↔ SAR (cross-modal alignment)
+
+# ── Validation (run every epoch, log to model card) ───────────────────
+# PRD §7.2:
+#   - Zero-shot 19-class multilabel: optical-only, SAR-only, fused
+#   - Cross-modal retrieval: SAR→optical R@1 / R@5
+#   - Text→image retrieval R@1
+validation:
+  run_every_n_epochs: 1
+  num_classes: 19
+
+# ── Output ────────────────────────────────────────────────────────────
+output:
+  dir: "./checkpoints/rsclip"
+  save_every_n_epochs: 5
+  model_card: true            # Write model_card.json on completion
+
+# ── Kaggle-specific overrides ─────────────────────────────────────────
+# When running on Kaggle, override these:
+#   data.manifest: /kaggle/input/bigearthnet-manifest/bigearthnet_manifest.json
+#   output.dir: /kaggle/working/checkpoints/rsclip
+#   training.batch_size: 64   (if P100 16GB, reduce from 256)

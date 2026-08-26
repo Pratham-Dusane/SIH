@@ -153,9 +153,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground transition-colors duration-200;
   }
+
   html {
     @apply font-sans;
   }
@@ -166,13 +168,16 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
 }
@@ -184,8 +189,13 @@
 
 /* Animated gradient for streaming states */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-shimmer {
@@ -196,8 +206,15 @@
 
 /* Pulse for status dots */
 @keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
 .status-dot-pulse::before {
@@ -208,6 +225,14 @@
   animation: pulse-ring 1.5s ease-out infinite;
 }
 
-.status-dot-pulse.status-green::before { background: #16a34a; }
-.status-dot-pulse.status-amber::before { background: #d97706; }
-.status-dot-pulse.status-red::before { background: #dc2626; }
+.status-dot-pulse.status-green::before {
+  background: #16a34a;
+}
+
+.status-dot-pulse.status-amber::before {
+  background: #d97706;
+}
+
+.status-dot-pulse.status-red::before {
+  background: #dc2626;
+}

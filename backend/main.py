@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
-from routers import auth, workspaces, uploads, scenes
+from routers import auth, workspaces, uploads, scenes, models
 
 app = FastAPI(
     title="SatQuery AI Backend API",
@@ -23,6 +23,7 @@ app.include_router(auth.router)
 app.include_router(workspaces.router)
 app.include_router(uploads.router)
 app.include_router(scenes.router)
+app.include_router(models.router)
 
 @app.get("/")
 async def root():

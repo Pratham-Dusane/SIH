@@ -1,0 +1,100 @@
+# SatQuery AI — M2 RS-VLM LoRA Training Configuration (PRD §7.3)
+#
+# LoRA fine-tuning on Qwen2-VL for RS-specific VQA, captioning,
+# grounding, change detection QA, and cross-modal reasoning.
+# One model, four tasks, distinguished by instruction template.
+
+# ── Model ─────────────────────────────────────────────────────────────
+model:
+  # PRD §7.3: fall back to 2B if GPU memory under 24 GB
+  base_model: "Qwen/Qwen2-VL-7B-Instruct"
+  fallback_model: "Qwen/Qwen2-VL-2B-Instruct"
+  attn_implementation: "flash_attention_2"
+  torch_dtype: "bfloat16"
+
+# ── LoRA Configuration (PRD §7.3) ────────────────────────────────────
+lora:
+  r: 32
+  lora_alpha: 64
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  # PRD §7.3: "The vision tower is NOT frozen entirely: adapting the
+  # merger projection is what teaches the model that a dark blob in
+  # SAR is water, not shadow."
+  modules_to_save:
+    - "visual.merger"
+
+# ── Training (PRD §7.3 exact values) ─────────────────────────────────
+training:
+  lr: 1.0e-4                  # LoRA learning rate
+  lr_scheduler: "cosine"
+  warmup_ratio: 0.03
+  epochs: 2
+  per_device_batch_size: 1
+  gradient_accumulation_steps: 16
+  precision: "bf16"
+  gradient_checkpointing: true
+  max_grad_norm: 1.0
+  # PRD §7.3: "compute loss only on assistant tokens"
+  loss_on_assistant_only: true
+
+# ── Processor ─────────────────────────────────────────────────────────
+processor:
+  min_pixels: 200704          # 256 * 28 * 28
+  max_pixels: 1003520         # 1280 * 28 * 28 — caps multi-image sequences
+
+# ── Data ──────────────────────────────────────────────────────────────
+data:
+  manifests:
+    rsvqa: null               # Path to RSVQA manifest
+    vrsbench: null            # Path to VRSBench manifest
+    cdvqa: null               # Path to CDVQA manifest
+    synth_change: null        # Path to synth change descriptions
+    synth_crossmodal: null    # Path to synth cross-modal QA
+  total_samples_per_epoch: 50000
+  num_workers: 4
+
+# ── System prompt (PRD §7.3 exact text) ──────────────────────────────
+system_prompt: >-
+  You are a remote-sensing image analyst. You are looking at satellite imagery.
+  Answer only from what is visible in the imagery. If the imagery does not
+  support an answer, say so explicitly. Be concise and factual.
+
+# ── Instruction templates (PRD §7.3 exact text) ──────────────────────
+templates:
+  vqa: "Answer the question about this satellite image.\nQuestion: {q}\nAnswer:"
+  caption: "Describe the land cover, land use and major objects visible in this satellite image."
+  ground: "Locate the region described: '{phrase}'. Reply with the bounding box only."
+  change_describe: >-
+    Image 1 was acquired first and image 2 later over the same area.
+    Describe what changed between them and where the change occurred.
+  change_vqa: >-
+    Image 1 was acquired first and image 2 later over the same area.
+    Question: {q}
+    Answer:
+  cross_modal: >-
+    Image 1 is optical/multispectral. Image 2 is SAR of the same area.
+    Use both together.
+    Question: {q}
+    Answer:
+
+# ── Output ────────────────────────────────────────────────────────────
+output:
+  dir: "./checkpoints/vlm_lora"
+  save_steps: 500
+  model_card: true
+
+# ── Kaggle-specific overrides ─────────────────────────────────────────
+# When running on Kaggle:
+#   model.base_model: Qwen/Qwen2-VL-2B-Instruct   (if T4/P100)
+#   output.dir: /kaggle/working/checkpoints/vlm_lora
+#   training.gradient_accumulation_steps: 8          (reduce if OOM)

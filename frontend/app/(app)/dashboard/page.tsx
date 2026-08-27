@@ -62,12 +62,26 @@ export default function DashboardPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
-    Promise.all([fetchDashboardStats(), fetchScenes()]).then(([s, sc]) => {
-      setStats(s);
-      setScenes(sc);
-      setLoading(false);
-    });
+    let cancelled = false;
+    Promise.all([fetchDashboardStats(), fetchScenes()])
+      .then(([s, sc]) => {
+        if (cancelled) return;
+        setStats(s);
+        setScenes(sc);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // No demo scenes on failure — an empty list that says why beats a
+        // populated list of scenes that do not exist.
+        setStats(null);
+        setScenes([]);
+        setLoadError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const totalPages = Math.ceil(scenes.length / ROWS_PER_PAGE);
@@ -167,8 +181,27 @@ export default function DashboardPage() {
               ))}
         </div>
 
+        {/* Backend unreachable — distinguish this from a genuinely empty workspace */}
+        {!loading && loadError && (
+          <Card className="bg-destructive/5 border-destructive/40">
+            <CardContent className="py-3 flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+              <div className="text-xs">
+                <p className="font-semibold text-destructive">
+                  Could not load scenes from the backend.
+                </p>
+                <p className="text-muted-foreground font-mono mt-1 break-all">{loadError}</p>
+                <p className="text-muted-foreground mt-1">
+                  This list is empty because the request failed — not because the
+                  workspace is empty.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Start - shown when no scenes */}
-        {!loading && scenes.length === 0 && (
+        {!loading && !loadError && scenes.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Card className="bg-gradient-to-br from-brand-900/40 to-card border-brand-500/20">
               <CardContent className="p-8 text-center">

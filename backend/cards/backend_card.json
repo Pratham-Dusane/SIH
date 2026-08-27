@@ -1,0 +1,65 @@
+[
+  {
+    "backend_id": "V1",
+    "name": "vlm-gateway",
+    "provider": "hosted vision API \u2014 Vertex AI (default) or AI Studio Gemini, OpenAI, or Anthropic",
+    "adaptation": "none \u2014 hosted general-purpose model, no fine-tuning",
+    "serves_tools": [
+      "rs_vqa",
+      "rs_caption",
+      "rs_ground",
+      "change_describe",
+      "change_vqa"
+    ],
+    "offline_capable": false,
+    "notes": "R1 is not satisfied by this backend. Vertex AI is the default transport: it serves the same Gemini models from the project's own GCP account, billed per token rather than capped at the AI Studio free-tier daily request limit."
+  },
+  {
+    "backend_id": "G1",
+    "name": "gee-land-cover",
+    "provider": "Google Earth Engine \u2014 GOOGLE/DYNAMICWORLD/V1, fallback ESA/WorldCover",
+    "adaptation": "none \u2014 pre-built global product",
+    "serves_tools": [
+      "rs_classify"
+    ],
+    "offline_capable": false,
+    "notes": "Queries the GEE catalog for the scene AOI and date range. The uploaded pixel array is never sent. Design Rule 2 is intact; Design Rule 3 (offline) is not."
+  },
+  {
+    "backend_id": "G2",
+    "name": "gee-change-detect",
+    "provider": "Google Earth Engine \u2014 COPERNICUS/S2_SR_HARMONIZED NDVI/NDBI differencing",
+    "adaptation": "none \u2014 deterministic thresholded index differencing, not a trained detector",
+    "serves_tools": [
+      "change_detect"
+    ],
+    "offline_capable": false,
+    "notes": "Expect lower IoU than a trained Siamese U-Net on a labeled benchmark (PRD \u00a711.2). Defensible on real, unlabeled queries. AOI + dates only, never the uploaded pixels."
+  },
+  {
+    "backend_id": "G3",
+    "name": "gee-sentinel1-grd",
+    "provider": "Google Earth Engine \u2014 COPERNICUS/S1_GRD",
+    "adaptation": "none \u2014 already-processed backscatter from the GEE catalog",
+    "serves_tools": [
+      "sar_water_mask"
+    ],
+    "offline_capable": false,
+    "notes": "Optional acceleration only (PRD \u00a77.5), opt-in via source='gee'. The deterministic local dB pipeline is the default, the primary path, and the only offline path \u2014 and is mandatory for RISAT and other non-catalog rasters."
+  },
+  {
+    "backend_id": null,
+    "name": "deterministic-tools",
+    "provider": "local computation \u2014 rasterio, numpy, scipy, scikit-image",
+    "adaptation": "none \u2014 exact algorithms",
+    "serves_tools": [
+      "spectral_index",
+      "sar_water_mask",
+      "geo_stats",
+      "coreg_check",
+      "sar_optical_fuse"
+    ],
+    "offline_capable": true,
+    "notes": "Exact, deterministic and fully offline-capable. These are the only tools scored in the ISRO/SAC offline evaluation mode (PRD \u00a711.5)."
+  }
+]

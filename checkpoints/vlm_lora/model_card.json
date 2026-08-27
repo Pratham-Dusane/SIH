@@ -1,0 +1,39 @@
+{
+  "model_id": "M2",
+  "name": "rs-vlm-qwen2vl-lora",
+  "version": "0.1.0",
+  "base_model": "Qwen/Qwen2-VL-7B-Instruct",
+  "adaptation": "LoRA r=32 on attention+MLP, visual.merger unfrozen",
+  "training_data": [
+    "RSVQA-LR",
+    "RSVQA-HR",
+    "VRSBench",
+    "CDVQA",
+    "LEVIR-CD-synth"
+  ],
+  "trained_at": "2026-08-26T03:23:38.026601Z",
+  "metrics": {
+    "rsvqa_lr_val_acc": 0.842,
+    "rsvqa_lr_base_acc": 0.761,
+    "cdvqa_val_acc": 0.795,
+    "cdvqa_base_acc": 0.684
+  },
+  "weights_uri": "checkpoints\\vlm_lora\\adapter_model.bin",
+  "serves_tools": [
+    "rs_vqa",
+    "rs_caption",
+    "change_describe",
+    "change_vqa"
+  ],
+  "input_spec": {
+    "images": [
+      1,
+      2
+    ],
+    "modalities": [
+      "OPTICAL",
+      "MULTISPECTRAL",
+      "SAR"
+    ]
+  }
+}

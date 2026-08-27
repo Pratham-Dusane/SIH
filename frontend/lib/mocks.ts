@@ -319,18 +319,172 @@ export const mockTrace: ExecutionTrace = {
 };
 
 // ─── Mock Query Results ───
-export const mockQueryResults: QueryResult[] = [
-  {
-    queryId: 'qry_crossmodal_01',
-    sceneId: 'scn_crossmodal_01',
-    query: 'Use the optical and SAR images together to identify built-up and water-covered regions.',
-    answer: 'Analysis of the co-registered optical (Sentinel-2) and SAR (Sentinel-1) imagery reveals:\n\n**Water bodies:** 11.3% of the scene (1,842.6 ha) is identified as water with agreement between both sensors. The water bodies are concentrated in the eastern portion of the scene.\n\n**Built-up area:** 24.8% of the scene (4,048.2 ha) is classified as built-up with inter-sensor agreement, predominantly in the central and western regions.\n\n**Conflict regions:** 2.1% of the scene (342.8 ha) shows disagreement — these regions appear dark in optical imagery but bright in SAR, indicating they are likely shadow or cloud shadow rather than water.',
+export function getDynamicQueryResult(sceneId: string, query: string): QueryResult {
+  const q = String(query).toLowerCase();
+
+  // 1. Water queries
+  if (q.includes('water') || q.includes('lake') || q.includes('river') || q.includes('flood') || q.includes('ndwi')) {
+    return {
+      queryId: `qry_water_${Date.now()}`,
+      sceneId,
+      query,
+      answer: 'Deterministic **NDWI (Normalized Difference Water Index)** analysis reveals:\n\n• **Water Surface Extent:** Identified water coverage of **8.4% of the scene area (42.1 ha)**.\n• **Spatial Distribution:** Concentrated primarily along the eastern drainage corridor and a distinct reservoir pond in the north-east.\n• **Spectral Signature:** Clear low NIR/high Green reflectance profile consistent with surface water.',
+      abstained: false,
+      evidence: [
+        {
+          id: 'ev_water_01', type: 'mask', label: 'Water Body (NDWI > 0.1)',
+          colour: '#38bdf8', sourceStep: 's2',
+          stats: { area_ha: 42.1, fraction: 0.084 },
+        },
+      ],
+      confidence: {
+        value: 0.92, band: 'HIGH', basis: 'NDWI spectral thresholding + geo_stats area calculation',
+        contributions: [
+          { tool: 'spectral_index', confidence: 1.0, weight: 0.3 },
+          { tool: 'geo_stats', confidence: 1.0, weight: 0.1 },
+          { tool: 'rs_vqa', confidence: 0.88, weight: 1.0 },
+        ],
+      },
+      trace: {
+        ...mockTrace,
+        traceId: `trc_water_${Date.now()}`,
+        query,
+        steps: [
+          { id: 's1', tool: 'spectral_index', model: null, paramsRequested: { index: 'NDWI' }, paramsApplied: { index: 'NDWI' }, status: 'OK', durationMs: 45, confidence: 1.0, outputSummary: 'NDWI mask computed (positive_fraction=0.084)' },
+          { id: 's2', tool: 'geo_stats', model: null, paramsRequested: { mask_ref: 's1.artifacts.mask' }, paramsApplied: { mask_ref: 's1.artifacts.mask', units: 'ha' }, status: 'OK', durationMs: 22, confidence: 1.0, outputSummary: '42.1 ha (8.4%)' },
+          { id: 's3', tool: 'rs_vqa', model: 'vlm-gateway (gemini-1.5-pro-vision)', paramsRequested: { question: query }, paramsApplied: { question: query }, status: 'OK', durationMs: 1420, confidence: 0.88, outputSummary: 'Water body detected in NE region' },
+        ],
+      },
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  // 2. Building / structure / counting queries
+  if (q.includes('building') || q.includes('house') || q.includes('structure') || q.includes('how many') || q.includes('count')) {
+    return {
+      queryId: `qry_build_${Date.now()}`,
+      sceneId,
+      query,
+      answer: 'Analysis of the high-resolution optical imagery indicates:\n\n• **Built-Up Extent:** **62.3% of the scene (311.5 ha)** is occupied by urban structures and built infrastructure.\n• **Building Density:** Dense residential clusters in the western sector with large-footprint commercial buildings along the main transit arterial in the south.\n• **Estimated Structure Count:** Approximately **1,240 individual structures** visible within the field of view.',
+      abstained: false,
+      evidence: [
+        {
+          id: 'ev_build_01', type: 'mask', label: 'Built-up Area (NDBI > 0.05)',
+          colour: '#f59e0b', sourceStep: 's2',
+          stats: { area_ha: 311.5, fraction: 0.623 },
+        },
+      ],
+      confidence: {
+        value: 0.87, band: 'HIGH', basis: 'NDBI spectral index + high-resolution feature extraction',
+        contributions: [
+          { tool: 'spectral_index', confidence: 1.0, weight: 0.3 },
+          { tool: 'geo_stats', confidence: 1.0, weight: 0.1 },
+          { tool: 'rs_vqa', confidence: 0.82, weight: 1.0 },
+        ],
+      },
+      trace: {
+        ...mockTrace,
+        traceId: `trc_build_${Date.now()}`,
+        query,
+        steps: [
+          { id: 's1', tool: 'spectral_index', model: null, paramsRequested: { index: 'NDBI' }, paramsApplied: { index: 'NDBI' }, status: 'OK', durationMs: 40, confidence: 1.0, outputSummary: 'NDBI mask computed (positive_fraction=0.623)' },
+          { id: 's2', tool: 'geo_stats', model: null, paramsRequested: { mask_ref: 's1.artifacts.mask' }, paramsApplied: { mask_ref: 's1.artifacts.mask', units: 'ha' }, status: 'OK', durationMs: 18, confidence: 1.0, outputSummary: '311.5 ha (62.3%)' },
+          { id: 's3', tool: 'rs_vqa', model: 'vlm-gateway (gemini-1.5-pro-vision)', paramsRequested: { question: query }, paramsApplied: { question: query }, status: 'OK', durationMs: 1650, confidence: 0.82, outputSummary: 'High-density urban built-up area' },
+        ],
+      },
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  // 3. Grounding / locate / highlight / region queries
+  if (q.includes('highlight') || q.includes('locate') || q.includes('where') || q.includes('point out') || q.includes('find')) {
+    return {
+      queryId: `qry_ground_${Date.now()}`,
+      sceneId,
+      query,
+      answer: `Text-guided visual grounding successfully located the requested feature:\n\n• **Target Feature:** "${query}"\n• **Location:** Center-right region of the image frame (Bounding box: [0.45, 0.32, 0.78, 0.65] normalised).\n• **Area Measurement:** Located region covers approximately **18.2 ha (3.64% of frame)**.`,
+      abstained: false,
+      evidence: [
+        {
+          id: 'ev_ground_01', type: 'boxes', label: 'Located Region',
+          colour: '#10b981', sourceStep: 's1',
+          boxes: [{ bbox: [225, 160, 390, 325], score: 0.91, label: 'Target Region' }],
+          stats: { area_ha: 18.2 },
+        },
+      ],
+      confidence: {
+        value: 0.89, band: 'HIGH', basis: 'VLM spatial grounding + pixel region measurement',
+        contributions: [
+          { tool: 'rs_ground', confidence: 0.91, weight: 1.0 },
+          { tool: 'geo_stats', confidence: 1.0, weight: 0.1 },
+        ],
+      },
+      trace: {
+        ...mockTrace,
+        traceId: `trc_ground_${Date.now()}`,
+        query,
+        steps: [
+          { id: 's1', tool: 'rs_ground', model: 'vlm-gateway (gemini-1.5-pro-vision)', paramsRequested: { phrase: query }, paramsApplied: { phrase: query }, status: 'OK', durationMs: 1820, confidence: 0.91, outputSummary: 'Bounding box [0.45, 0.32, 0.78, 0.65]' },
+          { id: 's2', tool: 'geo_stats', model: null, paramsRequested: { mask_ref: 's1.artifacts.boxes' }, paramsApplied: { mask_ref: 's1.artifacts.boxes', units: 'ha' }, status: 'OK', durationMs: 25, confidence: 1.0, outputSummary: '18.2 ha' },
+        ],
+      },
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  // 4. Change detection queries on single image (Refusal / Abstention per PRD §9.3)
+  if (q.includes('change') || q.includes('different') || q.includes('between') || q.includes('increased') || q.includes('decreased')) {
+    if (sceneId.includes('single') || sceneId.includes('0042')) {
+      return {
+        queryId: `qry_refusal_${Date.now()}`,
+        sceneId,
+        query,
+        answer: 'Cannot process change detection query: This task requires a **BI_TEMPORAL** image pair (two images acquired at different dates over the same region). You supplied a SINGLE image.\n\n**Remedy:** Upload a second co-registered image acquired at a different date to enable change detection.',
+        abstained: true,
+        refusal: {
+          problems: [
+            {
+              code: 'WRONG_INPUT_CONFIG',
+              detail: "'CHANGE_DESCRIPTION' needs [BI_TEMPORAL], you supplied SINGLE",
+              remedy: 'Upload a second co-registered image acquired at a different date.',
+            },
+          ],
+        },
+        evidence: [],
+        confidence: { value: 0, band: 'LOW', basis: 'input gate refusal — single image supplied for temporal change query', contributions: [] },
+        trace: {
+          ...mockTrace,
+          traceId: `trc_refusal_${Date.now()}`,
+          query,
+          status: 'REFUSED',
+          steps: [],
+          confidence: { value: 0, band: 'LOW', basis: 'input gate refusal', contributions: [] },
+        },
+        createdAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  // 5. Default / Land cover description query
+  return {
+    queryId: `qry_desc_${Date.now()}`,
+    sceneId,
+    query,
+    answer: 'Comprehensive Remote Sensing Analysis:\n\n• **Land Cover Summary:** The image depicts a highly urbanized area interspersed with green vegetation and road networks.\n• **Built Environment:** **62.3%** of the scene comprises high-density residential and commercial structures.\n• **Vegetation:** Open parkland and tree canopy account for **24.1%** of the visible surface.\n• **Transportation:** Major road corridors cross the southern and eastern perimeters.\n• **Water Bodies:** Minor surface water drainage is detected in the north-east (approx 8.4%).',
     abstained: false,
     evidence: mockEvidenceLayers,
     confidence: mockConfidence,
-    trace: mockTrace,
-    createdAt: '2026-08-20T11:41:19.884Z',
-  },
+    trace: {
+      ...mockTrace,
+      traceId: `trc_desc_${Date.now()}`,
+      query,
+    },
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export const mockQueryResults: QueryResult[] = [
+  getDynamicQueryResult('scn_single_01', 'Describe the land cover and major objects in this image'),
 ];
 
 // ─── Mock Abstention ───

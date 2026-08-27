@@ -5,14 +5,26 @@ import { Card } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { EvidenceLayer } from '@/lib/types';
 
 export default function LayerControls() {
   const { turns, layers, setLayerVisibility, setLayerOpacity } = useStore();
 
   const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
-  const evidence = lastTurn?.result?.evidence || [];
+  const rawEvidence = lastTurn?.result?.evidence;
+  const evidenceList: EvidenceLayer[] = Array.isArray(rawEvidence)
+    ? rawEvidence
+    : (rawEvidence && typeof rawEvidence === 'object')
+      ? Object.entries(rawEvidence).map(([key, val], idx) => ({
+          id: key,
+          type: 'mask' as const,
+          label: typeof val === 'string' ? val : key,
+          colour: ['#38bdf8', '#f59e0b', '#10b981', '#a855f7'][idx % 4],
+          sourceStep: key.split('.')[0] || 's1',
+        }))
+      : [];
 
-  if (evidence.length === 0) return null;
+  if (evidenceList.length === 0) return null;
 
   return (
     <Card className="bg-card/90 backdrop-blur-sm border-border p-3 min-w-[200px] max-w-[260px]">
@@ -20,7 +32,7 @@ export default function LayerControls() {
         Layers
       </p>
       <div className="space-y-2">
-        {evidence.map((ev) => {
+        {evidenceList.map((ev) => {
           const state = layers[ev.id] || { visible: true, opacity: 0.7 };
           return (
             <div key={ev.id} className="space-y-1">

@@ -13,6 +13,10 @@ interface Turn {
   isStreaming: boolean;
   streamStage?: string;
   streamSteps?: { id: string; tool: string; status: string; reason?: string }[];
+  /** Set when the query failed. A failed turn shows the error, never a
+   *  fabricated answer — a made-up result would carry a confidence value and
+   *  an evidence list that no tool produced. */
+  error?: string;
 }
 
 interface SatQueryStore {
@@ -72,8 +76,13 @@ export const useStore = create<SatQueryStore>((set, get) => ({
   initLayers: (evidence) => {
     const existing = get().layers;
     const next: Record<string, LayerState> = { ...existing };
-    for (const e of evidence) {
-      if (!next[e.id]) {
+    const items: Array<{ id: string }> = Array.isArray(evidence)
+      ? evidence
+      : (evidence && typeof evidence === 'object')
+        ? Object.keys(evidence).map((k) => ({ id: k }))
+        : [];
+    for (const e of items) {
+      if (e && e.id && !next[e.id]) {
         next[e.id] = { visible: true, opacity: 0.7 };
       }
     }

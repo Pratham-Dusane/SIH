@@ -143,6 +143,7 @@ def check_compatibility(
             ))
 
     coreg_shift_px = None
+    overlap_fraction = None
 
     if len(images) == 2:
         a, b = images[0], images[1]
@@ -164,6 +165,7 @@ def check_compatibility(
             checks.append(_mk("spatial_overlap", NA, "Benchmark sample: spatial overlap check bypassed"))
         elif geo_both:
             ov = _overlap_fraction(a, b)
+            overlap_fraction = ov
             status = PASS if ov >= 0.90 else (WARN if ov >= 0.50 else FAIL)
             checks.append(_mk("spatial_overlap", status, f"{ov * 100:.1f}% of image 1 footprint is covered by image 2"))
         else:
@@ -209,5 +211,8 @@ def check_compatibility(
         "checks": checks,
         "target_crs": target_crs,
         "target_gsd_m": target_gsd_m,
+        # Reported as first-class numbers so consumers never have to parse them
+        # back out of the human-readable check detail string.
+        "overlap_fraction": overlap_fraction,
         "coreg_shift_px": coreg_shift_px,
     }

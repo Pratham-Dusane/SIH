@@ -143,3 +143,82 @@ export interface PreviewMeta {
   gsd_m: number;
   scale_factor: number;
 }
+
+// ─── Phase 4: backend registry & health (PRD §7.6, §14) ───
+// There are no trained-model cards any more. `BackendCard` describes a hosted
+// service, and `r1_status` is always NOT_ATTEMPTED — nothing was fine-tuned.
+
+export interface BackendCard {
+  backend_id: string | null;
+  name: string;
+  provider: string;
+  provider_configured?: string;
+  vlm_backend?: string;
+  gee_project?: string | null;
+  adaptation: string;
+  serves_tools: string[];
+  offline_capable: boolean;
+  notes: string;
+  active: boolean;
+  status_reason: string;
+  r1_status: 'NOT_ATTEMPTED';
+}
+
+export interface FineTuningDisclosure {
+  fine_tuned_components: string[];
+  r1_status: 'NOT_ATTEMPTED';
+  statement: string;
+  prd_reference: string;
+}
+
+export interface BackendRegistry {
+  backends: BackendCard[];
+  fine_tuning: FineTuningDisclosure;
+}
+
+export interface VlmStatus {
+  vlm_backend: string;
+  provider: string | null;
+  model: string | null;
+  configured: boolean;
+  reason: string;
+  offline_capable: boolean;
+  adaptation: string;
+}
+
+export interface GeeStatus {
+  gee_initialized: boolean;
+  reason: string;
+  service_account: string | null;
+  project: string | null;
+  key_path_present: boolean;
+  offline_capable: boolean;
+}
+
+export interface ToolHealth {
+  registered: boolean;
+  available: boolean;
+  reason: string;
+  offline_capable: boolean;
+  model_id: string | null;
+}
+
+export interface BackendHealth {
+  status: 'ok' | 'degraded';
+  offline_mode: boolean;
+  vlm: VlmStatus;
+  gee: GeeStatus;
+  registered_tools: number;
+  unavailable_tools: string[];
+  tools: Record<string, ToolHealth>;
+}
+
+export interface ToolManifestEntry {
+  name: string;
+  description: string;
+  accepts: string[];
+  required_modalities: string[];
+  produces: string[];
+  params_schema: Record<string, unknown>;
+  offline_capable: boolean;
+}

@@ -90,3 +90,9 @@ Thumbs.db
 # ─── TypeScript build info ───
 *.tsbuildinfo
 next-env.d.ts
+
+# Phase 4: service-account keys — never commit
+_secrets/
+backend/_secrets/
+*-service-account.json
+gee-service-account*.json

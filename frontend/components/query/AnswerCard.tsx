@@ -4,7 +4,7 @@ import { ExternalLink, Download, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import ConfidenceMeter from '@/components/trace/ConfidenceMeter';
-import { QueryResult } from '@/lib/types';
+import { QueryResult, EvidenceLayer } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +26,19 @@ export default function AnswerCard({ result }: AnswerCardProps) {
     });
   };
 
+  const rawEvidence = result.evidence;
+  const evidenceList: EvidenceLayer[] = Array.isArray(rawEvidence)
+    ? rawEvidence
+    : (rawEvidence && typeof rawEvidence === 'object')
+      ? Object.entries(rawEvidence).map(([key, val], idx) => ({
+          id: key,
+          type: 'mask' as const,
+          label: typeof val === 'string' ? val : key,
+          colour: ['#38bdf8', '#f59e0b', '#10b981', '#a855f7'][idx % 4],
+          sourceStep: key.split('.')[0] || 's1',
+        }))
+      : [];
+
   return (
     <Card className="bg-card/50 border-border">
       <CardContent className="p-3.5 space-y-3">
@@ -35,9 +48,9 @@ export default function AnswerCard({ result }: AnswerCardProps) {
         </div>
 
         {/* Evidence chips */}
-        {result.evidence.length > 0 && (
+        {evidenceList.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {result.evidence.map((ev) => (
+            {evidenceList.map((ev) => (
               <button
                 key={ev.id}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all hover:brightness-125"
@@ -63,9 +76,9 @@ export default function AnswerCard({ result }: AnswerCardProps) {
         {/* Footer */}
         <div className="flex items-center justify-between pt-1 border-t border-border/50">
           <div className="flex flex-wrap gap-1">
-            {result.trace.steps
-              .filter((s) => s.status === 'OK')
-              .map((s) => (
+            {result.trace?.steps
+              ?.filter((s) => s?.status === 'OK')
+              ?.map((s) => (
                 <Badge
                   key={s.id}
                   variant="outline"

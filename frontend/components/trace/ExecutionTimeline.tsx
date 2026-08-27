@@ -32,18 +32,18 @@ export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
             <Sparkles className="w-3.5 h-3.5 text-brand-500" />
             <span className="text-muted-foreground">Task:</span>
             <Badge variant="outline" className="text-[10px] font-mono bg-brand-500/10 text-brand-500 border-brand-500/30">
-              {trace.task.selected}
+              {trace.task?.selected || 'N/A'}
             </Badge>
           </div>
           <div className="flex items-center gap-1.5">
             <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-muted-foreground">Planner:</span>
-            <span className="font-mono text-foreground">{trace.plan.backend}</span>
+            <span className="font-mono text-foreground">{trace.plan?.backend || 'rules'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-muted-foreground">Wall time:</span>
-            <span className="font-mono text-foreground">{trace.durationMs}ms</span>
+            <span className="font-mono text-foreground">{trace.durationMs || 0}ms</span>
           </div>
         </div>
 
@@ -61,10 +61,10 @@ export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
 
       {/* Horizontal Step Cards Sequence */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
-        {trace.steps.map((step, idx) => (
+        {trace?.steps?.map((step, idx) => (
           <div key={step.id} className="flex items-center gap-2">
             <ToolStepCard step={step} index={idx} />
-            {idx < trace.steps.length - 1 && (
+            {idx < (trace.steps?.length || 0) - 1 && (
               <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
             )}
           </div>

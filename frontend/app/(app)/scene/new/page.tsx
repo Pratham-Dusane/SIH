@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { InputConfig, Scene } from '@/lib/types';
-import { mockScenes } from '@/lib/mocks';
+import { CompatibilityError, confirmScene, uploadSceneImage } from '@/lib/api';
 import Link from 'next/link';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 const steps = [
   { label: 'Upload', icon: Upload },
@@ -25,23 +26,76 @@ export default function NewScenePage() {
   const [benchmarkMode, setBenchmarkMode] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [validatedScene, setValidatedScene] = useState<Scene | null>(null);
+  const [sceneName, setSceneName] = useState('');
+  const [benchmarkDataset, setBenchmarkDataset] = useState('');
+
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [compatFail, setCompatFail] =
+    useState<CompatibilityError['report'] | null>(null);
 
   const handleFilesUploaded = (files: Record<string, File>) => {
     setUploadedFiles(files);
+    setUploadError(null);
+    setCompatFail(null);
   };
 
-  const handleProceedToValidate = () => {
-    // Mock: use a matching scene from mocks
-    const mockScene = mockScenes.find((s) => s.inputConfig === inputConfig) || mockScenes[0];
-    setValidatedScene(mockScene);
-    setCurrentStep(1);
+  /**
+   * Upload every file, then ingest. The scene that comes back is the real one
+   * from the backend — its name, CRS, GSD and compatibility verdict are read
+   * from the raster, never from a fixture.
+   */
+  const handleProceedToValidate = async () => {
+    const entries = Object.entries(uploadedFiles).filter(([, f]) => Boolean(f));
+    if (entries.length === 0) return;
+
+    setUploading(true);
+    setUploadError(null);
+    setCompatFail(null);
+
+    try {
+      // All images of a scene must share one scene id so they land under the
+      // same storage prefix; the first upload mints it.
+      let sceneId: string | undefined;
+      const uploaded = [];
+      for (const [role, file] of entries) {
+        setProgress(`Uploading ${file.name}…`);
+        const result = await uploadSceneImage(file, role, sceneId);
+        sceneId = result.sceneId;
+        uploaded.push(result);
+      }
+
+      setProgress('Reading metadata and validating…');
+      const scene = await confirmScene(
+        uploaded,
+        inputConfig,
+        benchmarkMode,
+        sceneName.trim() || undefined,
+        benchmarkMode ? benchmarkDataset.trim() || undefined : undefined,
+      );
+
+      setValidatedScene(scene);
+      setCurrentStep(1);
+    } catch (err) {
+      if (err instanceof CompatibilityError) {
+        // R8 refusal — show the checklist rather than a generic error.
+        setCompatFail(err.report);
+      } else {
+        setUploadError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setUploading(false);
+      setProgress(null);
+    }
   };
 
   const handleProceedToConfirm = () => {
     setCurrentStep(2);
   };
 
-  const hasFiles = Object.keys(uploadedFiles).length > 0;
+  const hasFiles = Object.values(uploadedFiles).some(Boolean);
+  const firstFileName = Object.values(uploadedFiles).find(Boolean)?.name;
 
   return (
     <div className="flex flex-col h-full">
@@ -101,14 +155,87 @@ export default function NewScenePage() {
                 onFilesChange={handleFilesUploaded}
               />
 
-              <div className="flex justify-end mt-6">
+              {/* Scene name — defaults to the first uploaded filename so the
+                  scene is identifiable, instead of a generic timestamp. */}
+              <div className="mt-6 max-w-xl">
+                <label htmlFor="scene-name"
+                  className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Scene name <span className="font-normal">(optional)</span>
+                </label>
+                <input
+                  id="scene-name"
+                  type="text"
+                  value={sceneName}
+                  onChange={(e) => setSceneName(e.target.value)}
+                  placeholder={firstFileName
+                    ? firstFileName.replace(/\.[^.]+$/, '')
+                    : 'Named after the uploaded file if left blank'}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm
+                             placeholder:text-muted-foreground/60 focus:outline-none
+                             focus:ring-1 focus:ring-brand-500"
+                />
+                {benchmarkMode && (
+                  <div className="mt-3">
+                    <label htmlFor="bench-ds"
+                      className="block text-xs font-medium text-muted-foreground mb-1.5">
+                      Benchmark dataset <span className="font-normal">(e.g. VRSBench, RSVQA, CDVQA)</span>
+                    </label>
+                    <input
+                      id="bench-ds"
+                      type="text"
+                      value={benchmarkDataset}
+                      onChange={(e) => setBenchmarkDataset(e.target.value)}
+                      placeholder="VRSBench"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm
+                                 placeholder:text-muted-foreground/60 focus:outline-none
+                                 focus:ring-1 focus:ring-brand-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {uploadError && (
+                <div className="mt-4 max-w-xl rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                  <p className="text-xs font-semibold text-destructive">Upload failed</p>
+                  <p className="mt-1 text-[11px] font-mono text-muted-foreground break-all">
+                    {uploadError}
+                  </p>
+                </div>
+              )}
+
+              {compatFail && (
+                <div className="mt-4 max-w-xl rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                    <AlertTriangle className="w-4 h-4" />
+                    Compatibility check failed — scene rejected (R8)
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    These inputs cannot be analysed together. The system refuses rather
+                    than producing a meaningless result.
+                  </p>
+                  <ul className="mt-3 space-y-1.5">
+                    {compatFail.checks.filter((c) => c.status === 'FAIL').map((c) => (
+                      <li key={c.name} className="text-xs">
+                        <span className="font-mono text-destructive">{c.status}</span>
+                        <span className="text-muted-foreground"> · {c.name} — {c.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 mt-6">
+                {progress && (
+                  <span className="text-xs text-muted-foreground">{progress}</span>
+                )}
                 <Button
                   onClick={handleProceedToValidate}
-                  disabled={!hasFiles}
+                  disabled={!hasFiles || uploading}
                   className="bg-brand-500 hover:bg-brand-600 text-white gap-2"
                 >
-                  Validate
-                  <ArrowRight className="w-4 h-4" />
+                  {uploading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</>
+                    : <>Validate<ArrowRight className="w-4 h-4" /></>}
                 </Button>
               </div>
             </motion.div>

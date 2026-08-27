@@ -61,12 +61,14 @@ Every row here is graded. A copilot must not mark a phase complete until its row
 
 | # | Mandatory requirement | Implemented by | Section |
 |---|----------------------|----------------|---------|
-| R1 | At least one visual/VL component fine-tuned on BigEarthNet.txt or open-source RS data | `RS-CLIP` (M1) contrastive adaptation + `RS-VLM` (M2) LoRA | 7.2, 7.3 |
-| R2 | Single-image VQA (mandatory) | `rs_vqa` tool -> M2 | 8.3.1 |
-| R3 | One additional single-image task (captioning OR grounding) | **Both** built: `rs_caption` (M2) and `rs_ground` (M3) | 8.3.2, 8.3.3 |
-| R4 | Change description OR change-VQA from bi-temporal pair (mandatory) | **Both** built: `change_describe`, `change_vqa` -> M2 | 8.3.5, 8.3.6 |
-| R5 | Spatial change map where reference masks available (optional) | `change_detect` -> M4, exported as GeoTIFF | 8.3.4 |
-| R6 | Cross-modal optical-SAR complementary extraction | `sar_optical_fuse` -> M5 + deterministic index/backscatter tools | 8.3.7 |
+| # | Mandatory requirement | Implemented by | Section |
+|---|----------------------|----------------|---------|
+| R1 | At least one visual/VL component fine-tuned on BigEarthNet.txt or open-source RS data | **Not attempted — disclosed.** Phase 4 was replaced with hosted general-purpose VLMs (GPT-4V / Gemini Pro Vision / Claude vision) + Google Earth Engine, with no fine-tuning. See 7.0 for the explicit trade-off rationale. | 7 |
+| R2 | Single-image VQA (mandatory) | `rs_vqa` tool -> hosted VLM API | 8.3.1 |
+| R3 | One additional single-image task (captioning OR grounding) | **Both** built: `rs_caption` -> hosted VLM API, `rs_ground` -> hosted VLM API (box parsed from text, no dedicated detector) | 8.3.2, 8.3.3 |
+| R4 | Change description OR change-VQA from bi-temporal pair (mandatory) | **Both** built: `change_describe`, `change_vqa` -> hosted VLM API | 8.3.5, 8.3.6 |
+| R5 | Spatial change map where reference masks available (optional) | `change_detect` -> Google Earth Engine (NDVI/NDBI differencing + prebuilt change algorithms), exported as GeoTIFF | 8.3.4 |
+| R6 | Cross-modal optical-SAR complementary extraction | `sar_optical_fuse` -> deterministic index/backscatter agreement only (no learned fusion head); Sentinel-1 GRD via GEE where in-catalog | 8.3.7 |
 | R7 | Agentic selection, sequencing, execution of tools | `agent/` controller: classifier -> gate -> planner -> executor -> fusion | 9 |
 | R8 | Input count/modality/format/metadata/compatibility validation | `services/ingest/compatibility_checker.py` + `InputGate` | 6.4, 9.3 |
 | R9 | Only permitted task parameters configurable | Pydantic `extra="forbid"` param schemas + registry whitelist | 8.4 |
@@ -75,13 +77,15 @@ Every row here is graded. A copilot must not mark a phase complete until its row
 | R12 | GeoTIFF/TIFF support; PNG/JPEG only for prescribed benchmarks | `raster_reader.py` format gate with `benchmark_mode` flag | 6.2, 6.7 |
 | R13 | Interactive GUI/web app, downloadable reports | Next.js workspace + PDF/JSON/GeoTIFF/GeoJSON export | 4, 10.4 |
 
+**R1 is knowingly unmet in this version.** This was a deliberate scope trade-off (speed + real GEE-backed product value over a training pipeline), not an oversight — see 7.0. Do not word-game this in the submission; state it as not attempted.
+
 ### 1.6 Non-Negotiable Design Rules
 
 These constrain every implementation decision downstream. Do not violate them for convenience.
 
 1. **No ungrounded claims.** The answer synthesizer may only restate facts that appear in tool outputs. Any number in the final answer must be traceable to a tool result (enforced programmatically in `agent/fusion.py`, see 9.6).
-2. **The planner LLM is not the perception system.** A general-purpose LLM may plan and phrase; it must never be the thing that "looks" at the imagery. All perception comes from RS-adapted models (M1-M5). This is exactly what the problem statement disqualifies, so the boundary is enforced in code: the planner receives *metadata only*, never pixels.
-3. **Offline-capable evaluation.** The ISRO/SAC evaluation set may be run in an environment without external API access. Every path required for evaluation must work with `PLANNER_BACKEND=local` (rule-based + local classifier). Cloud LLM planning is an enhancement, never a dependency.
+2. **The planner LLM is not the perception system — MODIFIED, PARTIALLY VIOLATED.** This rule is upheld for the planner itself (it still receives metadata only) and for the deterministic + GEE tools (which take AOI bounds/dates, never raw pixels — GEE queries its own catalog, not the uploaded raster). It is **knowingly broken** for the VLM-backed tools (`rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa`), which now send preview pixels to a hosted general-purpose VLM. This is the direct cause of the R1 failure above; do not paper over it.
+3. **Offline-capable evaluation.** The ISRO/SAC evaluation set may be run in an environment without external API access. Every path required for evaluation must work with `PLANNER_BACKEND=local` (rule-based + local classifier). Cloud LLM planning is an enhancement, never a dependency. **GEE and the hosted VLM API are both online, quota-limited services and cannot run in the `--network none` offline eval container (17.14).** Every tool that depends on either must declare `offline_capable=False` in its `ToolSpec` (8.1) and degrade to a stated `NOT_EVALUATED_OFFLINE` result rather than fail the run — see 11.5 for the required dual-path handling this now demands.
 4. **Geospatial truth is preserved end-to-end.** CRS, transform, and nodata travel with every intermediate array. Masks are exported in the source CRS. Areas are computed from the actual pixel size, never assumed to be 10 m.
 5. **Local-first development.** Phases 1-9 must run on a laptop with `STORAGE_BACKEND=local` and `DB_BACKEND=sqlite`. GCP is a deployment target added at the end (Section 17), not a build prerequisite.
 
@@ -102,19 +106,20 @@ These constrain every implementation decision downstream. Do not violate them fo
 +--+-----------+-------------+---------------+----------------+-------+
    |           |             |               |                |
    v           v             v               v                v
- Firestore   Cloud        AGENTIC         MODEL SERVER      Cloud Tasks
- (sessions,  Storage      CONTROLLER      (FastAPI + GPU)   (async jobs:
-  traces)    (rasters,    classifier ->   M1 RS-CLIP         eval runs,
-             masks,       gate ->         M2 RS-VLM          batch,
-             previews)    planner ->      M3 RS-Ground       training)
-                          executor ->     M4 RS-Change
-                          fusion          M5 Fusion head
+ Firestore   Cloud        AGENTIC         VLM GATEWAY       Cloud Tasks
+ (sessions,  Storage      CONTROLLER      (FastAPI, CPU;    (async jobs:
+  traces)    (rasters,    classifier ->   thin wrapper       eval runs,
+             masks,       gate ->         over hosted        batch)
+             previews)    planner ->      GPT-4V / Gemini /
+                          executor ->     Claude vision)
+                          fusion
                              |
                              v
-                    DETERMINISTIC GEO TOOLS
-                    (rasterio/numpy/skimage:
-                     indices, backscatter,
-                     co-registration, areas)
+                DETERMINISTIC GEO TOOLS + GOOGLE EARTH ENGINE
+                (rasterio/numpy/skimage: indices, backscatter,
+                 co-registration, areas; GEE: Dynamic World /
+                 ESA WorldCover land cover, Sentinel-1 GRD,
+                 NDVI/NDBI time-series change)
 ```
 
 ### 2.1 Technology Stack
@@ -133,12 +138,9 @@ These constrain every implementation decision downstream. Do not violate them fo
 | Metadata DB | Firestore (SQLite locally) | Flexible docs, real-time trace streaming |
 | Object storage | Google Cloud Storage (local FS in dev) | Large GeoTIFFs |
 | Raster I/O | rasterio + GDAL, numpy, scikit-image | Industry standard geospatial stack |
-| VLM | Qwen2-VL-7B-Instruct + LoRA (2B fallback) | Native multi-image input, strong OSS licence, LoRA-friendly |
-| Encoders | open_clip ViT-B/16 adapted on BigEarthNet.txt | Dual optical/SAR encoder + fusion head |
-| Grounding | Grounding DINO (Swin-T) fine-tuned on VRSBench | Text-conditioned box output |
-| Change | Siamese U-Net (EfficientNet-b0, segmentation_models_pytorch) | Small, fast, trains on LEVIR-CD in hours |
-| Serving | vLLM (VLM) + TorchScript/eager (CNNs) behind FastAPI | One GPU service, several endpoints |
-| Training | Vertex AI Custom Jobs (or local GPU) | Cheap A100/L4 for LoRA runs |
+| VLM | Hosted API (GPT-4V / Gemini 1.5-2.0 Pro Vision / Claude vision) | No training loop; strong out-of-the-box fluency; swapped in behind the same `ToolResult` contract |
+| Geospatial analysis | Google Earth Engine (`earthengine-api`, `ee.Initialize()`) | Global Dynamic World / ESA WorldCover land cover, Sentinel-1 GRD backscatter, NDVI/NDBI differencing — real classification/change without training anything |
+| Change (reference) | GEE pre-built change algorithms + NDVI/NDBI differencing | Won't match a trained Siamese U-Net's IoU on a labeled benchmark, but is a defensible real-world result |
 | Async jobs | Cloud Tasks -> Cloud Run Jobs | Batch eval, long inference |
 | Eval logs | BigQuery | Benchmark run history, leaderboards |
 | Reports | WeasyPrint (HTML->PDF, pure Python) | No Node dependency in the backend image |
@@ -156,18 +158,16 @@ These constrain every implementation decision downstream. Do not violate them fo
 9. **Fusion** composes the final answer from tool outputs only; **confidence** aggregates per-tool confidences; low aggregate confidence triggers abstention wording.
 10. Answer + evidence layers + `ExecutionTrace` are persisted; UI renders overlays, confidence, and the trace timeline; report/export endpoints become available.
 
-### 2.3 Model Inventory
+### 2.3 Backend Inventory
 
-| ID | Component | Base | Adaptation data | Serves tools | Where |
-|----|-----------|------|-----------------|--------------|-------|
-| M1 | `RS-CLIP` dual encoder | open_clip ViT-B/16 (laion2b) | **BigEarthNet.txt** (S1 SAR + S2 MS + text) | `rs_classify`, retrieval, fusion features | model-server |
-| M2 | `RS-VLM` | Qwen2-VL-7B-Instruct + LoRA | RSVQA-LR/HR, VRSBench, CDVQA train splits | `rs_vqa`, `rs_caption`, `change_describe`, `change_vqa` | model-server (vLLM) |
-| M3 | `RS-Ground` | Grounding DINO Swin-T | VRSBench referring expressions | `rs_ground` | model-server |
-| M4 | `RS-Change` | Siamese U-Net (EffNet-b0) | LEVIR-CD (+ S2Looking, OSCD) | `change_detect` | model-server |
-| M5 | `RS-Fusion` head | MLP over M1 dual embeddings | BigEarthNet S1+S2 19-class multilabel | `sar_optical_fuse` | model-server |
-| - | Deterministic geo tools | rasterio/numpy/skimage | none (analytical) | `spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check` | backend (CPU) |
+| ID | Component | Backend | Serves tools | Where | Offline-capable? |
+|----|-----------|---------|--------------|-------|-------------------|
+| V1 | Hosted VLM (GPT-4V / Gemini Pro Vision / Claude vision) | Third-party API, RS-analyst system prompt (reused from old 7.3 `SYSTEM`) | `rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa` | vlm-gateway | **No** |
+| G1 | Google Earth Engine — Dynamic World / ESA WorldCover | `ee.Initialize()` + service account | `rs_classify`-equivalent land-cover stats | backend (CPU, online) | **No** |
+| G2 | Google Earth Engine — Sentinel-1 GRD, Sentinel-2 NDVI/NDBI + prebuilt change algorithms | `ee.Initialize()` + service account | `change_detect` | backend (CPU, online) | **No** |
+| - | Deterministic geo tools | rasterio/numpy/skimage | `spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check` | backend (CPU) | **Yes** |
 
-**R1 is satisfied by M1 and M2 independently.** If time runs short, M1 (BigEarthNet contrastive adaptation) is the cheapest path to a defensible "remote-sensing adapted" claim and must ship first.
+**R1 is not satisfied by any of the above** — none of these involve fine-tuning or RS-specific adaptation. This table replaces the old M1-M5 inventory; there are no `model_card.json` training lineages to show a judge for R1.
 
 ### 2.4 Local-First Development Contract
 
@@ -946,7 +946,6 @@ def prepare(meta: dict, arr: np.ndarray, modality: str) -> np.ndarray:
         out = np.stack(bands)
         out = _select_rgb(out, meta)   # B04,B03,B02 for S2; first 3 otherwise
     return out.astype("float32").transpose(1, 2, 0)
-```
 
 **Pair alignment (`align_pair`):** reproject image B into image A's CRS and grid with `rasterio.warp.reproject` (`Resampling.bilinear` for optical, `Resampling.nearest` for SAR to avoid smearing speckle statistics), crop both to the intersection of their bounds, then resample both to the finer GSD. Return both arrays plus the shared `transform` and `crs` - **every downstream mask inherits this transform.**
 
@@ -977,300 +976,161 @@ Benchmark samples (VRSBench, RSVQA, CDVQA) arrive as PNG/JPEG with no CRS. `benc
 
 ---
 
-## 7. Phase 4 - Remote-Sensing Adaptation (Mandatory)
+## 7. Phase 4 - Generic VLM API + Google Earth Engine (No Fine-Tuning)
 
-**This phase satisfies R1 and is the single hardest requirement to fake.** A generic VLM behind a nice UI fails the problem statement outright. Ship M1 first (cheapest, defensible), then M2 (highest impact on benchmark scores), then M4, M3, M5.
+### 7.0 Why this path, and what it honestly costs
 
-### 7.1 Dataset Preparation
+This replaces the original M1-M5 fine-tuning phase with hosted general models plus a real geospatial product (Google Earth Engine). Recorded here so nobody re-derives it under deadline pressure and forgets the trade-off:
 
-`training/data/` builds a uniform manifest per dataset so training scripts never touch raw archives.
+**What this buys:**
+- An end-to-end agent in days, not weeks — no training loop, no dataset curation, no GPU rental.
+- Strong out-of-the-box fluency for captioning/VQA-style output from GPT-4V/Gemini/Claude — likely beats a homemade QLoRA model on fluency and some presence/counting questions.
+- GEE gives real, non-fabricated geospatial analysis (land cover, SAR, change) — a legitimate product decision independent of grading.
 
-| Dataset | Role | Manifest fields |
-|---------|------|-----------------|
-| **BigEarthNet.txt** (S1 SAR + S2 MS + text annotations) | M1 contrastive adaptation, M5 fusion head | `s2_path, s1_path, labels[19], text` |
-| **RSVQA-LR / RSVQA-HR** | M2 VQA SFT + eval | `image_path, question, answer, qtype` |
-| **VRSBench** | M2 caption+VQA SFT, M3 grounding SFT + eval | `image_path, caption, qa[], referring[{phrase, bbox}]` |
-| **CDVQA** | M2 change-VQA SFT + eval | `t1_path, t2_path, question, answer, qtype` |
-| **LEVIR-CD / S2Looking / OSCD** | M4 change segmentation | `t1_path, t2_path, mask_path` |
+**What this fails:**
+- **R1 outright.** Design Rule 2 says perception must come from RS-adapted models, and Design Rule 2 (1.6) is explicitly the boundary the problem statement draws in its opening line. A generic VLM looking at raw preview pixels is exactly the disqualified architecture. There is no honest framing that satisfies R1 — report it as **not attempted**.
+- **Design Rule 3, for the VLM and GEE tools only.** Both are online, quota-limited services (GEE additionally needs `ee.Initialize()` via a service account). Neither can run inside the `--network none` offline ISRO/SAC eval container (17.14, 11.5). The deterministic tools built in Phase 3 remain the only offline-capable perception path.
+- **Data control.** Preview PNGs are sent to a third-party API. Confirm this is acceptable under ISRO/SAC data-handling rules before relying on it for the live demo — this could be a hard blocker, not a preference.
 
-```python
-# training/data/bigearthnet.py
-class BigEarthNetTextDataset(Dataset):
-    """Co-registered Sentinel-1 (VV,VH) + Sentinel-2 (12 band) patches with text annotations."""
+**What still holds:** Design Rule 2 is only broken by the five VLM-backed tools. The GEE-backed tools (`rs_classify`-equivalent, `change_detect`) take AOI bounds and dates, never the uploaded pixel array, so they're closer in spirit to the deterministic tools than to a perception model — they just aren't offline-capable.
 
-    S2_BANDS = ["B02","B03","B04","B05","B06","B07","B08","B8A","B11","B12","B01","B09"]
+### 7.1 VLM Tool Wrappers
 
-    def __init__(self, manifest: str, split: str, tokenizer, augment: bool = True):
-        self.rows = [r for r in json.load(open(manifest)) if r["split"] == split]
-        self.tok, self.augment = tokenizer, augment
-
-    def __getitem__(self, i):
-        r = self.rows[i]
-        s2 = self._read_stack(r["s2_path"], self.S2_BANDS)      # (12,120,120) float32
-        s1 = self._read_stack(r["s1_path"], ["VV", "VH"])        # (2,120,120)  float32
-
-        # Sentinel-2 L2A reflectance is scaled by 10000; clip at 0.3 which covers
-        # everything except cloud/snow, then normalise. Do NOT per-image min-max:
-        # it destroys the absolute reflectance relationships the text describes.
-        s2 = np.clip(s2 / 10000.0, 0, 0.3) / 0.3
-
-        # Sentinel-1 GRD is linear power -> dB -> fixed range normalisation
-        s1 = np.clip(10 * np.log10(np.clip(s1, 1e-6, None)), -25, 0)
-        s1 = (s1 + 25.0) / 25.0
-
-        if self.augment:
-            s2, s1 = self._joint_flip_rotate(s2, s1)   # identical geometry, always joint
-
-        return {
-            "optical": torch.from_numpy(s2).float(),
-            "sar": torch.from_numpy(s1).float(),
-            "text": self.tok(r["text"])[0],
-            "labels": torch.tensor(r["labels"]).float(),   # 19-class multilabel
-        }
-```
-
-**Non-obvious rule:** optical and SAR augmentations must be applied jointly with identical parameters. Independent flips destroy the co-registration that is the entire point of the dataset, and the model silently learns a weaker alignment while your loss curve still looks fine.
-
-### 7.2 M1 - RS-CLIP Dual-Encoder Adaptation (`training/train_rsclip.py`)
-
-**Design:** two vision towers (optical 12-band, SAR 2-band) both initialised from CLIP ViT-B/16, one shared frozen-then-unfrozen text tower. Three contrastive terms: text↔optical, text↔SAR, optical↔SAR. The third term is what makes M5's fusion head work later.
+`rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa` become thin wrappers around a hosted vision API. The `ToolResult` shape (8.1) is unchanged, so nothing downstream in the agent (executor, fusion, trace, confidence) needs to know the backend changed.
 
 ```python
-import open_clip, torch, torch.nn.functional as F
+# services/inference/vlm_gateway.py
+SYSTEM = """You are a remote-sensing imagery analyst. You are shown satellite or aerial
+imagery (optical, multispectral, or SAR) and must answer strictly from what is visible.
+State uncertainty explicitly. Never invent counts, areas, or coordinates you cannot
+verify from the image. When asked to locate something, respond with a normalised
+bounding box in the form (x1,y1),(x2,y2) with values in [0,1]."""
+# (reused near-verbatim from the original 7.3 training-template SYSTEM string,
+#  since the RS-analyst framing is still the right prompt even unfine-tuned)
 
-def inflate_patch_embed(conv: nn.Conv2d, in_chans: int) -> nn.Conv2d:
-    """Adapt a 3-channel CLIP patch embedding to N channels.
-    Scale by 3/N so activation magnitude is preserved, otherwise the first
-    few hundred steps are dominated by exploding attention logits."""
-    new = nn.Conv2d(in_chans, conv.out_channels, conv.kernel_size,
-                    conv.stride, conv.padding, bias=conv.bias is not None)
-    w = conv.weight.data                             # (out,3,k,k)
-    rep = w.mean(dim=1, keepdim=True).repeat(1, in_chans, 1, 1) * (3.0 / in_chans)
-    new.weight.data.copy_(rep)
-    if conv.bias is not None:
-        new.bias.data.copy_(conv.bias.data)
-    return new
-
-class RSCLIP(nn.Module):
-    def __init__(self, base="ViT-B-16", pretrained="laion2b_s34b_b88k"):
-        super().__init__()
-        model, _, _ = open_clip.create_model_and_transforms(base, pretrained=pretrained)
-        self.text = model                                    # shared text tower
-        self.optical = copy.deepcopy(model.visual)
-        self.sar = copy.deepcopy(model.visual)
-        self.optical.conv1 = inflate_patch_embed(self.optical.conv1, 12)
-        self.sar.conv1     = inflate_patch_embed(self.sar.conv1, 2)
-        self.logit_scale = nn.Parameter(torch.tensor(np.log(1 / 0.07)))
-
-    def forward(self, optical, sar, text):
-        zo = F.normalize(self.optical(optical), dim=-1)
-        zs = F.normalize(self.sar(sar), dim=-1)
-        zt = F.normalize(self.text.encode_text(text), dim=-1)
-        return zo, zs, zt
-
-def contrastive(a, b, scale):
-    logits = scale * a @ b.t()
-    tgt = torch.arange(len(a), device=a.device)
-    return 0.5 * (F.cross_entropy(logits, tgt) + F.cross_entropy(logits.t(), tgt))
-
-def loss_fn(zo, zs, zt, logit_scale, w=(1.0, 1.0, 0.5)):
-    s = logit_scale.exp().clamp(max=100)
-    return (w[0] * contrastive(zo, zt, s)      # optical <-> text
-          + w[1] * contrastive(zs, zt, s)      # SAR     <-> text
-          + w[2] * contrastive(zo, zs, s))     # optical <-> SAR  (cross-modal alignment)
+async def vlm_call(images: list[bytes], instruction: str, backend: str = "gemini") -> dict:
+    client = {"gemini": gemini_client, "gpt4v": openai_client,
+              "claude": anthropic_client}[backend]
+    resp = await client.vision_complete(
+        system=SYSTEM, images=images, instruction=instruction, temperature=0.0)
+    return {"text": resp.text, "raw": resp}
 ```
-
-**Training config (`training/configs/rsclip.yaml`):**
-```yaml
-epochs: 20
-batch_size: 256          # per-GPU; contrastive learning needs large batches
-lr: 1.0e-5               # vision towers
-text_lr: 5.0e-6          # lower: the text tower is already good, only needs domain drift
-warmup_steps: 500
-weight_decay: 0.2
-freeze_text_epochs: 2    # let the vision towers catch up before the text tower moves
-precision: bf16
-grad_checkpointing: true
-image_size: 120          # BigEarthNet patch size; interpolate pos-embed from 224
-```
-
-**Position-embedding interpolation:** BigEarthNet patches are 120×120, not 224×224. Interpolate CLIP's positional embedding grid rather than resizing images up - resizing 10 m imagery to 224 invents detail that is not in the data and measurably hurts SAR.
-
-**Validation (run every epoch, log to the model card):**
-- Zero-shot 19-class multilabel on BigEarthNet val, optical-only, SAR-only, and mean-embedding fused - **the fused number must beat both single-modality numbers**; this is the empirical evidence for R6
-- Cross-modal retrieval: SAR->optical R@1 / R@5 on val
-- Text->image retrieval R@1 on held-out captions
-
-**Definition of done for M1:** fused mAP > optical-only mAP by a reported margin, and a `model_card.json` recording the deltas.
-
-### 7.3 M2 - RS-VLM LoRA Fine-Tuning (`training/train_vlm_lora.py`)
-
-**Base:** `Qwen/Qwen2-VL-7B-Instruct` (fall back to `Qwen2-VL-2B-Instruct` if GPU memory is under 24 GB). Chosen because it natively accepts **multiple images in one conversation**, which is exactly what bi-temporal and cross-modal reasoning needs - no architecture surgery required.
-
-**One model, four tasks, distinguished by instruction template.** Do not train four separate adapters; a single LoRA trained on the mixture transfers between tasks and is far simpler to serve.
 
 ```python
-from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
-from peft import LoraConfig, get_peft_model
+class RSVQATool(Tool):
+    name = "rs_vqa"
+    accepts = ["SINGLE", "CROSS_MODAL", "BI_TEMPORAL"]
+    produces = ["text"]
+    model_id = "V1"          # hosted VLM, not a trained model — see 2.3
 
-MODEL_ID = "Qwen/Qwen2-VL-7B-Instruct"
-processor = AutoProcessor.from_pretrained(MODEL_ID, min_pixels=256*28*28, max_pixels=1280*28*28)
-model = Qwen2VLForConditionalGeneration.from_pretrained(
-    MODEL_ID, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2")
-
-lora = LoraConfig(
-    r=32, lora_alpha=64, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM",
-    target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"],
-    # The vision tower is NOT frozen entirely: adapting the merger projection is
-    # what teaches the model that a dark blob in SAR is water, not shadow.
-    modules_to_save=["visual.merger"],
-)
-model = get_peft_model(model, lora)
-
-SYSTEM = ("You are a remote-sensing image analyst. You are looking at satellite imagery. "
-          "Answer only from what is visible in the imagery. If the imagery does not "
-          "support an answer, say so explicitly. Be concise and factual.")
-
-TEMPLATES = {
-  "vqa": "Answer the question about this satellite image.\nQuestion: {q}\nAnswer:",
-  "caption": "Describe the land cover, land use and major objects visible in this satellite image.",
-  "ground": "Locate the region described: '{phrase}'. Reply with the bounding box only.",
-  "change_describe": ("Image 1 was acquired first and image 2 later over the same area. "
-                      "Describe what changed between them and where the change occurred."),
-  "change_vqa": ("Image 1 was acquired first and image 2 later over the same area.\n"
-                 "Question: {q}\nAnswer:"),
-  "cross_modal": ("Image 1 is optical/multispectral. Image 2 is SAR of the same area.\n"
-                  "Use both together.\nQuestion: {q}\nAnswer:"),
-}
-
-def build_example(row):
-    """Bi-temporal / cross-modal rows put TWO images into one user turn."""
-    imgs = [row["image"]] if row["n_images"] == 1 else [row["image_1"], row["image_2"]]
-    content = [{"type": "image", "image": p} for p in imgs]
-    content.append({"type": "text", "text": TEMPLATES[row["task"]].format(**row.get("fmt", {}))})
-    return [
-        {"role": "system", "content": [{"type": "text", "text": SYSTEM}]},
-        {"role": "user", "content": content},
-        {"role": "assistant", "content": [{"type": "text", "text": row["answer"]}]},
-    ]
+    async def run(self, ctx, p: RSVQAParams) -> ToolResult:
+        imgs = ctx.model_ready_images()
+        out = await vlm_call(imgs, p.question, backend=ctx.vlm_backend)
+        # No self-consistency sampling by default (cost); confidence is a
+        # heuristic on response hedging language, NOT a calibrated score —
+        # label it honestly in confidence_basis, never present it as equivalent
+        # to the old self-consistency signal.
+        conf = heuristic_confidence(out["text"])
+        return ToolResult(tool=self.name, model_id="V1", model_version=ctx.vlm_backend,
+                          text=out["text"], facts={"answer": out["text"], "question": p.question},
+                          confidence=conf,
+                          confidence_basis="heuristic hedging-language score on a hosted, "
+                                          "unadapted VLM response — not self-consistency")
 ```
 
-**Training mixture (sampling weights, not raw sizes - RSVQA-LR is far larger than VRSBench and will swamp it):**
+`rs_caption`, `change_describe`, `change_vqa` follow the same pattern with the task-specific instruction templates carried over unchanged from the old 7.3 `TEMPLATES` dict. `change_describe` still injects `change_detect` facts when available (unchanged behaviour from old 8.3.5) — that quantitative anchoring is even more important now since the narrative half is unadapted.
 
-| Source | Task | Weight |
-|--------|------|--------|
-| RSVQA-LR + RSVQA-HR train | `vqa` | 0.30 |
-| VRSBench train (QA) | `vqa` | 0.15 |
-| VRSBench train (captions) | `caption` | 0.15 |
-| VRSBench train (referring) | `ground` | 0.10 |
-| CDVQA train | `change_vqa` | 0.20 |
-| Synthesised change descriptions from LEVIR-CD masks | `change_describe` | 0.05 |
-| Synthesised optical+SAR QA from BigEarthNet labels | `cross_modal` | 0.05 |
+`rs_ground`: no dedicated grounding model exists anymore. The VLM is asked directly for a normalised bounding box in the fixed `(x1,y1),(x2,y2)` format and parsed. If parsing fails or the box is out of range, return `confidence=0.0` and `text="No region matching '<phrase>' could be located"` rather than guessing — same honest-negative contract as the old M3 fallback path (old 8.3.3).
 
-**Synthesising the last two rows** (there is no large public change-description or optical-SAR-QA set, so generate supervision from labels you already have):
-- From a LEVIR-CD binary mask compute changed-area fraction, connected-component count, and centroid quadrants, then render a sentence from a template bank of ~30 phrasings: *"Approximately 4.2% of the scene changed, concentrated in the north-east, where 7 new building clusters appeared."* Templated text is fine here - the model is learning the *mapping*, and template diversity plus real imagery generalises better than a small hand-written set.
-- From BigEarthNet 19-class labels plus a SAR backscatter threshold, generate question/answer pairs of the form *"Which regions are water according to both sensors?"* with answers derived from the label set and the mask agreement.
-
-**Hyperparameters:** `lr=1e-4` (LoRA), cosine schedule, `warmup_ratio=0.03`, `epochs=2`, `per_device_batch=1`, `grad_accum=16`, bf16, gradient checkpointing, `max_pixels` capped at `1280*28*28` to keep multi-image sequences inside context.
-
-**Loss masking:** compute loss only on assistant tokens. Getting this wrong (training on the prompt) is the single most common cause of a fine-tune that "works" but degrades on benchmarks.
-
-**Definition of done for M2:** RSVQA-LR val accuracy beats the un-tuned base model by a reported margin, and CDVQA val accuracy beats the base model. Record both in the model card - the delta *is* the R1 evidence.
-
-### 7.4 M3 - RS-Ground (`training/train_grounding.py`)
-
-**Base:** Grounding DINO Swin-T (`groundingdino_swint_ogc`). Fine-tune on VRSBench referring expressions.
-
-- Freeze the text backbone, train the image backbone's last two stages + all decoder layers
-- `lr=1e-4` decoder, `lr=1e-5` backbone, 12 epochs, batch 4, AdamW
-- Aerial-specific augmentation: random 90° rotations and flips (overhead imagery has **no canonical up**, unlike the natural images the base model was trained on - this augmentation alone is usually worth several points of [email protected])
-- Loss: standard L1 + GIoU + focal contrastive, as per the base recipe
-
-**Fallback:** if M3 is not ready, `rs_ground` falls back to M2's box output parsed from `<|box_start|>(x1,y1),(x2,y2)<|box_end|>` and normalised by image size. The tool contract is identical, so the agent does not change. Register the fallback in the trace as `rs_ground(backend=vlm)` so the evaluator sees which produced the box.
-
-### 7.5 M4 - RS-Change (`training/train_change.py`)
-
-**Architecture:** siamese encoder with absolute-difference fusion, U-Net decoder.
+### 7.2 Google Earth Engine Setup
 
 ```python
-import segmentation_models_pytorch as smp
+# core/gee.py
+import ee
 
-class SiameseChangeNet(nn.Module):
-    def __init__(self, encoder="efficientnet-b0"):
-        super().__init__()
-        self.enc = smp.encoders.get_encoder(encoder, in_channels=3, weights="imagenet")
-        ch = self.enc.out_channels
-        self.dec = smp.decoders.unet.decoder.UnetDecoder(
-            encoder_channels=ch, decoder_channels=(256,128,64,32,16), n_blocks=5)
-        self.head = nn.Conv2d(16, 1, kernel_size=3, padding=1)
-
-    def forward(self, t1, t2):
-        f1, f2 = self.enc(t1), self.enc(t2)
-        # Absolute difference of shared-weight features. Concatenation also works
-        # but doubles decoder width and learns an arbitrary temporal order;
-        # abs-diff is symmetric, which is what "change" actually means.
-        fused = [torch.abs(a - b) for a, b in zip(f1, f2)]
-        return self.head(self.dec(*fused))       # logits (B,1,H,W)
+def init_gee():
+    creds = ee.ServiceAccountCredentials(
+        os.environ["GEE_SERVICE_ACCOUNT"], os.environ["GEE_KEY_PATH"])
+    ee.Initialize(creds)
 ```
 
-**Training:** LEVIR-CD (1024×1024 crops to 256×256), `BCEWithLogitsLoss(pos_weight=…) + DiceLoss`. Change pixels are typically 2-5% of the scene, so an unweighted BCE converges to predicting "no change" everywhere at 96% accuracy. Set `pos_weight = (1-p)/p` from the training-set positive rate and report **IoU and F1, never accuracy**.
+Requires a GCP service account with Earth Engine API access, enrolled in a registered EE project. This is a startup-time dependency for any GEE-backed tool; if `init_gee()` fails, those tools mark themselves unavailable and the input gate (9.3) reports it as a missing capability, not a crash.
 
-Augment with joint flips/rotations plus **temporal swap** (`t1<->t2` with the same mask) to enforce symmetry.
-
-**Domain gap warning:** LEVIR-CD is 0.5 m aerial RGB. If the evaluation set is 1-2 m Cartosat-2S, fine-tune the last stage on any available in-domain pairs and always run `change_detect` on the *aligned, resampled* pair from 6.5 rather than raw rasters.
-
-### 7.6 M5 - Optical-SAR Fusion Head (`training/train_fusion_head.py`)
-
-Frozen M1 towers, trainable fusion MLP. Cheap (minutes on one GPU) and produces the calibrated per-class evidence the cross-modal tool needs.
+### 7.3 Land Cover via GEE (replaces `rs_classify`)
 
 ```python
-class FusionHead(nn.Module):
-    def __init__(self, d=512, n_classes=19):
-        super().__init__()
-        self.gate = nn.Sequential(nn.Linear(2*d, 2), nn.Softmax(dim=-1))
-        self.mlp  = nn.Sequential(nn.Linear(2*d, 512), nn.GELU(),
-                                  nn.Dropout(0.1), nn.Linear(512, n_classes))
+class LandCoverTool(Tool):
+    name = "rs_classify"
+    accepts = ["SINGLE", "CROSS_MODAL"]
+    produces = ["stats"]
+    model_id = "G1"
 
-    def forward(self, zo, zs):
-        g = self.gate(torch.cat([zo, zs], -1))            # per-sample modality weights
-        z = torch.cat([g[:, :1] * zo, g[:, 1:] * zs], -1)
-        return self.mlp(z), g
+    async def run(self, ctx, p) -> ToolResult:
+        aoi = ee.Geometry.Rectangle(ctx.scene.bounds_wgs84())   # metadata only, not pixels
+        dw = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+              .filterBounds(aoi).filterDate(ctx.scene.acquired_start, ctx.scene.acquired_end)
+              .select("label").mode())
+        stats = dw.reduceRegion(ee.Reducer.frequencyHistogram(), aoi, scale=10, maxPixels=1e9)
+        hist = stats.getInfo()["label"]
+        return ToolResult(tool=self.name, model_id="G1",
+                          facts={"class_fractions": normalise_histogram(hist)},
+                          text=render_landcover_summary(hist),
+                          confidence=0.7,
+                          confidence_basis="Dynamic World global product, not scene-specific — "
+                                          "treat as a reference classification, not a measurement "
+                                          "of the exact uploaded raster")
 ```
 
-The learned gate `g` is not decoration - it is exported as **modality contribution** in the tool output (`{"optical": 0.62, "sar": 0.38}`) and displayed in the UI. It is the most direct visual proof that both sensors contributed to an answer.
+Falls back to ESA WorldCover if Dynamic World has no coverage for the date range. This queries GEE's catalog for the scene's AOI, not the uploaded pixels — it does not violate Design Rule 2, only Design Rule 3 (online-only).
 
-**Report a complementarity table** in the model card and reuse it in the demo:
+### 7.4 Change Detection via GEE (replaces M4 `change_detect`)
 
-| Class | Optical-only AP | SAR-only AP | Fused AP | Delta |
-|-------|-----------------|-------------|----------|-------|
-| Inland water | ... | ... | ... | ... |
-| Urban fabric | ... | ... | ... | ... |
-| Forest | ... | ... | ... | ... |
+NDVI/NDBI time-series differencing over the AOI/date range, plus GEE's built-in change detectors where applicable:
 
-### 7.7 Model Registry & Cards
+```python
+class ChangeDetectTool(Tool):
+    name = "change_detect"
+    accepts = ["BI_TEMPORAL"]
+    produces = ["mask", "map", "stats"]
+    model_id = "G2"
 
-Every trained artifact writes `model_card.json` next to its weights:
+    async def run(self, ctx, p: ChangeDetectParams) -> ToolResult:
+        aoi = ee.Geometry.Rectangle(ctx.scene.bounds_wgs84())
+        t1 = s2_composite(aoi, ctx.scene.t1_date)
+        t2 = s2_composite(aoi, ctx.scene.t2_date)
+        ndvi_diff = t2.normalizedDifference(["B8","B4"]).subtract(
+                    t1.normalizedDifference(["B8","B4"])).abs()
+        mask = ndvi_diff.gt(p.threshold)
+        # export mask.tif via ee.batch export, poll, download to local artifact store
+        ...
+        return ToolResult(tool=self.name, model_id="G2", facts={...},
+                          confidence=..., confidence_basis="NDVI/NDBI differencing threshold, "
+                          "not a trained detector — expect lower IoU than a labeled-benchmark model")
+```
+
+**Honest expectation, stated in the tool description the planner reads:** this will not match a trained Siamese U-Net's IoU on a labeled benchmark (11.2), but is defensible on real, unlabeled queries.
+
+### 7.5 SAR via GEE Sentinel-1 GRD
+
+Where the AOI/date range is covered by GEE's Sentinel-1 GRD collection, `sar_water_mask` and `spectral_index`-equivalent SAR analysis can use GEE's already-processed backscatter directly, skipping the local dB conversion pipeline (old 6.5) for that path. **This is optional acceleration, not a replacement** — the deterministic local dB pipeline (built in Phase 3, offline-capable) remains the primary and only offline path, and is mandatory whenever the scene is a user-uploaded RISAT/other-non-catalog raster GEE doesn't host.
+
+### 7.6 Backend Registry & Cards
+
+Replace `model_card.json` (old 7.7) with `backend_card.json` — no training lineage exists to record:
 
 ```json
 {
-  "model_id": "M2",
-  "name": "rs-vlm-qwen2vl-lora",
-  "version": "0.3.1",
-  "base_model": "Qwen/Qwen2-VL-7B-Instruct",
-  "adaptation": "LoRA r=32 on attention+MLP, visual.merger unfrozen",
-  "training_data": ["RSVQA-LR", "RSVQA-HR", "VRSBench", "CDVQA", "LEVIR-CD-synth"],
-  "trained_at": "2026-01-14T09:12:00Z",
-  "metrics": {
-    "rsvqa_lr_val_acc": 0.0, "rsvqa_lr_base_acc": 0.0,
-    "cdvqa_val_acc": 0.0, "cdvqa_base_acc": 0.0
-  },
-  "weights_uri": "gs://satquery-models/m2/v0.3.1/",
-  "serves_tools": ["rs_vqa", "rs_caption", "change_describe", "change_vqa"],
-  "input_spec": {"images": [1, 2], "modalities": ["OPTICAL", "MULTISPECTRAL", "SAR"]}
+  "backend_id": "V1",
+  "name": "vlm-gateway",
+  "provider": "gemini-1.5-pro-vision",
+  "adaptation": "none — hosted general-purpose model, no fine-tuning",
+  "serves_tools": ["rs_vqa", "rs_caption", "rs_ground", "change_describe", "change_vqa"],
+  "offline_capable": false,
+  "notes": "R1 is not satisfied by this backend."
 }
 ```
 
-`GET /api/models` returns all cards. The frontend Model Registry page renders them, and every `ExecutionTrace` step records `model_id@version` resolved from this registry. When a judge asks "what exactly did you fine-tune?", this page is the answer.
+`GET /api/models` (14) now returns these instead of trained-model cards. When a judge asks "what exactly did you fine-tune?", this page must say plainly: nothing, and point to 7.0.
 
 ---
 
@@ -1346,22 +1206,24 @@ def registry_manifest() -> list[dict]:
 
 **Full registry:**
 
-| Tool | Model | Accepts | Produces | Purpose |
-|------|-------|---------|----------|---------|
-| `rs_vqa` | M2 | SINGLE, CROSS_MODAL, BI_TEMPORAL | text | Answer a question about imagery (R2) |
-| `rs_caption` | M2 | SINGLE | text | Land-cover / scene description (R3) |
-| `rs_ground` | M3 (M2 fallback) | SINGLE, CROSS_MODAL | boxes, geojson | Text-guided region grounding (R3) |
-| `rs_classify` | M1 | SINGLE, CROSS_MODAL | stats | 19-class land-cover probabilities |
-| `change_detect` | M4 | BI_TEMPORAL | mask, map, stats | Binary change map + area (R5) |
-| `change_describe` | M2 | BI_TEMPORAL | text | Natural-language change description (R4) |
-| `change_vqa` | M2 | BI_TEMPORAL | text | Question answering over a temporal pair (R4) |
-| `sar_optical_fuse` | M5 | CROSS_MODAL | stats, mask, text | Joint optical+SAR extraction (R6) |
-| `spectral_index` | - | SINGLE, CROSS_MODAL, BI_TEMPORAL | mask, stats | NDVI / NDWI / NDBI / NDMI |
-| `sar_water_mask` | - | SINGLE, CROSS_MODAL, BI_TEMPORAL | mask, stats | Otsu backscatter thresholding |
-| `geo_stats` | - | any | stats | Convert any mask to area / % / counts |
-| `coreg_check` | - | CROSS_MODAL, BI_TEMPORAL | stats | On-demand re-validation of alignment |
+| Tool | Backend | Accepts | Produces | Purpose | Offline? |
+|------|---------|---------|----------|---------|----------|
+| `rs_vqa` | V1 hosted VLM | SINGLE, CROSS_MODAL, BI_TEMPORAL | text | Answer a question about imagery (R2) | No |
+| `rs_caption` | V1 hosted VLM | SINGLE | text | Land-cover / scene description (R3) | No |
+| `rs_ground` | V1 hosted VLM (box parsed from text) | SINGLE, CROSS_MODAL | boxes, geojson | Text-guided region grounding (R3) | No |
+| `rs_classify` | G1 GEE (Dynamic World / ESA WorldCover) | SINGLE, CROSS_MODAL | stats | Land-cover class fractions for the AOI | No |
+| `change_detect` | G2 GEE (NDVI/NDBI diff + prebuilt algos) | BI_TEMPORAL | mask, map, stats | Change map + area (R5) | No |
+| `change_describe` | V1 hosted VLM | BI_TEMPORAL | text | Natural-language change description (R4) | No |
+| `change_vqa` | V1 hosted VLM | BI_TEMPORAL | text | Question answering over a temporal pair (R4) | No |
+| `sar_optical_fuse` | Deterministic only (GEE Sentinel-1 where in-catalog) | CROSS_MODAL | stats, mask, text | Joint optical+SAR extraction via agreement, no learned fusion (R6) | **Yes**, if not using GEE path |
+| `spectral_index` | - | SINGLE, CROSS_MODAL, BI_TEMPORAL | mask, stats | NDVI / NDWI / NDBI / NDMI | Yes |
+| `sar_water_mask` | - (GEE optional) | SINGLE, CROSS_MODAL, BI_TEMPORAL | mask, stats | Otsu backscatter thresholding | Yes |
+| `geo_stats` | - | any | stats | Convert any mask to area / % / counts | Yes |
+| `coreg_check` | - | CROSS_MODAL, BI_TEMPORAL | stats | On-demand re-validation of alignment | Yes |
 
 **Rule:** deterministic tools (`spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check`) are preferred over learned tools whenever they can answer the sub-question. They are exact, fast, explainable, and their outputs are the strongest possible evidence. The planner prompt states this preference explicitly.
+
+**New rule for this version:** every `Tool` subclass must set `offline_capable: bool` on its `ToolSpec` (8.1). The input gate (9.3) and the offline eval harness (11.5) both read it — this is what lets the ISRO/SAC offline path degrade gracefully instead of crashing on the VLM/GEE tools.
 
 ### 8.3 Tool Implementations
 
@@ -1370,150 +1232,109 @@ def registry_manifest() -> list[dict]:
 ```python
 class RSVQAParams(ToolParams):
     question: str
-    max_new_tokens: int = Field(64, ge=1, le=256)
-    self_consistency: int = Field(3, ge=1, le=5)   # samples for confidence
 
 @register
 class RSVQATool(Tool):
     name = "rs_vqa"
     description = ("Answer a natural-language question about the imagery using the "
-                   "remote-sensing adapted vision-language model. Works on one image, "
-                   "an optical-SAR pair, or a bi-temporal pair. Use for open questions "
-                   "about presence, count, comparison, land use and scene context.")
+                   "vision-language model. Works on one image, "
+                   "an optical-SAR pair, or a bi-temporal pair.")
     accepts = ["SINGLE", "CROSS_MODAL", "BI_TEMPORAL"]
     required_modalities = []
     params_model = RSVQAParams
     produces = ["text"]
-    model_id = "M2"
+    model_id = "V1"
+    offline_capable = False
 
     async def run(self, ctx, p: RSVQAParams) -> ToolResult:
-        imgs = ctx.model_ready_images()          # aligned, preprocessed, base64 PNG
-        out = await ctx.models.vqa(images=imgs, question=p.question,
-                                   max_new_tokens=p.max_new_tokens,
-                                   n_samples=p.self_consistency)
-        # Confidence = agreement across stochastic samples, blended with mean logprob.
-        # Agreement is the more honest signal: a model can be fluent and wrong,
-        # but it is rarely *consistently* wrong across temperature samples.
-        agree = out["majority_fraction"]
-        lp = math.exp(out["mean_logprob"])
-        conf = 0.7 * agree + 0.3 * lp
+        imgs = ctx.model_ready_images()
+        out = await vlm_call(imgs, p.question, backend=ctx.vlm_backend)
+        conf = heuristic_confidence(out["text"])
         return ToolResult(
-            tool=self.name, model_id="M2", model_version=ctx.version("M2"),
-            text=out["answer"], facts={"answer": out["answer"], "question": p.question},
+            tool=self.name, model_id="V1", model_version=ctx.vlm_backend,
+            text=out["text"], facts={"answer": out["text"], "question": p.question},
             confidence=round(conf, 3),
-            confidence_basis=f"self-consistency {agree:.2f} over {p.self_consistency} samples, "
-                             f"mean token probability {lp:.2f}",
+            confidence_basis="heuristic hedging-language score on a hosted, "
+                             "unadapted VLM response — not self-consistency",
         )
 ```
 
 #### 8.3.2 `rs_caption` - single-image captioning (R3)
-Same shape, `accepts=["SINGLE"]`, params `{detail: Literal["brief","standard","detailed"] = "standard", max_new_tokens: int = 160}`. `detail` maps to three fixed prompt variants - the planner cannot inject free-text prompts, which is the difference between "configurable parameters" and "prompt injection surface".
+Same shape as 8.3.1 using V1, `accepts=["SINGLE"]`, params `{detail: Literal["brief","standard","detailed"] = "standard"}`. `detail` maps to fixed prompt variants from 7.1.
 
 #### 8.3.3 `rs_ground` - text-guided grounding (R3)
 
-```python
-class GroundParams(ToolParams):
-    phrase: str
-    box_threshold: float = Field(0.30, ge=0.05, le=0.9)
-    text_threshold: float = Field(0.25, ge=0.05, le=0.9)
-    max_boxes: int = Field(20, ge=1, le=100)
-    target_image: Literal["primary", "optical", "sar", "t1", "t2"] = "primary"
-```
-
-Output: boxes in pixel coords **and**, when georeferenced, a GeoJSON `FeatureCollection` in EPSG:4326 with per-feature `score`:
-
-```python
-def boxes_to_geojson(boxes, transform, crs) -> dict:
-    feats = []
-    for b in boxes:
-        x1, y1, x2, y2 = b["bbox"]
-        (lx1, ly1), (lx2, ly2) = transform * (x1, y1), transform * (x2, y2)
-        ring = [[lx1, ly1], [lx2, ly1], [lx2, ly2], [lx1, ly2], [lx1, ly1]]
-        feats.append({"type": "Feature",
-                      "geometry": {"type": "Polygon", "coordinates": [ring]},
-                      "properties": {"score": b["score"], "label": b["label"]}})
-    fc = {"type": "FeatureCollection", "features": feats}
-    return reproject_geojson(fc, src_crs=crs, dst_crs="EPSG:4326")
-```
-
-Confidence = max box score, with `confidence_basis = "detector score of highest-scoring box"`. Zero boxes above threshold is **not** a failure - it returns `confidence=0.0` and `text="No region matching '<phrase>' was detected"`, which the fusion layer converts into an honest negative answer.
+V1 is asked directly for a normalised box `(x1,y1),(x2,y2)` in text and parsed; there is no separate detector model (M3). Confidence is the VLM's self-reported certainty language, heuristically scored, not a detector's softmax — label this difference explicitly in `confidence_basis` so a judge doesn't mistake it for calibrated detector output. Zero boxes above threshold returns `confidence=0.0` and `text="No region matching '<phrase>' could be located"`.
 
 #### 8.3.4 `change_detect` (R5)
+
+Uses Google Earth Engine (G2) for NDVI/NDBI time-series differencing over the AOI/date range (7.4):
 
 ```python
 class ChangeDetectParams(ToolParams):
     threshold: float = Field(0.5, ge=0.05, le=0.95)
-    min_area_px: int = Field(50, ge=0, le=100000)   # drop speckle-sized components
-    tile: bool = True
+
+@register
+class ChangeDetectTool(Tool):
+    name = "change_detect"
+    accepts = ["BI_TEMPORAL"]
+    produces = ["mask", "map", "stats"]
+    model_id = "G2"
+    offline_capable = False
+
+    async def run(self, ctx, p: ChangeDetectParams) -> ToolResult:
+        aoi = ee.Geometry.Rectangle(ctx.scene.bounds_wgs84())
+        t1 = s2_composite(aoi, ctx.scene.t1_date)
+        t2 = s2_composite(aoi, ctx.scene.t2_date)
+        ndvi_diff = t2.normalizedDifference(["B8","B4"]).subtract(
+                    t1.normalizedDifference(["B8","B4"])).abs()
+        mask = ndvi_diff.gt(p.threshold)
+        return ToolResult(tool=self.name, model_id="G2", facts={"changed_fraction": ...},
+                          confidence=0.6, confidence_basis="NDVI/NDBI differencing threshold, "
+                          "not a trained detector — expect lower IoU than a labeled-benchmark model")
 ```
 
-Runs M4 on the aligned pair, applies the threshold, removes components below `min_area_px`, writes:
-- `change_mask.tif` - single-band uint8, **source CRS and transform preserved** so it opens over the original in QGIS
-- `change_overlay.png` - red-on-grey for the canvas
-- facts: `{changed_fraction, changed_area_m2, changed_area_ha, n_components, direction_hint}`
-
-`direction_hint` compares mean brightness/NDBI inside changed regions between T1 and T2 to label change as `increase|decrease|mixed` for built-up questions. Confidence = mean predicted probability inside the positive mask (an all-0.51 mask is a coin flip and must not present as certainty).
-
-When the input is bi-temporal but **not** co-registered within tolerance, this tool refuses rather than producing a garbage mask: registration error is indistinguishable from real change, and a confidently wrong change map is worse than no change map.
+When the input is bi-temporal but **not** co-registered within tolerance, this tool refuses rather than producing a garbage mask: registration error is indistinguishable from real change.
 
 #### 8.3.5 `change_describe` (R4)
-M2 with both images and the change-description template. Critically, the tool **injects the `change_detect` facts into the prompt when that step has already run** (`ctx.prior("change_detect")`), so the description is quantitatively anchored: *"4.2% of the scene changed, concentrated in the north-east."* If `change_detect` has not run, the planner is instructed to schedule it first - see the planning heuristics in 9.4.
+Hosted VLM (V1) with both images and the change-description template. Injects `change_detect` facts into the prompt when available (`ctx.prior("change_detect")`).
 
 #### 8.3.6 `change_vqa` (R4)
-M2, both images, the change-VQA template, `params={question, max_new_tokens, self_consistency}`. Same confidence method as `rs_vqa`. This is the CDVQA-scored path; keep the prompt template byte-identical to the training template or benchmark scores drop for no visible reason.
+Hosted VLM (V1), both images, change-VQA template. Same confidence method as `rs_vqa`.
 
 #### 8.3.7 `sar_optical_fuse` (R6)
 
 ```python
 class FuseParams(ToolParams):
     targets: list[Literal["water","built_up","vegetation","bare_soil","all"]] = ["all"]
-    agreement_only: bool = False   # if True, report only pixels where both sensors agree
-```
+    agreement_only: bool = False
 
-**Implementation - three independent evidence streams, then reconcile:**
-
-```python
 async def run(self, ctx, p: FuseParams) -> ToolResult:
-    opt, sar = ctx.image("optical"), ctx.image("sar")
-
-    # 1. Learned: M1 dual embeddings -> M5 fusion head -> calibrated class probs + gate
-    fused = await ctx.models.fuse(optical=opt.tensor, sar=sar.tensor)
-    probs, gate = fused["probs"], fused["modality_gate"]
-
-    # 2. Deterministic optical evidence
-    ndwi = normalized_difference(opt, "GREEN", "NIR")       # water  > 0
-    ndbi = normalized_difference(opt, "SWIR", "NIR")        # built-up > 0
-
-    # 3. Deterministic SAR evidence
+    opt, sar = ctx.image("optical"), ctx.image("sar")   # or GEE-fetched equivalents, 7.5
+    # No learned fusion stream — M1/M5 no longer exist. Two deterministic
+    # evidence streams only, same as before minus the learned prior.
+    ndwi = normalized_difference(opt, "GREEN", "NIR")
+    ndbi = normalized_difference(opt, "SWIR", "NIR")
     sar_db = to_db(sar.array)
-    water_sar = sar_db < otsu_threshold(sar_db)             # specular reflection -> dark
-    built_sar = sar_db > np.percentile(sar_db, 90)          # double-bounce -> bright
-
+    water_sar = sar_db < otsu_threshold(sar_db)
+    built_sar = sar_db > np.percentile(sar_db, 90)
     water_agree = (ndwi > 0.0) & water_sar
     built_agree = (ndbi > 0.0) & built_sar
-
-    # Disagreement is the most informative product of cross-modal analysis:
-    # dark in optical but bright in SAR = shadow or cloud shadow, not water.
     water_conflict = (ndwi > 0.0) & ~water_sar
-
-    facts = {
-      "water_fraction_optical": float((ndwi > 0).mean()),
-      "water_fraction_sar":     float(water_sar.mean()),
-      "water_fraction_agreed":  float(water_agree.mean()),
-      "built_fraction_agreed":  float(built_agree.mean()),
-      "conflict_fraction":      float(water_conflict.mean()),
-      "modality_contribution":  gate,
-      "top_classes":            top_k(probs, 5),
-    }
-    text = render_fusion_summary(facts)     # deterministic template, no LLM
-    return ToolResult(tool=self.name, model_id="M5", facts=facts,
+    facts = {"water_fraction_optical": float((ndwi > 0).mean()),
+             "water_fraction_sar": float(water_sar.mean()),
+             "water_fraction_agreed": float(water_agree.mean()),
+             "built_fraction_agreed": float(built_agree.mean()),
+             "conflict_fraction": float(water_conflict.mean())}
+    text = render_fusion_summary(facts)
+    return ToolResult(tool=self.name, model_id=None, facts=facts,
                       artifacts={"water_mask": ..., "built_mask": ..., "conflict_mask": ...},
-                      text=text,
-                      confidence=agreement_confidence(water_agree, ndwi, water_sar),
-                      confidence_basis="inter-sensor agreement fraction on target classes")
+                      text=text, confidence=agreement_confidence(water_agree, ndwi, water_sar),
+                      confidence_basis="inter-sensor agreement fraction — fully deterministic, "
+                                      "offline-capable, no learned prior")
 ```
 
-**Confidence = inter-sensor agreement.** When optical and SAR agree, confidence is high; when they conflict, confidence drops and the conflict region is returned as its own layer. This is a genuinely defensible cross-modal confidence signal, not a softmax dressed up as one.
+Confidence is based solely on inter-sensor agreement fraction across target classes.
 
 #### 8.3.8 Deterministic geo tools
 
@@ -2021,7 +1842,7 @@ The observable artifact the problem statement says will be evaluated. Internal r
      "params_requested": {}, "params_applied": {},
      "status": "OK", "duration_ms": 412, "confidence": 0.97,
      "output_summary": "shift 1.4 px, overlap 97%"},
-    {"id": "s2", "tool": "sar_optical_fuse", "model": "M5 rs-fusion-head@v0.2.0",
+    {"id": "s2", "tool": "sar_optical_fuse", "model": null,
      "params_requested": {"targets": ["water", "built_up"]},
      "params_applied":   {"targets": ["water", "built_up"], "agreement_only": false},
      "status": "OK", "duration_ms": 8140, "confidence": 0.81,
@@ -2032,9 +1853,9 @@ The observable artifact the problem statement says will be evaluated. Internal r
      "params_applied":   {"mask_ref": "s2.artifacts.water_mask", "units": "ha"},
      "status": "OK", "duration_ms": 64, "confidence": 1.0,
      "output_summary": "1,842.6 ha water"},
-    {"id": "s4", "tool": "rs_vqa", "model": "M2 rs-vlm-qwen2vl-lora@v0.3.1",
+    {"id": "s4", "tool": "rs_vqa", "model": "V1 gemini-1.5-pro-vision",
      "params_requested": {"question": "..."},
-     "params_applied":   {"question": "...", "max_new_tokens": 64, "self_consistency": 3},
+     "params_applied":   {"question": "..."},
      "status": "OK", "duration_ms": 9155, "confidence": 0.78,
      "output_summary": "answer produced (37 tokens)"}
   ],
@@ -2281,6 +2102,7 @@ python -m eval.run_benchmark --dataset isro_sac --manifest /eval/manifest.json \
 
 Hard requirements for this mode:
 - **No network calls.** All weights on local disk; planner and fusion in `local`/`template` mode. Verify with a container run using `--network none` in CI.
+- **VLM- and GEE-backed tools are excluded from this mode entirely** (`offline_capable=False`, 8.1). `rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa`, `rs_classify`, and the GEE path of `change_detect`/`sar_optical_fuse` must all return a structured `NOT_EVALUATED_OFFLINE` status rather than attempt a call. The offline submission is therefore scored only on the deterministic tools (`spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check`, and the deterministic half of `sar_optical_fuse`) plus routing/gating behaviour (R7/R8/R9/R11). State this limitation explicitly in the submission notes — do not let a judge discover it by the predictions going empty.
 - **GeoTIFF-native.** Cartosat-2S and RISAT products arrive as GeoTIFF with real CRS; the PNG path must not be involved.
 - **Sensor-specific preprocessing.** Cartosat-2S is very high resolution panchromatic/multispectral (sub-metre to ~2 m) - do not assume Sentinel-2's 10 m or its band order. RISAT is SAR; run the dB pipeline from 6.5. Both are far outside BigEarthNet's 10 m Sentinel resolution, so the tiling path in 6.5 will be exercised heavily: test it on large rasters before submission.
 - **Emit the official submission format.** Wrap `predictions.json` with an adapter so the internal format never leaks into a submission file.
@@ -2497,7 +2319,7 @@ traces/{traceId}
   - full ExecutionTrace document (9.8)
 
 models/{modelId}
-  - model_card.json contents (7.7), one doc per model version, `active: bool`
+  - backend_card.json contents (7.6), one doc per backend (VLM provider / GEE dataset), `active: bool`
 ```
 
 ---
@@ -2523,8 +2345,8 @@ GET    /api/scenes/{id}/queries           Conversation history for a scene
 POST   /api/queries/{id}/replay           Deterministic replay of a stored plan
 
 GET    /api/tools                         Tool registry manifest (name, schema, accepts)
-GET    /api/models                        All model cards + active versions
-GET    /api/health/models                 Model-server readiness per model id
+GET    /api/models                        Backend cards (VLM provider, GEE datasets) — no trained-model versions exist
+GET    /api/health/models                 VLM & GEE readiness check
 
 GET    /api/traces/{id}                   Full ExecutionTrace JSON
 GET    /api/queries/{id}/export/pdf       Report PDF
@@ -2540,15 +2362,21 @@ POST   /api/batch                         Batch queries (CSV of queries or scene
 GET    /api/batch/{id}                    Batch status + results
 ```
 
-**Model-server (internal, not public):**
+**VLM Gateway (internal, not public):**
 ```
-POST   /vqa          {images[], question, max_new_tokens, n_samples} -> {answer, mean_logprob, majority_fraction}
-POST   /caption      {images[], detail}                              -> {caption, mean_logprob}
-POST   /ground       {image, phrase, box_threshold, text_threshold}  -> {boxes[{bbox, score}]}
-POST   /change       {t1, t2, threshold}                             -> {prob_map_b64, shape}
-POST   /classify     {image, modality}                               -> {probs[19], embedding}
-POST   /fuse         {optical, sar}                                  -> {probs[19], modality_gate}
-GET    /health                                                       -> {loaded: {M1..M5}, gpu_mem}
+POST /vqa {images[], question} -> {answer, raw_provider_response}
+POST /caption {images[], detail} -> {caption}
+POST /ground {image, phrase} -> {boxes[{bbox, score}]}
+POST /change_describe {t1, t2} -> {description}
+POST /change_vqa {t1, t2, question} -> {answer}
+GET /health -> {vlm_backend, gee_initialized: bool}
+```
+
+**Google Earth Engine (via `core/gee.py`, not a separate service):**
+```
+land_cover(aoi, date_range) -> class_fractions histogram (Dynamic World / ESA WorldCover)
+change_ndvi_ndbi(aoi, t1_date, t2_date) -> change mask + stats
+sentinel1_grd(aoi, date_range) -> processed backscatter (where in-catalog)
 ```
 
 ---
@@ -2582,15 +2410,16 @@ LOCAL_STORAGE_ROOT=./_data
 SQLITE_PATH=./_data/satquery.db
 API_BASE_URL=http://localhost:8080
 
-# --- model serving ---
-MODEL_SERVER_URL=http://localhost:8081
-MODEL_REGISTRY_PATH=./models/registry.json
-VLM_MODEL_ID=Qwen/Qwen2-VL-7B-Instruct
-VLM_LORA_PATH=./weights/m2/v0.3.1
-RSCLIP_WEIGHTS=./weights/m1/v0.2.0/rsclip.pt
-GROUND_WEIGHTS=./weights/m3/v0.1.0/groundingdino_rs.pth
-CHANGE_WEIGHTS=./weights/m4/v0.2.0/siamese_unet.pt
-FUSION_WEIGHTS=./weights/m5/v0.2.0/fusion_head.pt
+# --- VLM gateway ---
+VLM_BACKEND=gemini                # gemini | gpt4v | claude
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+
+# --- Google Earth Engine ---
+GEE_SERVICE_ACCOUNT=satquery-gee@satquery-prod.iam.gserviceaccount.com
+GEE_KEY_PATH=/secrets/gee-service-account.json
+GEE_PROJECT=satquery-prod
 
 # --- agent tuning ---
 ABSTAIN_THRESHOLD=0.35
@@ -2615,17 +2444,6 @@ BIGQUERY_DATASET=satquery_eval
 GOOGLE_APPLICATION_CREDENTIALS=/secrets/service-account.json
 ```
 
-### Model server (`model-server/.env`)
-```
-DEVICE=cuda
-DTYPE=bfloat16
-VLM_BACKEND=vllm                  # vllm | transformers
-VLM_MAX_MODEL_LEN=8192
-VLM_GPU_MEMORY_UTILIZATION=0.85
-LAZY_LOAD=true                    # load each model on first use, not at boot
-MAX_BATCH_SIZE=4
-```
-
 ---
 
 ## 16. Implementation Order
@@ -2639,14 +2457,14 @@ Build in this sequence so there is always something demoable. Do not reorder - l
 | 3 | Ingest: `raster_reader`, `modality_detector`, previews | Yes - real GeoTIFF metadata + band inspector |
 | 4 | `compatibility_checker` + Compatibility Panel wired end-to-end | Yes - **R8 visibly satisfied** |
 | 5 | Tool base/registry + deterministic tools (`spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check`) | Yes - real measured answers, no ML yet |
-| 6 | Model server skeleton + base Qwen2-VL wired to `rs_vqa`/`rs_caption` | Yes - VQA on satellite imagery |
+| 6 | VLM gateway skeleton wired to `rs_vqa`/`rs_caption` via hosted API (Gemini/GPT-4V/Claude) | Yes - VQA on satellite imagery, no GPU needed |
 | 7 | Agent v1: classifier + gate + rule planner + executor + template fusion + trace | **MVP - R2/R3/R7/R8/R11 all demonstrable** |
 | 8 | Evidence pipeline: overlays, GeoTIFF/GeoJSON export, canvas layers | Yes - visual evidence on the map |
-| 9 | **M1 RS-CLIP adaptation on BigEarthNet.txt** + `rs_classify` | Yes - **R1 satisfied**, fused-vs-single table |
-| 10 | M4 change model + `change_detect` + change map layer + swipe compare | Yes - **R5** |
-| 11 | **M2 LoRA fine-tune** + `change_describe` + `change_vqa` | Yes - **R1 reinforced, R4 satisfied** |
-| 12 | M5 fusion head + `sar_optical_fuse` + conflict layer | Yes - **R6 satisfied**, best demo moment |
-| 13 | M3 grounding fine-tune + `rs_ground` + box layer | Yes - **R3 fully satisfied** |
+| 9 | GEE setup (`core/gee.py`, service account) + `rs_classify` on Dynamic World/ESA WorldCover | Yes - real land-cover stats for an AOI, no training |
+| 10 | `change_detect` via GEE NDVI/NDBI differencing + change map layer + swipe compare | Yes - **R5**, with the IoU caveat from 7.4 stated in the UI |
+| 11 | `change_describe` + `change_vqa` via VLM gateway | Yes - **R4 satisfied**; **R1 explicitly marked not attempted** |
+| 12 | `sar_optical_fuse` deterministic-only (agreement of NDWI/NDBI vs. SAR backscatter) + conflict layer | Yes - **R6 satisfied without a learned fusion head** |
+| 13 | `rs_ground` via VLM box-parsing + box layer | Yes - **R3 fully satisfied**, honest confidence framing |
 | 14 | Confidence + abstention + execution trace UI polish | Yes - trustworthy behaviour on display |
 | 15 | Eval harness: RSVQA + VRSBench + CDVQA + routing set + composite | Yes - real numbers to quote |
 | 16 | Report builder (PDF) + export bundle | Yes - downloadable deliverable |
@@ -2654,7 +2472,7 @@ Build in this sequence so there is always something demoable. Do not reorder - l
 | 18 | Advanced features (12.1-12.9), starting with cloud-awareness and model comparison | Yes |
 | 19 | **GCP deployment (Section 17)** | Yes - public URL |
 
-**Step 7 is the MVP.** At that point the system is genuinely agentic end-to-end and every mandatory requirement except the fine-tuning ones is demonstrable. Steps 9, 11 and 12 are the ones that turn it from a demo into a submission - do not let them slip.
+**Step 7 is the MVP.** At that point the system is genuinely agentic end-to-end. Steps 9-13 turn it into a live-demo-ready product, but **do not claim they satisfy R1** — R1 is not attempted in this version (7.0). Say so in the submission rather than letting a judge find it.
 
 **Demo script (rehearse this exact sequence):**
 1. Upload a Cartosat-2S + RISAT pair -> Compatibility Panel shows CRS, GSD ratio, 1.4 px co-registration -> **input validation is visible**
@@ -2663,7 +2481,7 @@ Build in this sequence so there is always something demoable. Do not reorder - l
 4. Open the trace drawer -> tools, models with versions, parameters, durations, confidences
 5. Switch to a bi-temporal pair -> *"Has the built-up area increased, decreased, or remained unchanged?"* -> change map + direction + quantified area
 6. Ask something unanswerable with the given inputs -> structured refusal with a remedy -> **the system knows what it cannot do**
-7. Download the PDF report -> model provenance page shows the fine-tuning lineage
+7. Download the PDF report -> backend provenance page states plainly: no fine-tuning was performed (7.6), and names which hosted VLM / GEE datasets were used.
 
 ---
 
@@ -2694,7 +2512,7 @@ gcloud services enable \
   compute.googleapis.com
 ```
 
-**Region:** use `asia-south1` (Mumbai) for storage, Firestore, Cloud Run API and Cloud Tasks - lowest latency for Indian users and evaluators. GPU availability for Cloud Run varies by region: if L4 is unavailable in `asia-south1`, deploy the model server to `us-central1` and accept the cross-region hop, or use a Vertex AI endpoint. Check current availability before committing.
+**Region:** use `asia-south1` (Mumbai) for storage, Firestore, Cloud Run API and Cloud Tasks - lowest latency for Indian users and evaluators.
 
 ### 17.2 Service Accounts & IAM
 
@@ -2708,12 +2526,6 @@ for role in roles/datastore.user roles/storage.objectAdmin \
     --member="serviceAccount:satquery-api-sa@satquery-prod.iam.gserviceaccount.com" \
     --role="$role"
 done
-
-# Model server service account (needs only model weights + logging)
-gcloud iam service-accounts create satquery-model-sa --display-name="SatQuery Model Server"
-gcloud projects add-iam-policy-binding satquery-prod \
-  --member="serviceAccount:satquery-model-sa@satquery-prod.iam.gserviceaccount.com" \
-  --role="roles/storage.objectViewer"
 ```
 
 Use Workload Identity on Cloud Run - **never bake a key file into an image.** `GOOGLE_APPLICATION_CREDENTIALS` is for local development only.
@@ -2722,8 +2534,6 @@ Use Workload Identity on Cloud Run - **never bake a key file into an image.** `G
 
 ```bash
 gcloud storage buckets create gs://satquery-scenes-satquery-prod \
-  --location=asia-south1 --uniform-bucket-level-access
-gcloud storage buckets create gs://satquery-models-satquery-prod \
   --location=asia-south1 --uniform-bucket-level-access
 gcloud storage buckets create gs://satquery-artifacts-satquery-prod \
   --location=asia-south1 --uniform-bucket-level-access
@@ -2745,11 +2555,6 @@ gcloud storage buckets update gs://satquery-scenes-satquery-prod \
 
 **Lifecycle:** delete derived artifacts under `**/derived/**` after 30 days; keep source scenes. GeoTIFF evidence is cheap to regenerate from a stored trace, and this keeps costs flat.
 
-**Upload the trained weights once:**
-```bash
-gcloud storage rsync -r ./weights gs://satquery-models-satquery-prod/weights
-```
-
 ### 17.4 Firestore
 
 ```bash
@@ -2762,34 +2567,6 @@ gcloud firestore indexes composite create \
   --field-config field-path=created_at,order=descending
 ```
 
-**`infra/firestore.rules`:**
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /workspaces/{workspaceId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid in resource.data.members;
-    }
-    match /scenes/{sceneId} {
-      allow read: if request.auth != null
-        && request.auth.uid in get(/databases/$(database)/documents/workspaces/$(resource.data.workspace_id)).data.members;
-      allow write: if false;                 // backend only
-    }
-    match /queries/{queryId} {
-      allow read: if request.auth != null
-        && request.auth.uid in get(/databases/$(database)/documents/workspaces/$(resource.data.workspace_id)).data.members;
-      allow write: if false;
-    }
-    match /traces/{traceId} { allow read, write: if false; }   // API-mediated only
-    match /models/{modelId} { allow read: if request.auth != null; allow write: if false; }
-  }
-}
-```
-```bash
-firebase deploy --only firestore:rules
-```
-
 ### 17.5 Artifact Registry & Images
 
 ```bash
@@ -2798,72 +2575,32 @@ gcloud artifacts repositories create satquery \
 gcloud auth configure-docker asia-south1-docker.pkg.dev
 ```
 
-**`backend/Dockerfile`** - GDAL is the reason this is not the default slim base:
-```dockerfile
-FROM ghcr.io/osgeo/gdal:ubuntu-small-3.8.4
-ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3-pip libpango-1.0-0 libpangoft2-1.0-0 libcairo2 \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY requirements.txt .
-RUN pip3 install --break-system-packages -r requirements.txt
-COPY . .
-ENV PORT=8080
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT} --workers 2"]
-```
-(The `libpango`/`libcairo` packages are WeasyPrint's runtime dependencies - PDF export fails at request time without them, which is an unpleasant thing to discover during a demo.)
-
-**`model-server/Dockerfile`:**
-```dockerfile
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
-RUN apt-get update && apt-get install -y python3.11 python3-pip git \
-    && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir torch==2.3.0 --index-url https://download.pytorch.org/whl/cu121 \
-    && pip3 install --no-cache-dir -r requirements.txt
-COPY . .
-ENV PORT=8080 HF_HOME=/models/hf LAZY_LOAD=true
-CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT}"]
-```
-
-**Weight loading strategy:** do **not** bake multi-GB weights into the image - builds become slow and pushes fail. Mount the models bucket with Cloud Run's GCS volume mount and load from the mount path at first use:
-```bash
---add-volume=name=models,type=cloud-storage,bucket=satquery-models-satquery-prod \
---add-volume-mount=volume=models,mount-path=/models
-```
-
-### 17.6 Deploy the Model Server (GPU)
+### 17.6 Deploy the VLM Gateway (CPU, no GPU)
 
 ```bash
-gcloud run deploy satquery-model \
-  --source ./model-server \
+gcloud run deploy satquery-vlm-gateway \
+  --source ./vlm-gateway \
   --region us-central1 \
-  --gpu 1 --gpu-type nvidia-l4 \
-  --cpu 8 --memory 32Gi \
-  --min-instances 1 \
-  --max-instances 3 \
-  --concurrency 4 \
-  --timeout 300 \
+  --cpu 2 --memory 2Gi \
+  --min-instances 0 \
+  --max-instances 10 \
+  --timeout 120 \
   --no-allow-unauthenticated \
-  --service-account satquery-model-sa@satquery-prod.iam.gserviceaccount.com \
-  --add-volume=name=models,type=cloud-storage,bucket=satquery-models-satquery-prod \
-  --add-volume-mount=volume=models,mount-path=/models \
-  --set-env-vars=DEVICE=cuda,DTYPE=bfloat16,VLM_BACKEND=vllm,LAZY_LOAD=true
+  --service-account satquery-vlm-sa@satquery-prod.iam.gserviceaccount.com \
+  --set-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
+  --set-env-vars=VLM_BACKEND=gemini
 ```
 
-**`--min-instances 1` is mandatory here.** A cold start that loads a 7B VLM plus four CNNs takes minutes; a judge clicking during a demo will not wait. Budget for one always-on L4 and scale down after the evaluation window.
+No GPU, no `--min-instances 1` requirement — it's a thin API wrapper, cold starts are cheap. Cost now scales with per-call VLM API pricing rather than idle GPU time; monitor it under 17.13 alongside GEE quota usage instead of GPU spend.
 
-**Alternative:** deploy M2 to a **Vertex AI endpoint** and keep only the small CNNs on Cloud Run. Better autoscaling and quota handling, higher idle cost. Decide by cost, not by architecture preference - `services/inference/model_client.py` treats both as an HTTP endpoint.
-
-Grant the API permission to call it:
+Grant the API permission to call it, same pattern as before:
 ```bash
-gcloud run services add-iam-policy-binding satquery-model --region us-central1 \
+gcloud run services add-iam-policy-binding satquery-vlm-gateway --region us-central1 \
   --member="serviceAccount:satquery-api-sa@satquery-prod.iam.gserviceaccount.com" \
   --role="roles/run.invoker"
 ```
-The API attaches an OIDC identity token when calling `MODEL_SERVER_URL`; the model server is never publicly reachable.
+
+**GEE runs in-process inside the API service** (`core/gee.py`), not as a separate deployment — grant `satquery-api-sa` the Earth Engine service-account role and mount `GEE_KEY_PATH` as a secret.
 
 ### 17.7 Deploy the API (CPU)
 
@@ -2956,14 +2693,6 @@ async def vertex_json(system: str, payload: str, temperature: float = 0.0) -> st
 ```
 
 `response_mime_type="application/json"` removes an entire class of parsing failures. The rule-planner fallback in 9.4 still applies - the planner is an enhancement, never a dependency (Design Rule 3).
-
-**Training jobs** (Phase 4) run as Vertex AI Custom Jobs so no GPU sits idle between runs:
-```bash
-gcloud ai custom-jobs create --region=us-central1 \
-  --display-name=rsclip-adapt \
-  --config=training/configs/vertex_rsclip.yaml
-```
-with `machineType: a2-highgpu-1g`, `acceleratorType: NVIDIA_TESLA_A100`, count 1, writing checkpoints to `gs://satquery-models-satquery-prod/`.
 
 ### 17.10 Secrets
 
@@ -3060,6 +2789,8 @@ jobs:
       # the eval path must complete with no network access.
       - run: |
           docker build -t satquery-eval -f eval/Dockerfile .
+          # VLM- and GEE-backed tools self-report NOT_EVALUATED_OFFLINE (11.5);
+          # this smoke test only exercises the deterministic tool path.
           docker run --network none satquery-eval \
             python -m eval.run_benchmark --dataset smoke --limit 5 --planner-backend local
 ```

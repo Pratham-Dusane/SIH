@@ -23,7 +23,7 @@ const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'New Scene', href: '/scene/new', icon: UploadCloud },
   { label: 'Benchmarks', href: '/benchmarks', icon: FlaskConical },
-  { label: 'Model Registry', href: '/models', icon: Boxes },
+  { label: 'Backend Registry', href: '/models', icon: Boxes },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 

@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
 import os
 from pathlib import Path
+import re
 import time
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from core.auth import current_user
 from core.db import get_db, Database
@@ -16,6 +18,7 @@ from models.scene import (
     CompatibilityReport,
     RasterMetadata,
     ModalityResult,
+    _date_from_tags,
 )
 from services.ingest.raster_reader import read_metadata, UnsupportedFormat
 from services.ingest.modality_detector import detect_modality
@@ -23,6 +26,20 @@ from services.ingest.compatibility_checker import check_compatibility
 from services.ingest.preview import generate_previews
 
 router = APIRouter(prefix="/api/scenes", tags=["scenes"])
+
+
+def _default_scene_name(images: List[SceneImage]) -> str:
+    """Scene name derived from the uploaded filenames, not a fixed label."""
+    stems = []
+    for img in images:
+        stem = Path(img.original_filename).stem.strip()
+        if stem and stem not in stems:
+            stems.append(stem)
+    if not stems:
+        return f"Scene {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
+    if len(stems) == 1:
+        return stems[0]
+    return f"{stems[0]} + {stems[1]}" if len(stems) == 2 else " + ".join(stems[:3])
 
 
 @router.post("/confirm", response_model=Scene)
@@ -86,16 +103,23 @@ async def confirm_scene(
         preview_obj_path = f"{preview_rel_dir}/preview.png"
         thumb_obj_path = f"{preview_rel_dir}/thumb.png"
 
+        raster_meta = RasterMetadata(**meta)
+
         scene_image = SceneImage(
             role=img_req.role,
             original_filename=img_req.original_filename,
             object_path=img_req.object_path,
-            metadata=RasterMetadata(**meta),
+            metadata=raster_meta,
             modality=ModalityResult(**modality_info),
             preview_path=preview_obj_path,
             thumb_path=thumb_obj_path,
             preview_url=storage.public_url(preview_obj_path),
             thumb_url=storage.public_url(thumb_obj_path),
+            # Best-effort acquisition date from the GeoTIFF tags.  Many products
+            # carry no recognisable date tag, so this is often None — the GEE
+            # tools (§7.3, §7.4) then refuse with NO_DATES until the user sets
+            # the date via POST /api/scenes/{id}/dates.
+            acquired_at=_date_from_tags(raster_meta.tags),
         )
         processed_images.append(scene_image)
 
@@ -132,7 +156,11 @@ async def confirm_scene(
         if c.get("status") == "WARN"
     ]
 
-    scene_name = payload.name or f"Scene {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
+    # Name the scene after what was actually uploaded.  A caller-supplied name
+    # wins; otherwise use the first image's filename so the scene is
+    # identifiable in a list, falling back to a timestamp only if that is
+    # somehow empty.  Never a fixed label — the name must describe the data.
+    scene_name = payload.name or _default_scene_name(processed_images)
     source_tag = f"benchmark:{payload.benchmark_dataset}" if (payload.benchmark_mode and payload.benchmark_dataset) else "user_upload"
 
     scene_obj = Scene(
@@ -243,6 +271,77 @@ async def set_scene_roi(
         raise HTTPException(status_code=404, detail="Scene not found")
 
     scene_data["roi"] = roi
+    db.set_document("scenes", scene_id, scene_data)
+    return Scene(**scene_data)
+
+
+class SceneDatesRequest(BaseModel):
+    """
+    Acquisition dates for the GEE-backed tools (PRD §7.3, §7.4).
+
+    Most downloaded products carry no tag this backend can parse, so the date
+    has to be supplied. `by_role` sets a date per image ({"t1": "2020-01-15"});
+    `acquired_start`/`acquired_end` set an explicit scene-level window that
+    overrides the per-image derivation.
+    """
+    by_role: Dict[str, str] = Field(default_factory=dict)
+    acquired_start: Optional[str] = None
+    acquired_end: Optional[str] = None
+
+
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _validate_iso(label: str, value: Optional[str]) -> None:
+    if value is not None and not _ISO_DATE.match(value):
+        raise HTTPException(
+            status_code=422,
+            detail=f"{label} must be an ISO date (YYYY-MM-DD), got {value!r}",
+        )
+
+
+@router.post("/{scene_id}/dates", response_model=Scene)
+async def set_scene_dates(
+    scene_id: str,
+    payload: SceneDatesRequest,
+    user: dict = Depends(current_user),
+    db: Database = Depends(get_db),
+):
+    """
+    Set acquisition dates on a scene.
+
+    `rs_classify` and `change_detect` query the Earth Engine catalog by AOI +
+    date range; without a date they refuse (NO_DATE_RANGE / NO_DATES) rather
+    than inventing a window.  This is how the user supplies it when the raster
+    tags do not carry one.
+    """
+    scene_data = db.get_document("scenes", scene_id)
+    if not scene_data:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    _validate_iso("acquired_start", payload.acquired_start)
+    _validate_iso("acquired_end", payload.acquired_end)
+
+    known_roles = {img["role"] for img in scene_data.get("images", [])}
+    unknown = set(payload.by_role) - known_roles
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=(f"Unknown image role(s) {sorted(unknown)}; "
+                    f"this scene has {sorted(known_roles)}"),
+        )
+
+    for role, date in payload.by_role.items():
+        _validate_iso(f"by_role[{role}]", date)
+        for img in scene_data["images"]:
+            if img["role"] == role:
+                img["acquired_at"] = date
+
+    if payload.acquired_start is not None:
+        scene_data["acquired_start"] = payload.acquired_start
+    if payload.acquired_end is not None:
+        scene_data["acquired_end"] = payload.acquired_end
+
     db.set_document("scenes", scene_id, scene_data)
     return Scene(**scene_data)
 

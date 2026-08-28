@@ -1,5 +1,5 @@
 """
-Execution trace — PRD §9.8 (R11).
+Execution trace - PRD §9.8 (R11).
 
 The observable artifact the problem statement says will be evaluated.
 Internal reasoning text is deliberately excluded; only observable execution is recorded.
@@ -53,6 +53,7 @@ class ExecutionTrace(BaseModel):
     steps: List[TraceStep] = Field(default_factory=list)
     fusion: Optional[Dict[str, Any]] = None
     confidence: Optional[Confidence] = None
+    verification: Optional[Dict[str, Any]] = None   # verifier result (verified/uncertain/skipped)
     warnings: List[str] = Field(default_factory=list)
 
     @classmethod

@@ -148,7 +148,7 @@ export const mockScenes: Scene[] = [
   {
     id: 'scn_crossmodal_01',
     workspaceId: 'ws_demo',
-    name: 'Bangalore Urban — Optical + SAR',
+    name: 'Bangalore Urban - Optical + SAR',
     inputConfig: 'CROSS_MODAL',
     status: 'READY',
     benchmarkMode: false,
@@ -161,7 +161,7 @@ export const mockScenes: Scene[] = [
   {
     id: 'scn_bitemporal_01',
     workspaceId: 'ws_demo',
-    name: 'Ahmedabad Expansion — 2024 vs 2026',
+    name: 'Ahmedabad Expansion - 2024 vs 2026',
     inputConfig: 'BI_TEMPORAL',
     status: 'READY',
     benchmarkMode: false,
@@ -174,7 +174,7 @@ export const mockScenes: Scene[] = [
   {
     id: 'scn_single_01',
     workspaceId: 'ws_demo',
-    name: 'VRSBench Sample — Scene 0042',
+    name: 'VRSBench Sample - Scene 0042',
     inputConfig: 'SINGLE',
     status: 'READY',
     benchmarkMode: true,
@@ -187,7 +187,7 @@ export const mockScenes: Scene[] = [
   {
     id: 'scn_validating_01',
     workspaceId: 'ws_demo',
-    name: 'RISAT Pair — Processing',
+    name: 'RISAT Pair - Processing',
     inputConfig: 'CROSS_MODAL',
     status: 'VALIDATING',
     benchmarkMode: false,
@@ -200,7 +200,7 @@ export const mockScenes: Scene[] = [
   {
     id: 'scn_incompatible_01',
     workspaceId: 'ws_demo',
-    name: 'Failed Pair — No Overlap',
+    name: 'Failed Pair - No Overlap',
     inputConfig: 'BI_TEMPORAL',
     status: 'INCOMPATIBLE',
     benchmarkMode: false,
@@ -451,7 +451,7 @@ export function getDynamicQueryResult(sceneId: string, query: string): QueryResu
           ],
         },
         evidence: [],
-        confidence: { value: 0, band: 'LOW', basis: 'input gate refusal — single image supplied for temporal change query', contributions: [] },
+        confidence: { value: 0, band: 'LOW', basis: 'input gate refusal - single image supplied for temporal change query', contributions: [] },
         trace: {
           ...mockTrace,
           traceId: `trc_refusal_${Date.now()}`,

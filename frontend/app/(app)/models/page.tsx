@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Backend Registry — PRD §7.6.
+ * Backend Registry - PRD §7.6.
  *
- * This page replaces the old trained-model registry (M1–M5). Those models were
+ * This page replaces the old trained-model registry (M1-M5). Those models were
  * never built: Phase 4 uses a hosted general-purpose VLM plus Google Earth
  * Engine, with **no fine-tuning of any kind**.
  *
  * When a judge asks "what exactly did you fine-tune?", this page must say
- * plainly: nothing — and point to §7.0. That disclosure is the first thing
+ * plainly: nothing - and point to §7.0. That disclosure is the first thing
  * rendered, above the cards, and it is read from the API rather than hardcoded.
  */
 
@@ -71,7 +71,7 @@ export default function BackendRegistryPage() {
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               Hosted services that serve the tool registry (PRD §7.6). No trained-model
-              versions exist — see the disclosure below.
+              versions exist - see the disclosure below.
             </p>
           </div>
 
@@ -99,7 +99,7 @@ export default function BackendRegistryPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2 text-amber-500">
                 <AlertTriangle className="w-4 h-4" />
-                Requirement R1 — Not Attempted
+                Requirement R1 - Not Attempted
               </CardTitle>
               <CardDescription className="text-xs">
                 What was fine-tuned on remote-sensing data:{' '}

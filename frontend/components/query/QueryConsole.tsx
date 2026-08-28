@@ -3,71 +3,105 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import SuggestedQueries from './SuggestedQueries';
 import AnswerCard from './AnswerCard';
 import AbstentionNotice from './AbstentionNotice';
+import { VerificationToggle } from './VerificationBadge';
+import PipelineVisualizer, {
+  PipelineStage, ToolStep, VerificationState,
+} from '@/components/trace/PipelineVisualizer';
 import { Scene, QueryStreamEvent } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { streamQuery } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface QueryConsoleProps {
   scene: Scene;
 }
 
-const stageLabels: Record<string, string> = {
-  classifying: 'Classifying task…',
-  validating: 'Validating inputs…',
-  planning: 'Planning execution…',
-  fusing: 'Fusing results…',
-};
+// Map SSE stage names to pipeline stages
+function toPipelineStage(stage: string): PipelineStage | null {
+  const map: Record<string, PipelineStage> = {
+    classifying: 'classifying',
+    validating: 'validating',
+    planning: 'planning',
+    fusing: 'fusing',
+    verifying: 'verifying',
+  };
+  return map[stage] || null;
+}
 
 export default function QueryConsole({ scene }: QueryConsoleProps) {
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamStage, setStreamStage] = useState<string | null>(null);
-  const [streamSteps, setStreamSteps] = useState<{ id: string; tool: string; status: string }[]>([]);
+  const [pipelineStage, setPipelineStage] = useState<PipelineStage | null>(null);
+  const [toolSteps, setToolSteps] = useState<ToolStep[]>([]);
+  const [verificationState, setVerificationState] = useState<VerificationState | null>(null);
+  const [verifyEnabled, setVerifyEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { turns, addTurn, updateLastTurn, setTurnResult, initLayers, setTraceDrawerOpen } = useStore();
+  const { turns, addTurn, updateLastTurn, setTurnResult, initLayers } = useStore();
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [turns, streamStage, streamSteps]);
+  }, [turns, pipelineStage, toolSteps, verificationState]);
 
   const handleSubmit = async () => {
     if (!query.trim() || isStreaming) return;
     const q = query.trim();
     setQuery('');
     setIsStreaming(true);
-    setStreamStage(null);
-    setStreamSteps([]);
+    setPipelineStage(null);
+    setToolSteps([]);
+    setVerificationState(null);
     addTurn(q);
 
     try {
-      const result = await streamQuery(scene.id, q, (event: QueryStreamEvent) => {
-        if (event.type === 'stage') {
-          setStreamStage(event.stage);
-        } else if (event.type === 'step') {
-          setStreamSteps((prev) => {
-            const existing = prev.findIndex((s) => s.id === event.id);
-            if (existing >= 0) {
-              const next = [...prev];
-              next[existing] = { id: event.id, tool: event.tool, status: event.status };
-              return next;
-            }
-            return [...prev, { id: event.id, tool: event.tool, status: event.status }];
-          });
-        }
-      });
+      const result = await streamQuery(
+        scene.id,
+        q,
+        (event: QueryStreamEvent) => {
+          if (event.type === 'stage') {
+            const stage = toPipelineStage(event.stage);
+            if (stage) setPipelineStage(stage);
+            // When we enter a tool-execution stage, mark as executing
+            // (tool steps arriving mean we are in execution)
+          } else if (event.type === 'step') {
+            // We are now in the execution phase
+            setPipelineStage('executing');
+            setToolSteps((prev) => {
+              const existing = prev.findIndex((s) => s.id === event.id);
+              const step: ToolStep = {
+                id: event.id,
+                tool: event.tool,
+                status: event.status as ToolStep['status'],
+                summary: event.summary,
+                confidence: event.confidence,
+                durationMs: event.durationMs,
+                reason: event.reason,
+              };
+              if (existing >= 0) {
+                const next = [...prev];
+                next[existing] = step;
+                return next;
+              }
+              return [...prev, step];
+            });
+          } else if (event.type === 'verification') {
+            setVerificationState({
+              status: event.status,
+              reason: event.reason,
+            });
+          }
+        },
+        verifyEnabled,
+      );
 
+      setPipelineStage('complete');
       setTurnResult(result);
       initLayers(result.evidence);
-      setTraceDrawerOpen(true);
     } catch (err) {
       updateLastTurn({
         isStreaming: false,
@@ -75,8 +109,6 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
       });
     } finally {
       setIsStreaming(false);
-      setStreamStage(null);
-      setStreamSteps([]);
     }
   };
 
@@ -91,10 +123,15 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <h2 className="text-sm font-semibold text-foreground">Query Console</h2>
-        <p className="text-[10px] text-muted-foreground">
-          Ask questions about your {scene.inputConfig.toLowerCase().replace('_', '-')} imagery
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Query Console</h2>
+            <p className="text-[10px] text-muted-foreground">
+              Ask questions about your {scene.inputConfig.toLowerCase().replace('_', '-')} imagery
+            </p>
+          </div>
+          <VerificationToggle enabled={verifyEnabled} onChange={setVerifyEnabled} />
+        </div>
       </div>
 
       {/* Chat transcript */}
@@ -103,6 +140,7 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
           <div className="py-8">
             <SuggestedQueries
               inputConfig={scene.inputConfig}
+              sceneId={scene.id}
               onSelect={(q) => setQuery(q)}
             />
           </div>
@@ -120,38 +158,13 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
             {/* Response */}
             {turn.isStreaming ? (
               <div className="space-y-2">
-                {/* Stage indicator */}
-                {streamStage && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg animate-shimmer">
-                    <Loader2 className="w-3.5 h-3.5 text-brand-500 animate-spin" />
-                    <span className="text-xs text-brand-500">
-                      {stageLabels[streamStage] || streamStage}
-                    </span>
-                  </div>
-                )}
-
-                {/* Step chips */}
-                {streamSteps.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {streamSteps.map((step) => (
-                      <Badge
-                        key={step.id}
-                        variant="outline"
-                        className={cn(
-                          'text-[10px] font-mono',
-                          step.status === 'complete'
-                            ? 'border-confidence-high/30 text-confidence-high'
-                            : step.status === 'running'
-                              ? 'border-brand-500/30 text-brand-500 animate-pulse'
-                              : 'border-border text-muted-foreground'
-                        )}
-                      >
-                        {step.status === 'running' && <Loader2 className="w-2.5 h-2.5 mr-1 animate-spin" />}
-                        {step.tool}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                {/* Live Pipeline Visualizer (inline) */}
+                <PipelineVisualizer
+                  currentStage={pipelineStage}
+                  toolSteps={toolSteps}
+                  verification={verificationState}
+                  isLive={true}
+                />
               </div>
             ) : turn.error ? (
               <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
@@ -185,7 +198,7 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask a question about this scene…"
+            placeholder="Ask a question about this scene..."
             disabled={isStreaming}
             rows={2}
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2.5 pr-12 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-50"

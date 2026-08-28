@@ -17,7 +17,7 @@ const statusIcon = {
 
 const verdictBadge: Record<string, { className: string; label: string }> = {
   PASS: { className: 'bg-confidence-high/15 text-confidence-high border-confidence-high/30', label: 'All Checks Passed' },
-  WARN: { className: 'bg-confidence-medium/15 text-confidence-medium border-confidence-medium/30', label: 'Warnings — Proceed with Caution' },
+  WARN: { className: 'bg-confidence-medium/15 text-confidence-medium border-confidence-medium/30', label: 'Warnings - Proceed with Caution' },
   FAIL: { className: 'bg-confidence-low/15 text-confidence-low border-confidence-low/30', label: 'Validation Failed' },
 };
 

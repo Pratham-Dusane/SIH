@@ -1,5 +1,5 @@
 """
-change_vqa tool — PRD §7.1, §8.3.6.  Question answering over a temporal pair (R4).
+change_vqa tool - PRD §7.1, §8.3.6.  Question answering over a temporal pair (R4).
 
 Hosted VLM (V1), both images, change-VQA template.  Same confidence method as
 `rs_vqa`: a hedging-language heuristic on an unadapted hosted model, never a
@@ -60,7 +60,7 @@ class ChangeVQATool(Tool):
         conf = heuristic_confidence(out["text"])
         basis = (
             "heuristic hedging-language score on a hosted, unadapted VLM "
-            "response — not self-consistency"
+            "response - not self-consistency"
         )
         warnings = []
         if facts_block:

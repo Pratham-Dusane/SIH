@@ -24,7 +24,7 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
   const [imageError, setImageError] = useState(false);
   const { layers, turns } = useStore();
 
-  // Resolve preview URL — handle relative paths, API proxied paths, etc.
+  // Resolve preview URL - handle relative paths, API proxied paths, etc.
   const resolvePreviewUrl = useCallback((url: string): string => {
     if (!url) return '';
     // Already absolute URL
@@ -86,13 +86,13 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
       let drawW: number, drawH: number, drawX: number, drawY: number;
 
       if (imgAspect > canvasAspect) {
-        // Image is wider — fit to width
+        // Image is wider - fit to width
         drawW = w;
         drawH = w / imgAspect;
         drawX = 0;
         drawY = (h - drawH) / 2;
       } else {
-        // Image is taller — fit to height
+        // Image is taller - fit to height
         drawH = h;
         drawW = h * imgAspect;
         drawX = (w - drawW) / 2;

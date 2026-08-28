@@ -1,9 +1,9 @@
 """
-change_describe tool — PRD §7.1, §8.3.5.  Natural-language change description (R4).
+change_describe tool - PRD §7.1, §8.3.5.  Natural-language change description (R4).
 
 Hosted VLM (V1) with both images and the change-description template.  Injects
 `change_detect` facts into the prompt when available (`ctx.prior("change_detect")`)
-— unchanged behaviour from old §8.3.5, and *more* important now that the
+- unchanged behaviour from old §8.3.5, and *more* important now that the
 narrative half is unadapted: the quantitative anchor is the only part of this
 answer that was actually measured.
 """
@@ -33,7 +33,7 @@ DIRECTION_LABELS = {
 def build_facts_block(ctx) -> str:
     """
     Render measured change statistics from a prior `change_detect` step into a
-    prompt block.  Empty string when no measurement exists — the template then
+    prompt block.  Empty string when no measurement exists - the template then
     simply has no quantitative anchor, and the tool says so in its warnings.
     """
     prior = ctx.prior("change_detect") if hasattr(ctx, "prior") else None
@@ -89,7 +89,7 @@ class ChangeDescribeTool(Tool):
         if not facts_block:
             warnings.append(
                 "No change_detect measurement was available to anchor this "
-                "description — the narrative is unquantified and unadapted."
+                "description - the narrative is unquantified and unadapted."
             )
 
         imgs = ctx.model_ready_images()
@@ -104,13 +104,13 @@ class ChangeDescribeTool(Tool):
         conf = heuristic_confidence(out["text"])
         basis = (
             "heuristic hedging-language score on a hosted, unadapted VLM "
-            "response — not self-consistency"
+            "response - not self-consistency"
         )
         if facts_block:
             basis += "; anchored to measured change_detect statistics"
         else:
             # Unanchored narrative from an unadapted model is the weakest
-            # evidence this system produces — cap it so fusion treats it that way.
+            # evidence this system produces - cap it so fusion treats it that way.
             conf = min(conf, 0.45)
             basis += "; NOT anchored to any measurement (change_detect unavailable)"
 

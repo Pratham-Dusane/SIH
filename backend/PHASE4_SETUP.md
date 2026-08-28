@@ -1,8 +1,8 @@
-# Phase 4 setup — credentials you need (GUI only, no CLI)
+# Phase 4 setup - credentials you need (GUI only, no CLI)
 
 Phase 4 (PRD §7) swaps the fine-tuning phase for **one hosted VLM** plus **Google Earth
 Engine**. Both are online services, so both need credentials. Nothing here requires
-installing the gcloud CLI — every step below is a web page.
+installing the gcloud CLI - every step below is a web page.
 
 Everything already works without any of these keys: the seven hosted tools report
 `BACKEND_UNAVAILABLE` with a remedy, the input gate refuses with an explanation, and the
@@ -13,13 +13,13 @@ four deterministic tools keep running. Add keys to turn the hosted tools on.
 ## ⚠ Do these three things in the GCP Console first
 
 Verified against the live project `sih-gcp-506800`. The service-account key already
-authenticates correctly — these are the only remaining blockers, and each one is a
+authenticates correctly - these are the only remaining blockers, and each one is a
 button in the browser.
 
 **1. Enable the Vertex AI API** (needed for `VLM_BACKEND=vertex`)
 <https://console.cloud.google.com/apis/api/aiplatform.googleapis.com/overview?project=sih-gcp-506800>
 → **Enable**. Vertex AI is **billed per token**, so the project needs billing linked.
-It is not free — but it has no 20-requests-per-day cap, which is why it is the default.
+It is not free - but it has no 20-requests-per-day cap, which is why it is the default.
 
 **2. Add two IAM roles to the service account**
 <https://console.cloud.google.com/iam-admin/iam?project=sih-gcp-506800>
@@ -29,10 +29,10 @@ It is not free — but it has no 20-requests-per-day cap, which is why it is the
 |---|---|
 | **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) | Without it `ee.Initialize()` fails with *"Caller does not have required permission to use project"*. This is the only thing blocking all Earth Engine work right now. |
 | **Vertex AI User** (`roles/aiplatform.user`) | Lets the same key call Gemini through Vertex. |
-| **Earth Engine Resource Writer** (`roles/earthengine.writer`) | Add it if it is not already listed — it permits the computations `rs_classify` and `change_detect` run. |
+| **Earth Engine Resource Writer** (`roles/earthengine.writer`) | Add it if it is not already listed - it permits the computations `rs_classify` and `change_detect` run. |
 
 **3. Confirm the project is registered for Earth Engine**
-<https://console.cloud.google.com/earth-engine?project=sih-gcp-506800> — enabling the API
+<https://console.cloud.google.com/earth-engine?project=sih-gcp-506800> - enabling the API
 is *not* enough, the project itself must be registered (Noncommercial → Community tier).
 
 Then verify, from `backend/`:
@@ -50,11 +50,11 @@ Every test should pass. Any that skip print the exact reason.
 | # | Credential | Turns on | Cost | Time |
 |---|-----------|----------|------|------|
 | 1 | **Vertex AI** on your own GCP project *(default)* | `rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa` (R2, R3, R4) | Paid per token, no daily cap | ~5 min |
-| 1b | *or* **Gemini API key** (AI Studio) | the same five tools | Free, but capped — `gemini-3.6-flash` allows only **20 requests/day** | ~2 min |
+| 1b | *or* **Gemini API key** (AI Studio) | the same five tools | Free, but capped - `gemini-3.6-flash` allows only **20 requests/day** | ~2 min |
 | 2 | **GCP project + Earth Engine service account JSON** | `rs_classify`, `change_detect` (R5) | Free (noncommercial tier) | ~15 min |
 | 3 | OpenAI or Anthropic key | *Optional.* Alternate VLM backends for the model-comparison feature | Paid | ~2 min |
 
-Do #1 first — it unlocks five of the seven tools and takes two minutes.
+Do #1 first - it unlocks five of the seven tools and takes two minutes.
 
 ---
 
@@ -64,7 +64,7 @@ Do #1 first — it unlocks five of the seven tools and takes two minutes.
 2. Click **Create API key**.
 3. If it asks which Google Cloud project to use:
    - Pick **the same project you will register for Earth Engine in step 2** if you have
-     already created it — one project for everything is simpler.
+     already created it - one project for everything is simpler.
    - Otherwise let it create a new one, or click **Import project** to attach an existing one.
 4. Click **Copy** on the generated key. It looks like `AIza...`.
 
@@ -79,7 +79,7 @@ GEMINI_MODEL=gemini-3.6-flash
 > **Note on the model id.** The PRD's example backend card (§7.6) names
 > `gemini-1.5-pro-vision`, which Google retired. `GEMINI_MODEL` is a switch, and
 > whatever you set there is what `/api/models` reports and what every `ToolResult`
-> records as `model_version` — so provenance stays honest.
+> records as `model_version` - so provenance stays honest.
 >
 > `gemini-3.6-flash` is the **verified** default. Two things were checked live:
 > - `gemini-2.5-flash` now returns *"no longer available to new users"* on fresh keys.
@@ -103,7 +103,7 @@ create a service account and download its key.
 
 1. Open **<https://console.cloud.google.com/projectcreate>**.
 2. **Project name:** `satquery-prod` (or anything). Note the **Project ID** Google
-   assigns — you need it later, and it is not always the same as the name.
+   assigns - you need it later, and it is not always the same as the name.
 3. Click **Create**.
 
 Billing is **not** required for the Earth Engine noncommercial tier.
@@ -116,14 +116,14 @@ Billing is **not** required for the Earth Engine noncommercial tier.
 
 ### 2c. Register the project for Earth Engine
 
-This is the step people miss — an enabled API is not enough, the *project* has to be
+This is the step people miss - an enabled API is not enough, the *project* has to be
 registered.
 
 1. Open **<https://console.cloud.google.com/earth-engine>**.
 2. Click **Register** (or **Get started**).
 3. Choose **Unpaid usage / Noncommercial**.
 4. Fill in the short eligibility questionnaire (academic / research / non-profit).
-5. Choose a **quota tier** — pick **Community** unless you have been told otherwise.
+5. Choose a **quota tier** - pick **Community** unless you have been told otherwise.
 6. Confirm. Access is usually granted immediately.
 
 > As of **27 April 2026**, every noncommercial project must have selected a tier;
@@ -137,9 +137,9 @@ registered.
 3. **Name:** `satquery-gee`. Click **Create and continue**.
 4. **Grant this service account access to project** → add **both** of these roles
    (click **+ ADD ANOTHER ROLE** for the second):
-   - **Earth Engine Resource Writer** (`roles/earthengine.writer`) — permits the
+   - **Earth Engine Resource Writer** (`roles/earthengine.writer`) - permits the
      interactive computations and exports that `rs_classify` and `change_detect` run.
-   - **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) — without
+   - **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) - without
      this, `ee.Initialize()` fails with *"Caller does not have required permission to
      use project"*. This one is easy to miss and blocks everything.
 5. Click **Continue**, then **Done**.
@@ -147,7 +147,7 @@ registered.
    right → **Manage keys**.
 7. **Add key** → **Create new key** → choose **JSON** → **Create**.
    The `.json` file downloads automatically.
-8. Copy the **service account email** from the list — it looks like
+8. Copy the **service account email** from the list - it looks like
    `satquery-gee@your-project-id.iam.gserviceaccount.com`.
 
 The service account itself needs no separate Earth Engine registration; it inherits
@@ -155,7 +155,7 @@ access from the registered project.
 
 ### 2e. Put the key where the backend expects it
 
-1. Create a folder `backend/_secrets/` (already gitignored — the key must never be committed).
+1. Create a folder `backend/_secrets/` (already gitignored - the key must never be committed).
 2. Move the downloaded JSON into it and rename it `gee-service-account.json`.
 3. Fill in `backend/.env`:
 
@@ -170,7 +170,7 @@ GEE_PROJECT=your-project-id
 ## 3. Optional: OpenAI / Anthropic
 
 Only needed if you want to demo backend switching (`VLM_BACKEND=gpt4v` or `claude`).
-Both are paid — no free tier.
+Both are paid - no free tier.
 
 - **OpenAI:** <https://platform.openai.com/api-keys> → **Create new secret key** →
   `OPENAI_API_KEY=sk-...`, `OPENAI_MODEL=gpt-4o`
@@ -233,11 +233,11 @@ Stated here so it is not discovered by a judge (PRD §7.0):
 - **R1 is NOT ATTEMPTED.** Nothing was fine-tuned on remote-sensing data.
   `GET /api/models` says this in plain language, and every VLM-backed `ToolResult`
   carries `confidence_basis` describing its score as a hedging-language heuristic on an
-  unadapted hosted model — never as a calibrated or self-consistency score.
+  unadapted hosted model - never as a calibrated or self-consistency score.
 - **Design Rule 3 is broken for the seven hosted tools only.** They all declare
   `offline_capable=False` and return a structured `NOT_EVALUATED_OFFLINE` in
   `OFFLINE_MODE`, rather than failing the run. The four deterministic tools remain the
   only offline-capable perception path.
 - **Preview PNGs are sent to a third-party API.** Confirm this is acceptable under
   ISRO/SAC data-handling rules before relying on it for a live demo. GEE never receives
-  pixels — only AOI bounds and dates.
+  pixels - only AOI bounds and dates.

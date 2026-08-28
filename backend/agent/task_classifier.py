@@ -1,5 +1,5 @@
 """
-Task classifier — PRD §9.2.
+Task classifier - PRD §9.2.
 
 Two-stage classification: rules first, model second.
 The input configuration already eliminates most of the space.
@@ -34,7 +34,7 @@ class TaskClassification(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Rule cues — PRD §9.2
+# Rule cues - PRD §9.2
 # ---------------------------------------------------------------------------
 GROUNDING_CUES = (
     "highlight", "locate", "where is", "mark the", "show me the",
@@ -80,7 +80,7 @@ def _rule_confidence(q: str, task: TaskType) -> float:
 def classify_task(query: str, scene) -> TaskClassification:
     """
     Classify the user's query into a TaskType.
-    Rules first — the input configuration constrains the space before the text
+    Rules first - the input configuration constrains the space before the text
     is even read.  LLM fallback for low-confidence cases.
     """
     q = query.lower().strip()
@@ -120,7 +120,7 @@ def classify_task(query: str, scene) -> TaskClassification:
     conf = _rule_confidence(q, t)
 
     # PRD: if confidence < 0.6 and PLANNER_BACKEND != "local", use LLM classifier
-    # (skipped here — LLM classifier is a Phase 7 enhancement; rule-based is the
+    # (skipped here - LLM classifier is a Phase 7 enhancement; rule-based is the
     # primary and offline-safe path)
     if conf < 0.6 and settings.PLANNER_BACKEND != "local":
         evidence.append(f"rule confidence {conf:.2f} below threshold; LLM fallback not yet wired")

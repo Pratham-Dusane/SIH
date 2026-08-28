@@ -1,3 +1,3 @@
 """
-Agent package — auto-imports to make controller accessible.
+Agent package - auto-imports to make controller accessible.
 """

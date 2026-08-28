@@ -116,7 +116,7 @@ async def confirm_scene(
             preview_url=storage.public_url(preview_obj_path),
             thumb_url=storage.public_url(thumb_obj_path),
             # Best-effort acquisition date from the GeoTIFF tags.  Many products
-            # carry no recognisable date tag, so this is often None — the GEE
+            # carry no recognisable date tag, so this is often None - the GEE
             # tools (§7.3, §7.4) then refuse with NO_DATES until the user sets
             # the date via POST /api/scenes/{id}/dates.
             acquired_at=_date_from_tags(raster_meta.tags),
@@ -159,7 +159,7 @@ async def confirm_scene(
     # Name the scene after what was actually uploaded.  A caller-supplied name
     # wins; otherwise use the first image's filename so the scene is
     # identifiable in a list, falling back to a timestamp only if that is
-    # somehow empty.  Never a fixed label — the name must describe the data.
+    # somehow empty.  Never a fixed label - the name must describe the data.
     scene_name = payload.name or _default_scene_name(processed_images)
     source_tag = f"benchmark:{payload.benchmark_dataset}" if (payload.benchmark_mode and payload.benchmark_dataset) else "user_upload"
 
@@ -364,3 +364,42 @@ async def delete_scene(
     db.delete_document("scenes", scene_id)
 
     return {"status": "deleted", "scene_id": scene_id}
+
+
+@router.get("/{scene_id}/suggestions")
+async def get_scene_suggestions(
+    scene_id: str,
+    user: dict = Depends(current_user),
+    db: Database = Depends(get_db),
+):
+    """
+    Return context-aware query suggestions for this scene.
+
+    Reads scene metadata (modality, input config, band count, geo info)
+    and returns relevant questions the user can ask.  Solves the "non-expert
+    does not know what to ask" problem the PRD raises.
+    """
+    scene_data = db.get_document("scenes", scene_id)
+    if not scene_data:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    scene = Scene(**scene_data)
+    from services.ingest.suggestions import generate_suggestions
+
+    band_count = max(
+        (img.metadata.band_count for img in scene.images if img.metadata),
+        default=3,
+    )
+    has_dates = any(
+        img.acquired_at is not None for img in scene.images
+    )
+
+    suggestions = generate_suggestions(
+        input_config=scene.input_config,
+        modalities=scene.modalities,
+        band_count=band_count,
+        georeferenced=any(img.metadata.georeferenced for img in scene.images if img.metadata),
+        has_dates=has_dates,
+    )
+    return {"suggestions": suggestions}
+

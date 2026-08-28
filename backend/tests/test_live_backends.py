@@ -1,5 +1,5 @@
 """
-Live backend smoke tests — opt-in, they make real network calls.
+Live backend smoke tests - opt-in, they make real network calls.
 
 The rest of the suite is hermetic (see conftest.no_network_by_default) so it can
 run in the `--network none` offline evaluation container (PRD §11.5). These
@@ -70,7 +70,7 @@ def test_live_vlm_answers_a_question(live_vlm):
 def test_live_vlm_returns_a_parseable_normalised_box(live_vlm):
     """
     Guards the §8.3.3 contract against a model that answers on a 0-1000 scale.
-    If this fails, rs_ground will only ever produce honest negatives — check
+    If this fails, rs_ground will only ever produce honest negatives - check
     GEMINI_MODEL before assuming the tool is broken.
     """
     from services.inference.vlm_gateway import TEMPLATES, parse_bbox, vlm_call

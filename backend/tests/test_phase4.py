@@ -1,5 +1,5 @@
 """
-Phase 4 tests — PRD §7.
+Phase 4 tests - PRD §7.
 
 Covers the hosted VLM gateway (§7.1), the Earth Engine backends (§7.2-§7.5),
 the backend cards (§7.6), and the two failure contracts that matter most:
@@ -132,7 +132,7 @@ def stub_vlm(monkeypatch, module_name, text):
 
 
 # ---------------------------------------------------------------------------
-# §7.1 — gateway helpers
+# §7.1 - gateway helpers
 # ---------------------------------------------------------------------------
 def test_parse_bbox_accepts_the_fixed_format():
     from services.inference.vlm_gateway import parse_bbox
@@ -203,7 +203,7 @@ def test_vlm_call_refuses_in_offline_mode(offline):
 
 
 # ---------------------------------------------------------------------------
-# §7.1 / §8.3.1 — rs_vqa
+# §7.1 / §8.3.1 - rs_vqa
 # ---------------------------------------------------------------------------
 def test_rs_vqa_returns_answer_with_honest_confidence_basis(monkeypatch, vlm_key):
     from tools.registry import REGISTRY
@@ -218,7 +218,7 @@ def test_rs_vqa_returns_answer_with_honest_confidence_basis(monkeypatch, vlm_key
     assert res.model_version == "gemini:test-model"
     assert res.facts["answer"].startswith("Two reservoirs")
     assert res.confidence > 0
-    # The basis must never claim self-consistency — §7.1.
+    # The basis must never claim self-consistency - §7.1.
     assert "not self-consistency" in res.confidence_basis
     assert "unadapted" in res.confidence_basis
 
@@ -266,7 +266,7 @@ def test_vlm_tool_survives_a_provider_error(monkeypatch, vlm_key):
 
 
 # ---------------------------------------------------------------------------
-# §8.3.2 — rs_caption
+# §8.3.2 - rs_caption
 # ---------------------------------------------------------------------------
 def test_rs_caption_detail_selects_a_fixed_template(monkeypatch, vlm_key):
     from services.inference.vlm_gateway import TEMPLATES
@@ -288,7 +288,7 @@ def test_rs_caption_rejects_a_free_text_detail_value():
 
 
 # ---------------------------------------------------------------------------
-# §7.1 / §8.3.3 — rs_ground
+# §7.1 / §8.3.3 - rs_ground
 # ---------------------------------------------------------------------------
 def test_rs_ground_parses_a_box_and_emits_geojson(monkeypatch, vlm_key):
     from tools.rs_ground import RSGroundParams, RSGroundTool
@@ -344,7 +344,7 @@ def test_rs_ground_omits_coordinates_for_a_non_georeferenced_scene(monkeypatch, 
 
 
 # ---------------------------------------------------------------------------
-# §8.3.5 / §8.3.6 — change_describe, change_vqa
+# §8.3.5 / §8.3.6 - change_describe, change_vqa
 # ---------------------------------------------------------------------------
 def bitemporal_scene(coreg=1.0):
     return FakeScene(
@@ -398,7 +398,7 @@ def test_change_describe_ignores_an_unavailable_change_detect_result(monkeypatch
     ctx = make_ctx(bitemporal_scene())
     ctx.results["s1"] = ToolResult(
         tool="change_detect", model_id="G2", confidence=0.0,
-        confidence_basis="NOT_EVALUATED_OFFLINE — no inference was performed",
+        confidence_basis="NOT_EVALUATED_OFFLINE - no inference was performed",
         facts={"status": "NOT_EVALUATED_OFFLINE", "reason": "offline"},
     )
 
@@ -438,7 +438,7 @@ def test_bi_temporal_images_are_ordered_t1_then_t2():
 
 
 # ---------------------------------------------------------------------------
-# §7.2 — Earth Engine init degrades, never crashes
+# §7.2 - Earth Engine init degrades, never crashes
 # ---------------------------------------------------------------------------
 def test_gee_available_reports_a_reason_without_raising(monkeypatch):
     import core.gee as gee
@@ -476,7 +476,7 @@ def test_require_gee_raises_a_typed_error_when_unavailable(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# §7.3 — land cover histogram normalisation
+# §7.3 - land cover histogram normalisation
 # ---------------------------------------------------------------------------
 def test_normalise_histogram_maps_dynamic_world_indices_to_labels():
     from core.gee import normalise_histogram
@@ -505,7 +505,7 @@ def test_render_landcover_summary_disclaims_the_uploaded_raster():
 
 
 # ---------------------------------------------------------------------------
-# §7.3 — rs_classify guard rails
+# §7.3 - rs_classify guard rails
 # ---------------------------------------------------------------------------
 def test_rs_classify_is_not_evaluated_offline(offline):
     from tools.registry import REGISTRY
@@ -585,7 +585,7 @@ def test_rs_classify_scale_is_range_bound():
 
 
 # ---------------------------------------------------------------------------
-# §7.4 / §8.3.4 — change_detect
+# §7.4 / §8.3.4 - change_detect
 # ---------------------------------------------------------------------------
 def test_change_detect_refuses_a_misregistered_pair_before_calling_gee(monkeypatch):
     import tools.change_detect as mod
@@ -703,7 +703,7 @@ def test_geo_stats_measures_a_gee_mask_on_its_own_grid(monkeypatch, tmp_path):
 
     # 80 px at the mask's own 10 m grid = 8000 m² = 0.8 ha.  The scene GSD also
     # happens to be 10 m here, but the point is that the mask's GSD is what was
-    # used — and geo_stats says so.
+    # used - and geo_stats says so.
     assert stats.facts["area_ha"] == pytest.approx(0.8)
     assert "mask's own grid" in stats.facts["gsd_source"]
     assert any("not the uploaded raster" in w for w in stats.warnings)
@@ -734,7 +734,7 @@ def test_change_detect_threshold_is_range_bound():
 
 
 # ---------------------------------------------------------------------------
-# §7.5 — the GEE SAR path is opt-in acceleration, never a replacement
+# §7.5 - the GEE SAR path is opt-in acceleration, never a replacement
 # ---------------------------------------------------------------------------
 def test_sar_water_mask_defaults_to_the_local_pipeline():
     from tools.sar_water_mask import SARWaterMaskParams
@@ -790,7 +790,7 @@ def test_sar_water_mask_flags_gee_provenance_when_used(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# §7.6 — backend cards
+# §7.6 - backend cards
 # ---------------------------------------------------------------------------
 def test_backend_cards_declare_no_fine_tuning_and_r1_not_attempted():
     from core.backend_cards import fine_tuning_disclosure, load_backend_cards
@@ -851,7 +851,7 @@ def test_card_offline_flags_match_the_registry():
 
 
 # ---------------------------------------------------------------------------
-# §7.2 / §9.3 — the gate reports a missing backend as a missing capability
+# §7.2 / §9.3 - the gate reports a missing backend as a missing capability
 # ---------------------------------------------------------------------------
 def test_gate_refuses_vqa_with_a_remedy_when_the_vlm_is_unconfigured(no_backends_available):
     from agent.input_gate import input_gate
@@ -970,7 +970,7 @@ def test_models_endpoint_states_nothing_was_fine_tuned():
 
 
 # ---------------------------------------------------------------------------
-# Provider rate limiting — free-tier keys 429 constantly, and a demo must
+# Provider rate limiting - free-tier keys 429 constantly, and a demo must
 # degrade with a usable remedy rather than a raw HTTP traceback.
 # ---------------------------------------------------------------------------
 def test_post_with_retry_backs_off_then_succeeds(monkeypatch):
@@ -1107,7 +1107,7 @@ def test_response_warnings_flags_a_blocked_or_empty_answer():
 
 
 # ---------------------------------------------------------------------------
-# Vertex AI transport — same Gemini models from the project's own GCP account,
+# Vertex AI transport - same Gemini models from the project's own GCP account,
 # so the AI Studio free-tier per-day request cap does not apply.
 # ---------------------------------------------------------------------------
 @pytest.fixture
@@ -1280,7 +1280,7 @@ def test_provider_error_reaches_the_tool_result(monkeypatch, vlm_key):
 
 
 # ---------------------------------------------------------------------------
-# Acquisition dates — the GEE tools query the catalog by AOI + date range, so a
+# Acquisition dates - the GEE tools query the catalog by AOI + date range, so a
 # scene with no date must be settable rather than permanently refused.
 # ---------------------------------------------------------------------------
 def test_ingest_reads_an_acquisition_date_from_tags():

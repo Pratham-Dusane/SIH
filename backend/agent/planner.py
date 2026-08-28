@@ -1,5 +1,5 @@
 """
-Planner — PRD §9.4.
+Planner - PRD §9.4.
 
 Rule-based planner (default, the only one used in offline evaluation).
 LLM planner enhancement (PLANNER_BACKEND=vertex) is a Phase 7 addition.
@@ -83,7 +83,7 @@ def _resequence(steps: list) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Rule-based planner — PRD §9.4
+# Rule-based planner - PRD §9.4
 # ---------------------------------------------------------------------------
 
 def plan_rules(task: TaskType, query: str, scene) -> ExecutionPlan:

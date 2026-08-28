@@ -1,5 +1,5 @@
 """
-Seed service — auto-populates satquery.db with demo scenes (e.g. scn_single_01)
+Seed service - auto-populates satquery.db with demo scenes (e.g. scn_single_01)
 using real raster files (e.g. D:\\SIH\\_data\\OUTPUT.tif) on startup so the live backend
 can run real deterministic tools and VLM calls on demo scenes.
 """
@@ -110,7 +110,7 @@ def seed_demo_scenes(db: Database):
         id=scene_id,
         workspace_id=workspace_id,
         # Named after the file that was actually seeded.  A fixed label like
-        # "VRSBench Sample — Scene 0042" mislabels whatever raster is really
+        # "VRSBench Sample - Scene 0042" mislabels whatever raster is really
         # there, which is worse than no name at all.
         name=Path(clean_name).stem,
         input_config="SINGLE",

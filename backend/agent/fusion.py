@@ -1,10 +1,10 @@
 """
-Fusion — PRD §9.6.
+Fusion - PRD §9.6.
 
 Two modes, both constrained.  Neither is allowed to introduce a fact.
 
-Mode A — template (default, offline-safe).
-Mode B — LLM composition (FUSION_BACKEND=vertex), Phase 7 enhancement.
+Mode A - template (default, offline-safe).
+Mode B - LLM composition (FUSION_BACKEND=vertex), Phase 7 enhancement.
 
 Includes the numeric grounding check that catches invented statistics.
 """
@@ -18,7 +18,7 @@ from agent.task_classifier import TaskType
 
 
 # ---------------------------------------------------------------------------
-# Numeric grounding check — runs on both modes and is not optional.
+# Numeric grounding check - runs on both modes and is not optional.
 # Catches the exact failure this system exists to prevent: a fluent,
 # plausible, invented statistic.
 # PRD §9.6
@@ -72,7 +72,7 @@ def verify_grounded(answer: str, results: Dict[str, Any]) -> Tuple[bool, List[st
 
 
 # ---------------------------------------------------------------------------
-# Template renderers — one per task type
+# Template renderers - one per task type
 # ---------------------------------------------------------------------------
 
 def _render_vqa(results: Dict[str, Any], query: str) -> str:
@@ -111,7 +111,7 @@ def _render_grounding(results: Dict[str, Any]) -> str:
 
 
 def _render_change_answer(results: Dict[str, Any], scene=None) -> str:
-    """PRD §9.6 — template renderer for change tasks."""
+    """PRD §9.6 - template renderer for change tasks."""
     cd = _find_result(results, "change_detect")
     gs = _find_result(results, "geo_stats")
     cdesc = _find_result(results, "change_describe")
@@ -201,7 +201,7 @@ async def fuse(
     # Numeric grounding check
     ok, unsupported = verify_grounded(answer, results)
     if not ok:
-        # Fall back to a safer rendering — just concatenate tool texts
+        # Fall back to a safer rendering - just concatenate tool texts
         safe_parts = []
         for r in results.values():
             if hasattr(r, "text") and r.text:

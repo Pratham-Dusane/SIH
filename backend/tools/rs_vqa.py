@@ -1,5 +1,5 @@
 """
-rs_vqa tool — PRD §7.1, §8.3.1.  **Mandatory R2.**
+rs_vqa tool - PRD §7.1, §8.3.1.  **Mandatory R2.**
 
 A thin wrapper around the hosted VLM gateway.  The backend is a general-purpose
 model with no remote-sensing adaptation (§7.0): R1 is *not* satisfied here, and
@@ -19,7 +19,7 @@ from services.inference.vlm_gateway import (
 BACKEND_LABEL = "the hosted VLM gateway (backend V1)"
 
 CONFIDENCE_BASIS = (
-    "heuristic hedging-language score on a hosted, unadapted VLM response — "
+    "heuristic hedging-language score on a hosted, unadapted VLM response - "
     "not self-consistency"
 )
 
@@ -57,11 +57,11 @@ class RSVQATool(Tool):
             out = await vlm_call(imgs, instruction, backend=ctx.vlm_backend)
         except VLMUnavailable as e:
             return unavailable_result(self.name, self.model_id, str(e), BACKEND_LABEL)
-        except Exception as e:  # noqa: BLE001 — a tool failure never aborts the plan
+        except Exception as e:  # noqa: BLE001 - a tool failure never aborts the plan
             return error_result(self.name, self.model_id, e, BACKEND_LABEL)
 
         # No self-consistency sampling by default (cost); confidence is a
-        # heuristic on response hedging language, NOT a calibrated score —
+        # heuristic on response hedging language, NOT a calibrated score -
         # labelled honestly in confidence_basis, never presented as equivalent
         # to the old self-consistency signal.
         conf = heuristic_confidence(out["text"])

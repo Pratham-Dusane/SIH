@@ -30,7 +30,7 @@ export default function AbstentionNotice({ result }: AbstentionNoticeProps) {
             ))}
 
             <p className="text-[10px] text-muted-foreground italic mt-2">
-              Abstention is a feature — the system declines when evidence is insufficient rather than guessing.
+              Abstention is a feature - the system declines when evidence is insufficient rather than guessing.
             </p>
           </div>
         </div>

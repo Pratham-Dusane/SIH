@@ -63,7 +63,7 @@ Every row here is graded. A copilot must not mark a phase complete until its row
 |---|----------------------|----------------|---------|
 | # | Mandatory requirement | Implemented by | Section |
 |---|----------------------|----------------|---------|
-| R1 | At least one visual/VL component fine-tuned on BigEarthNet.txt or open-source RS data | **Not attempted — disclosed.** Phase 4 was replaced with hosted general-purpose VLMs (GPT-4V / Gemini Pro Vision / Claude vision) + Google Earth Engine, with no fine-tuning. See 7.0 for the explicit trade-off rationale. | 7 |
+| R1 | At least one visual/VL component fine-tuned on BigEarthNet.txt or open-source RS data | **Not attempted - disclosed.** Phase 4 was replaced with hosted general-purpose VLMs (GPT-4V / Gemini Pro Vision / Claude vision) + Google Earth Engine, with no fine-tuning. See 7.0 for the explicit trade-off rationale. | 7 |
 | R2 | Single-image VQA (mandatory) | `rs_vqa` tool -> hosted VLM API | 8.3.1 |
 | R3 | One additional single-image task (captioning OR grounding) | **Both** built: `rs_caption` -> hosted VLM API, `rs_ground` -> hosted VLM API (box parsed from text, no dedicated detector) | 8.3.2, 8.3.3 |
 | R4 | Change description OR change-VQA from bi-temporal pair (mandatory) | **Both** built: `change_describe`, `change_vqa` -> hosted VLM API | 8.3.5, 8.3.6 |
@@ -77,15 +77,15 @@ Every row here is graded. A copilot must not mark a phase complete until its row
 | R12 | GeoTIFF/TIFF support; PNG/JPEG only for prescribed benchmarks | `raster_reader.py` format gate with `benchmark_mode` flag | 6.2, 6.7 |
 | R13 | Interactive GUI/web app, downloadable reports | Next.js workspace + PDF/JSON/GeoTIFF/GeoJSON export | 4, 10.4 |
 
-**R1 is knowingly unmet in this version.** This was a deliberate scope trade-off (speed + real GEE-backed product value over a training pipeline), not an oversight — see 7.0. Do not word-game this in the submission; state it as not attempted.
+**R1 is knowingly unmet in this version.** This was a deliberate scope trade-off (speed + real GEE-backed product value over a training pipeline), not an oversight - see 7.0. Do not word-game this in the submission; state it as not attempted.
 
 ### 1.6 Non-Negotiable Design Rules
 
 These constrain every implementation decision downstream. Do not violate them for convenience.
 
 1. **No ungrounded claims.** The answer synthesizer may only restate facts that appear in tool outputs. Any number in the final answer must be traceable to a tool result (enforced programmatically in `agent/fusion.py`, see 9.6).
-2. **The planner LLM is not the perception system — MODIFIED, PARTIALLY VIOLATED.** This rule is upheld for the planner itself (it still receives metadata only) and for the deterministic + GEE tools (which take AOI bounds/dates, never raw pixels — GEE queries its own catalog, not the uploaded raster). It is **knowingly broken** for the VLM-backed tools (`rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa`), which now send preview pixels to a hosted general-purpose VLM. This is the direct cause of the R1 failure above; do not paper over it.
-3. **Offline-capable evaluation.** The ISRO/SAC evaluation set may be run in an environment without external API access. Every path required for evaluation must work with `PLANNER_BACKEND=local` (rule-based + local classifier). Cloud LLM planning is an enhancement, never a dependency. **GEE and the hosted VLM API are both online, quota-limited services and cannot run in the `--network none` offline eval container (17.14).** Every tool that depends on either must declare `offline_capable=False` in its `ToolSpec` (8.1) and degrade to a stated `NOT_EVALUATED_OFFLINE` result rather than fail the run — see 11.5 for the required dual-path handling this now demands.
+2. **The planner LLM is not the perception system - MODIFIED, PARTIALLY VIOLATED.** This rule is upheld for the planner itself (it still receives metadata only) and for the deterministic + GEE tools (which take AOI bounds/dates, never raw pixels - GEE queries its own catalog, not the uploaded raster). It is **knowingly broken** for the VLM-backed tools (`rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa`), which now send preview pixels to a hosted general-purpose VLM. This is the direct cause of the R1 failure above; do not paper over it.
+3. **Offline-capable evaluation.** The ISRO/SAC evaluation set may be run in an environment without external API access. Every path required for evaluation must work with `PLANNER_BACKEND=local` (rule-based + local classifier). Cloud LLM planning is an enhancement, never a dependency. **GEE and the hosted VLM API are both online, quota-limited services and cannot run in the `--network none` offline eval container (17.14).** Every tool that depends on either must declare `offline_capable=False` in its `ToolSpec` (8.1) and degrade to a stated `NOT_EVALUATED_OFFLINE` result rather than fail the run - see 11.5 for the required dual-path handling this now demands.
 4. **Geospatial truth is preserved end-to-end.** CRS, transform, and nodata travel with every intermediate array. Masks are exported in the source CRS. Areas are computed from the actual pixel size, never assumed to be 10 m.
 5. **Local-first development.** Phases 1-9 must run on a laptop with `STORAGE_BACKEND=local` and `DB_BACKEND=sqlite`. GCP is a deployment target added at the end (Section 17), not a build prerequisite.
 
@@ -139,7 +139,7 @@ These constrain every implementation decision downstream. Do not violate them fo
 | Object storage | Google Cloud Storage (local FS in dev) | Large GeoTIFFs |
 | Raster I/O | rasterio + GDAL, numpy, scikit-image | Industry standard geospatial stack |
 | VLM | Hosted API (GPT-4V / Gemini 1.5-2.0 Pro Vision / Claude vision) | No training loop; strong out-of-the-box fluency; swapped in behind the same `ToolResult` contract |
-| Geospatial analysis | Google Earth Engine (`earthengine-api`, `ee.Initialize()`) | Global Dynamic World / ESA WorldCover land cover, Sentinel-1 GRD backscatter, NDVI/NDBI differencing — real classification/change without training anything |
+| Geospatial analysis | Google Earth Engine (`earthengine-api`, `ee.Initialize()`) | Global Dynamic World / ESA WorldCover land cover, Sentinel-1 GRD backscatter, NDVI/NDBI differencing - real classification/change without training anything |
 | Change (reference) | GEE pre-built change algorithms + NDVI/NDBI differencing | Won't match a trained Siamese U-Net's IoU on a labeled benchmark, but is a defensible real-world result |
 | Async jobs | Cloud Tasks -> Cloud Run Jobs | Batch eval, long inference |
 | Eval logs | BigQuery | Benchmark run history, leaderboards |
@@ -163,11 +163,11 @@ These constrain every implementation decision downstream. Do not violate them fo
 | ID | Component | Backend | Serves tools | Where | Offline-capable? |
 |----|-----------|---------|--------------|-------|-------------------|
 | V1 | Hosted VLM (GPT-4V / Gemini Pro Vision / Claude vision) | Third-party API, RS-analyst system prompt (reused from old 7.3 `SYSTEM`) | `rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa` | vlm-gateway | **No** |
-| G1 | Google Earth Engine — Dynamic World / ESA WorldCover | `ee.Initialize()` + service account | `rs_classify`-equivalent land-cover stats | backend (CPU, online) | **No** |
-| G2 | Google Earth Engine — Sentinel-1 GRD, Sentinel-2 NDVI/NDBI + prebuilt change algorithms | `ee.Initialize()` + service account | `change_detect` | backend (CPU, online) | **No** |
+| G1 | Google Earth Engine - Dynamic World / ESA WorldCover | `ee.Initialize()` + service account | `rs_classify`-equivalent land-cover stats | backend (CPU, online) | **No** |
+| G2 | Google Earth Engine - Sentinel-1 GRD, Sentinel-2 NDVI/NDBI + prebuilt change algorithms | `ee.Initialize()` + service account | `change_detect` | backend (CPU, online) | **No** |
 | - | Deterministic geo tools | rasterio/numpy/skimage | `spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check` | backend (CPU) | **Yes** |
 
-**R1 is not satisfied by any of the above** — none of these involve fine-tuning or RS-specific adaptation. This table replaces the old M1-M5 inventory; there are no `model_card.json` training lineages to show a judge for R1.
+**R1 is not satisfied by any of the above** - none of these involve fine-tuning or RS-specific adaptation. This table replaces the old M1-M5 inventory; there are no `model_card.json` training lineages to show a judge for R1.
 
 ### 2.4 Local-First Development Contract
 
@@ -983,16 +983,16 @@ Benchmark samples (VRSBench, RSVQA, CDVQA) arrive as PNG/JPEG with no CRS. `benc
 This replaces the original M1-M5 fine-tuning phase with hosted general models plus a real geospatial product (Google Earth Engine). Recorded here so nobody re-derives it under deadline pressure and forgets the trade-off:
 
 **What this buys:**
-- An end-to-end agent in days, not weeks — no training loop, no dataset curation, no GPU rental.
-- Strong out-of-the-box fluency for captioning/VQA-style output from GPT-4V/Gemini/Claude — likely beats a homemade QLoRA model on fluency and some presence/counting questions.
-- GEE gives real, non-fabricated geospatial analysis (land cover, SAR, change) — a legitimate product decision independent of grading.
+- An end-to-end agent in days, not weeks - no training loop, no dataset curation, no GPU rental.
+- Strong out-of-the-box fluency for captioning/VQA-style output from GPT-4V/Gemini/Claude - likely beats a homemade QLoRA model on fluency and some presence/counting questions.
+- GEE gives real, non-fabricated geospatial analysis (land cover, SAR, change) - a legitimate product decision independent of grading.
 
 **What this fails:**
-- **R1 outright.** Design Rule 2 says perception must come from RS-adapted models, and Design Rule 2 (1.6) is explicitly the boundary the problem statement draws in its opening line. A generic VLM looking at raw preview pixels is exactly the disqualified architecture. There is no honest framing that satisfies R1 — report it as **not attempted**.
+- **R1 outright.** Design Rule 2 says perception must come from RS-adapted models, and Design Rule 2 (1.6) is explicitly the boundary the problem statement draws in its opening line. A generic VLM looking at raw preview pixels is exactly the disqualified architecture. There is no honest framing that satisfies R1 - report it as **not attempted**.
 - **Design Rule 3, for the VLM and GEE tools only.** Both are online, quota-limited services (GEE additionally needs `ee.Initialize()` via a service account). Neither can run inside the `--network none` offline ISRO/SAC eval container (17.14, 11.5). The deterministic tools built in Phase 3 remain the only offline-capable perception path.
-- **Data control.** Preview PNGs are sent to a third-party API. Confirm this is acceptable under ISRO/SAC data-handling rules before relying on it for the live demo — this could be a hard blocker, not a preference.
+- **Data control.** Preview PNGs are sent to a third-party API. Confirm this is acceptable under ISRO/SAC data-handling rules before relying on it for the live demo - this could be a hard blocker, not a preference.
 
-**What still holds:** Design Rule 2 is only broken by the five VLM-backed tools. The GEE-backed tools (`rs_classify`-equivalent, `change_detect`) take AOI bounds and dates, never the uploaded pixel array, so they're closer in spirit to the deterministic tools than to a perception model — they just aren't offline-capable.
+**What still holds:** Design Rule 2 is only broken by the five VLM-backed tools. The GEE-backed tools (`rs_classify`-equivalent, `change_detect`) take AOI bounds and dates, never the uploaded pixel array, so they're closer in spirit to the deterministic tools than to a perception model - they just aren't offline-capable.
 
 ### 7.1 VLM Tool Wrappers
 
@@ -1021,13 +1021,13 @@ class RSVQATool(Tool):
     name = "rs_vqa"
     accepts = ["SINGLE", "CROSS_MODAL", "BI_TEMPORAL"]
     produces = ["text"]
-    model_id = "V1"          # hosted VLM, not a trained model — see 2.3
+    model_id = "V1"          # hosted VLM, not a trained model - see 2.3
 
     async def run(self, ctx, p: RSVQAParams) -> ToolResult:
         imgs = ctx.model_ready_images()
         out = await vlm_call(imgs, p.question, backend=ctx.vlm_backend)
         # No self-consistency sampling by default (cost); confidence is a
-        # heuristic on response hedging language, NOT a calibrated score —
+        # heuristic on response hedging language, NOT a calibrated score -
         # label it honestly in confidence_basis, never present it as equivalent
         # to the old self-consistency signal.
         conf = heuristic_confidence(out["text"])
@@ -1035,12 +1035,12 @@ class RSVQATool(Tool):
                           text=out["text"], facts={"answer": out["text"], "question": p.question},
                           confidence=conf,
                           confidence_basis="heuristic hedging-language score on a hosted, "
-                                          "unadapted VLM response — not self-consistency")
+                                          "unadapted VLM response - not self-consistency")
 ```
 
-`rs_caption`, `change_describe`, `change_vqa` follow the same pattern with the task-specific instruction templates carried over unchanged from the old 7.3 `TEMPLATES` dict. `change_describe` still injects `change_detect` facts when available (unchanged behaviour from old 8.3.5) — that quantitative anchoring is even more important now since the narrative half is unadapted.
+`rs_caption`, `change_describe`, `change_vqa` follow the same pattern with the task-specific instruction templates carried over unchanged from the old 7.3 `TEMPLATES` dict. `change_describe` still injects `change_detect` facts when available (unchanged behaviour from old 8.3.5) - that quantitative anchoring is even more important now since the narrative half is unadapted.
 
-`rs_ground`: no dedicated grounding model exists anymore. The VLM is asked directly for a normalised bounding box in the fixed `(x1,y1),(x2,y2)` format and parsed. If parsing fails or the box is out of range, return `confidence=0.0` and `text="No region matching '<phrase>' could be located"` rather than guessing — same honest-negative contract as the old M3 fallback path (old 8.3.3).
+`rs_ground`: no dedicated grounding model exists anymore. The VLM is asked directly for a normalised bounding box in the fixed `(x1,y1),(x2,y2)` format and parsed. If parsing fails or the box is out of range, return `confidence=0.0` and `text="No region matching '<phrase>' could be located"` rather than guessing - same honest-negative contract as the old M3 fallback path (old 8.3.3).
 
 ### 7.2 Google Earth Engine Setup
 
@@ -1076,12 +1076,12 @@ class LandCoverTool(Tool):
                           facts={"class_fractions": normalise_histogram(hist)},
                           text=render_landcover_summary(hist),
                           confidence=0.7,
-                          confidence_basis="Dynamic World global product, not scene-specific — "
+                          confidence_basis="Dynamic World global product, not scene-specific - "
                                           "treat as a reference classification, not a measurement "
                                           "of the exact uploaded raster")
 ```
 
-Falls back to ESA WorldCover if Dynamic World has no coverage for the date range. This queries GEE's catalog for the scene's AOI, not the uploaded pixels — it does not violate Design Rule 2, only Design Rule 3 (online-only).
+Falls back to ESA WorldCover if Dynamic World has no coverage for the date range. This queries GEE's catalog for the scene's AOI, not the uploaded pixels - it does not violate Design Rule 2, only Design Rule 3 (online-only).
 
 ### 7.4 Change Detection via GEE (replaces M4 `change_detect`)
 
@@ -1105,25 +1105,25 @@ class ChangeDetectTool(Tool):
         ...
         return ToolResult(tool=self.name, model_id="G2", facts={...},
                           confidence=..., confidence_basis="NDVI/NDBI differencing threshold, "
-                          "not a trained detector — expect lower IoU than a labeled-benchmark model")
+                          "not a trained detector - expect lower IoU than a labeled-benchmark model")
 ```
 
 **Honest expectation, stated in the tool description the planner reads:** this will not match a trained Siamese U-Net's IoU on a labeled benchmark (11.2), but is defensible on real, unlabeled queries.
 
 ### 7.5 SAR via GEE Sentinel-1 GRD
 
-Where the AOI/date range is covered by GEE's Sentinel-1 GRD collection, `sar_water_mask` and `spectral_index`-equivalent SAR analysis can use GEE's already-processed backscatter directly, skipping the local dB conversion pipeline (old 6.5) for that path. **This is optional acceleration, not a replacement** — the deterministic local dB pipeline (built in Phase 3, offline-capable) remains the primary and only offline path, and is mandatory whenever the scene is a user-uploaded RISAT/other-non-catalog raster GEE doesn't host.
+Where the AOI/date range is covered by GEE's Sentinel-1 GRD collection, `sar_water_mask` and `spectral_index`-equivalent SAR analysis can use GEE's already-processed backscatter directly, skipping the local dB conversion pipeline (old 6.5) for that path. **This is optional acceleration, not a replacement** - the deterministic local dB pipeline (built in Phase 3, offline-capable) remains the primary and only offline path, and is mandatory whenever the scene is a user-uploaded RISAT/other-non-catalog raster GEE doesn't host.
 
 ### 7.6 Backend Registry & Cards
 
-Replace `model_card.json` (old 7.7) with `backend_card.json` — no training lineage exists to record:
+Replace `model_card.json` (old 7.7) with `backend_card.json` - no training lineage exists to record:
 
 ```json
 {
   "backend_id": "V1",
   "name": "vlm-gateway",
   "provider": "gemini-1.5-pro-vision",
-  "adaptation": "none — hosted general-purpose model, no fine-tuning",
+  "adaptation": "none - hosted general-purpose model, no fine-tuning",
   "serves_tools": ["rs_vqa", "rs_caption", "rs_ground", "change_describe", "change_vqa"],
   "offline_capable": false,
   "notes": "R1 is not satisfied by this backend."
@@ -1223,7 +1223,7 @@ def registry_manifest() -> list[dict]:
 
 **Rule:** deterministic tools (`spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check`) are preferred over learned tools whenever they can answer the sub-question. They are exact, fast, explainable, and their outputs are the strongest possible evidence. The planner prompt states this preference explicitly.
 
-**New rule for this version:** every `Tool` subclass must set `offline_capable: bool` on its `ToolSpec` (8.1). The input gate (9.3) and the offline eval harness (11.5) both read it — this is what lets the ISRO/SAC offline path degrade gracefully instead of crashing on the VLM/GEE tools.
+**New rule for this version:** every `Tool` subclass must set `offline_capable: bool` on its `ToolSpec` (8.1). The input gate (9.3) and the offline eval harness (11.5) both read it - this is what lets the ISRO/SAC offline path degrade gracefully instead of crashing on the VLM/GEE tools.
 
 ### 8.3 Tool Implementations
 
@@ -1255,7 +1255,7 @@ class RSVQATool(Tool):
             text=out["text"], facts={"answer": out["text"], "question": p.question},
             confidence=round(conf, 3),
             confidence_basis="heuristic hedging-language score on a hosted, "
-                             "unadapted VLM response — not self-consistency",
+                             "unadapted VLM response - not self-consistency",
         )
 ```
 
@@ -1264,7 +1264,7 @@ Same shape as 8.3.1 using V1, `accepts=["SINGLE"]`, params `{detail: Literal["br
 
 #### 8.3.3 `rs_ground` - text-guided grounding (R3)
 
-V1 is asked directly for a normalised box `(x1,y1),(x2,y2)` in text and parsed; there is no separate detector model (M3). Confidence is the VLM's self-reported certainty language, heuristically scored, not a detector's softmax — label this difference explicitly in `confidence_basis` so a judge doesn't mistake it for calibrated detector output. Zero boxes above threshold returns `confidence=0.0` and `text="No region matching '<phrase>' could be located"`.
+V1 is asked directly for a normalised box `(x1,y1),(x2,y2)` in text and parsed; there is no separate detector model (M3). Confidence is the VLM's self-reported certainty language, heuristically scored, not a detector's softmax - label this difference explicitly in `confidence_basis` so a judge doesn't mistake it for calibrated detector output. Zero boxes above threshold returns `confidence=0.0` and `text="No region matching '<phrase>' could be located"`.
 
 #### 8.3.4 `change_detect` (R5)
 
@@ -1291,7 +1291,7 @@ class ChangeDetectTool(Tool):
         mask = ndvi_diff.gt(p.threshold)
         return ToolResult(tool=self.name, model_id="G2", facts={"changed_fraction": ...},
                           confidence=0.6, confidence_basis="NDVI/NDBI differencing threshold, "
-                          "not a trained detector — expect lower IoU than a labeled-benchmark model")
+                          "not a trained detector - expect lower IoU than a labeled-benchmark model")
 ```
 
 When the input is bi-temporal but **not** co-registered within tolerance, this tool refuses rather than producing a garbage mask: registration error is indistinguishable from real change.
@@ -1311,7 +1311,7 @@ class FuseParams(ToolParams):
 
 async def run(self, ctx, p: FuseParams) -> ToolResult:
     opt, sar = ctx.image("optical"), ctx.image("sar")   # or GEE-fetched equivalents, 7.5
-    # No learned fusion stream — M1/M5 no longer exist. Two deterministic
+    # No learned fusion stream - M1/M5 no longer exist. Two deterministic
     # evidence streams only, same as before minus the learned prior.
     ndwi = normalized_difference(opt, "GREEN", "NIR")
     ndbi = normalized_difference(opt, "SWIR", "NIR")
@@ -1330,7 +1330,7 @@ async def run(self, ctx, p: FuseParams) -> ToolResult:
     return ToolResult(tool=self.name, model_id=None, facts=facts,
                       artifacts={"water_mask": ..., "built_mask": ..., "conflict_mask": ...},
                       text=text, confidence=agreement_confidence(water_agree, ndwi, water_sar),
-                      confidence_basis="inter-sensor agreement fraction — fully deterministic, "
+                      confidence_basis="inter-sensor agreement fraction - fully deterministic, "
                                       "offline-capable, no learned prior")
 ```
 
@@ -2102,7 +2102,7 @@ python -m eval.run_benchmark --dataset isro_sac --manifest /eval/manifest.json \
 
 Hard requirements for this mode:
 - **No network calls.** All weights on local disk; planner and fusion in `local`/`template` mode. Verify with a container run using `--network none` in CI.
-- **VLM- and GEE-backed tools are excluded from this mode entirely** (`offline_capable=False`, 8.1). `rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa`, `rs_classify`, and the GEE path of `change_detect`/`sar_optical_fuse` must all return a structured `NOT_EVALUATED_OFFLINE` status rather than attempt a call. The offline submission is therefore scored only on the deterministic tools (`spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check`, and the deterministic half of `sar_optical_fuse`) plus routing/gating behaviour (R7/R8/R9/R11). State this limitation explicitly in the submission notes — do not let a judge discover it by the predictions going empty.
+- **VLM- and GEE-backed tools are excluded from this mode entirely** (`offline_capable=False`, 8.1). `rs_vqa`, `rs_caption`, `rs_ground`, `change_describe`, `change_vqa`, `rs_classify`, and the GEE path of `change_detect`/`sar_optical_fuse` must all return a structured `NOT_EVALUATED_OFFLINE` status rather than attempt a call. The offline submission is therefore scored only on the deterministic tools (`spectral_index`, `sar_water_mask`, `geo_stats`, `coreg_check`, and the deterministic half of `sar_optical_fuse`) plus routing/gating behaviour (R7/R8/R9/R11). State this limitation explicitly in the submission notes - do not let a judge discover it by the predictions going empty.
 - **GeoTIFF-native.** Cartosat-2S and RISAT products arrive as GeoTIFF with real CRS; the PNG path must not be involved.
 - **Sensor-specific preprocessing.** Cartosat-2S is very high resolution panchromatic/multispectral (sub-metre to ~2 m) - do not assume Sentinel-2's 10 m or its band order. RISAT is SAR; run the dB pipeline from 6.5. Both are far outside BigEarthNet's 10 m Sentinel resolution, so the tiling path in 6.5 will be exercised heavily: test it on large rasters before submission.
 - **Emit the official submission format.** Wrap `predictions.json` with an adapter so the internal format never leaks into a submission file.
@@ -2345,7 +2345,7 @@ GET    /api/scenes/{id}/queries           Conversation history for a scene
 POST   /api/queries/{id}/replay           Deterministic replay of a stored plan
 
 GET    /api/tools                         Tool registry manifest (name, schema, accepts)
-GET    /api/models                        Backend cards (VLM provider, GEE datasets) — no trained-model versions exist
+GET    /api/models                        Backend cards (VLM provider, GEE datasets) - no trained-model versions exist
 GET    /api/health/models                 VLM & GEE readiness check
 
 GET    /api/traces/{id}                   Full ExecutionTrace JSON
@@ -2472,7 +2472,7 @@ Build in this sequence so there is always something demoable. Do not reorder - l
 | 18 | Advanced features (12.1-12.9), starting with cloud-awareness and model comparison | Yes |
 | 19 | **GCP deployment (Section 17)** | Yes - public URL |
 
-**Step 7 is the MVP.** At that point the system is genuinely agentic end-to-end. Steps 9-13 turn it into a live-demo-ready product, but **do not claim they satisfy R1** — R1 is not attempted in this version (7.0). Say so in the submission rather than letting a judge find it.
+**Step 7 is the MVP.** At that point the system is genuinely agentic end-to-end. Steps 9-13 turn it into a live-demo-ready product, but **do not claim they satisfy R1** - R1 is not attempted in this version (7.0). Say so in the submission rather than letting a judge find it.
 
 **Demo script (rehearse this exact sequence):**
 1. Upload a Cartosat-2S + RISAT pair -> Compatibility Panel shows CRS, GSD ratio, 1.4 px co-registration -> **input validation is visible**
@@ -2591,7 +2591,7 @@ gcloud run deploy satquery-vlm-gateway \
   --set-env-vars=VLM_BACKEND=gemini
 ```
 
-No GPU, no `--min-instances 1` requirement — it's a thin API wrapper, cold starts are cheap. Cost now scales with per-call VLM API pricing rather than idle GPU time; monitor it under 17.13 alongside GEE quota usage instead of GPU spend.
+No GPU, no `--min-instances 1` requirement - it's a thin API wrapper, cold starts are cheap. Cost now scales with per-call VLM API pricing rather than idle GPU time; monitor it under 17.13 alongside GEE quota usage instead of GPU spend.
 
 Grant the API permission to call it, same pattern as before:
 ```bash
@@ -2600,7 +2600,7 @@ gcloud run services add-iam-policy-binding satquery-vlm-gateway --region us-cent
   --role="roles/run.invoker"
 ```
 
-**GEE runs in-process inside the API service** (`core/gee.py`), not as a separate deployment — grant `satquery-api-sa` the Earth Engine service-account role and mount `GEE_KEY_PATH` as a secret.
+**GEE runs in-process inside the API service** (`core/gee.py`), not as a separate deployment - grant `satquery-api-sa` the Earth Engine service-account role and mount `GEE_KEY_PATH` as a secret.
 
 ### 17.7 Deploy the API (CPU)
 

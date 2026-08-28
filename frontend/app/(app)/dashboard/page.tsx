@@ -74,7 +74,7 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         if (cancelled) return;
-        // No demo scenes on failure — an empty list that says why beats a
+        // No demo scenes on failure - an empty list that says why beats a
         // populated list of scenes that do not exist.
         setStats(null);
         setScenes([]);
@@ -120,7 +120,7 @@ export default function DashboardPage() {
           icon: ShieldAlert,
           color: 'text-modality-sar',
           bg: 'bg-modality-sar/10',
-          tooltip: 'Abstention is a feature — the system declines when evidence is insufficient rather than guessing.',
+          tooltip: 'Abstention is a feature - the system declines when evidence is insufficient rather than guessing.',
         },
       ]
     : [];
@@ -181,7 +181,7 @@ export default function DashboardPage() {
               ))}
         </div>
 
-        {/* Backend unreachable — distinguish this from a genuinely empty workspace */}
+        {/* Backend unreachable - distinguish this from a genuinely empty workspace */}
         {!loading && loadError && (
           <Card className="bg-destructive/5 border-destructive/40">
             <CardContent className="py-3 flex items-start gap-2">
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                 </p>
                 <p className="text-muted-foreground font-mono mt-1 break-all">{loadError}</p>
                 <p className="text-muted-foreground mt-1">
-                  This list is empty because the request failed — not because the
+                  This list is empty because the request failed - not because the
                   workspace is empty.
                 </p>
               </div>
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Upload your first scene</h3>
                 <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                  Start by uploading satellite imagery — GeoTIFF for real analysis,
+                  Start by uploading satellite imagery - GeoTIFF for real analysis,
                   or PNG/JPEG for benchmark samples.
                 </p>
                 <div className="flex flex-wrap justify-center gap-3">
@@ -293,7 +293,7 @@ export default function DashboardPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {scene.images[0]?.sensorHint || '—'} / {scene.images[0]?.gsdM ? `${scene.images[0].gsdM} m` : 'N/A'}
+                          {scene.images[0]?.sensorHint || '-'} / {scene.images[0]?.gsdM ? `${scene.images[0].gsdM} m` : 'N/A'}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDate(scene.createdAt)}
@@ -338,7 +338,7 @@ export default function DashboardPage() {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-4 py-3 border-t border-border">
                     <span className="text-xs text-muted-foreground">
-                      Showing {page * ROWS_PER_PAGE + 1}–{Math.min((page + 1) * ROWS_PER_PAGE, scenes.length)} of {scenes.length}
+                      Showing {page * ROWS_PER_PAGE + 1}-{Math.min((page + 1) * ROWS_PER_PAGE, scenes.length)} of {scenes.length}
                     </span>
                     <div className="flex gap-1">
                       <Button

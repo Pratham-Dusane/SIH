@@ -61,7 +61,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-xl font-bold">Sign in to SatQuery AI</CardTitle>
           <CardDescription className="text-xs">
-            Agentic Vision-Language Assistant for Remote Sensing — ISRO / SAC
+            Agentic Vision-Language Assistant for Remote Sensing - ISRO / SAC
           </CardDescription>
         </CardHeader>
 

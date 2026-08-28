@@ -1,9 +1,9 @@
 """
-change_detect tool — PRD §7.4, §8.3.4.  Change map + area (R5), backend G2.
+change_detect tool - PRD §7.4, §8.3.4.  Change map + area (R5), backend G2.
 
 NDVI/NDBI time-series differencing over the AOI/date range using Google Earth
 Engine Sentinel-2 composites.  Like `rs_classify` this takes AOI bounds and
-dates only — never the uploaded pixel array (§7.0).
+dates only - never the uploaded pixel array (§7.0).
 
 **Honest expectation, stated in the tool description the planner reads:** this
 will not match a trained Siamese U-Net's IoU on a labeled benchmark (§11.2),
@@ -53,7 +53,7 @@ class ChangeDetectTool(Tool):
         "Produce a binary change map plus changed-area statistics for a "
         "bi-temporal pair, by differencing NDVI and NDBI between two Google "
         "Earth Engine Sentinel-2 composites over the scene AOI. This is a "
-        "thresholded index difference, NOT a trained change detector — expect "
+        "thresholded index difference, NOT a trained change detector - expect "
         "lower IoU than a labeled-benchmark model, and say so when reporting it. "
         "Refuses outright when the pair is misregistered beyond ~8 px, because "
         "registration error is indistinguishable from real change. Needs a "
@@ -85,7 +85,7 @@ class ChangeDetectTool(Tool):
                 facts={"status": "REFUSED_MISREGISTERED",
                        "coreg_shift_px": float(shift),
                        "tolerance_px": COREG_TOLERANCE_PX},
-                warnings=[f"misregistration of {float(shift):.1f} px — change_detect refused"],
+                warnings=[f"misregistration of {float(shift):.1f} px - change_detect refused"],
             )
 
         ok, reason = gee_available()
@@ -96,7 +96,7 @@ class ChangeDetectTool(Tool):
         if not bounds:
             return ToolResult(
                 tool=self.name, model_id=self.model_id, confidence=0.0,
-                confidence_basis="scene has no WGS84 footprint — no AOI to query",
+                confidence_basis="scene has no WGS84 footprint - no AOI to query",
                 text=("Change detection cannot run: this scene is not georeferenced, "
                       "so there is no area of interest to query Earth Engine with."),
                 facts={"status": "NO_AOI"},
@@ -147,13 +147,13 @@ class ChangeDetectTool(Tool):
         warnings = []
         if shift is not None and float(shift) > 2.0:
             warnings.append(
-                f"pair is co-registered to {float(shift):.1f} px — within tolerance but "
+                f"pair is co-registered to {float(shift):.1f} px - within tolerance but "
                 "not exact; small changes near that scale are not trustworthy"
             )
         # Land the exported mask in the artifact store so the prescribed
         # geo_stats step (§9.4) and the evidence layer both have something real
         # to work with.  It is on GEE's grid, not the uploaded raster's, so its
-        # own GSD travels with it — geo_stats reads that instead of the scene's.
+        # own GSD travels with it - geo_stats reads that instead of the scene's.
         artifacts = {}
         if out.get("mask_path"):
             try:
@@ -163,15 +163,15 @@ class ChangeDetectTool(Tool):
                     mask_arr = src.read(1).astype(bool)
                 ctx.store_artifact("change_mask", mask_arr, gsd_m=float(out["scale_m"]))
                 artifacts["mask"] = "change_mask"
-            except Exception as e:  # noqa: BLE001 — the statistics still stand
+            except Exception as e:  # noqa: BLE001 - the statistics still stand
                 warnings.append(
                     f"exported change mask could not be read back ({type(e).__name__}: {e}) "
-                    "— statistics only, no measurable mask artifact"
+                    "- statistics only, no measurable mask artifact"
                 )
             artifacts["map"] = out["mask_path"]
             artifacts["geotiff"] = out["mask_path"]
         else:
-            warnings.append("change mask GeoTIFF export failed — statistics only, no map layer")
+            warnings.append("change mask GeoTIFF export failed - statistics only, no map layer")
 
         area_clause = ""
         if out.get("changed_area_ha") is not None:
@@ -183,7 +183,7 @@ class ChangeDetectTool(Tool):
             f"{out['scale_m']} m, threshold {out['threshold']:.2f}): "
             f"{changed * 100:.2f}% of the AOI changed{area_clause}. "
             f"Mean NDVI change {out['ndvi_delta_mean']:+.4f}, "
-            f"mean NDBI change {out['ndbi_delta_mean']:+.4f} — "
+            f"mean NDBI change {out['ndbi_delta_mean']:+.4f} - "
             f"{DIRECTION_TEXT.get(out['direction'], out['direction'])}. "
             "This is a thresholded index difference, not a trained detector."
         )
@@ -202,7 +202,7 @@ class ChangeDetectTool(Tool):
             artifacts=artifacts,
             confidence=0.6,
             confidence_basis=(
-                "NDVI/NDBI differencing threshold, not a trained detector — expect "
+                "NDVI/NDBI differencing threshold, not a trained detector - expect "
                 "lower IoU than a labeled-benchmark model"
             ),
             warnings=warnings,

@@ -121,7 +121,7 @@ class Scene(BaseModel):
 
     # ------------------------------------------------------------------
     # Geospatial + temporal accessors used by the GEE tools (§7.3-§7.5).
-    # These pass **metadata only** to Earth Engine — never the pixel array.
+    # These pass **metadata only** to Earth Engine - never the pixel array.
     # ------------------------------------------------------------------
     def bounds_wgs84(self) -> Optional[List[float]]:
         """
@@ -129,7 +129,7 @@ class Scene(BaseModel):
 
         Uses the ROI when one is set, otherwise the intersection of every
         georeferenced image footprint (the area actually covered by all
-        inputs).  Returns None for a non-georeferenced / benchmark scene —
+        inputs).  Returns None for a non-georeferenced / benchmark scene -
         callers must refuse rather than invent an AOI.
         """
         if self.roi:
@@ -148,7 +148,7 @@ class Scene(BaseModel):
         east = min(b[2] for b in boxes)
         north = min(b[3] for b in boxes)
         if east <= west or north <= south:
-            # Footprints do not intersect — fall back to the first image so the
+            # Footprints do not intersect - fall back to the first image so the
             # caller gets a real AOI, and let the compatibility report (§6.4)
             # carry the overlap failure.
             return list(boxes[0])
@@ -208,7 +208,7 @@ def _date_from_tags(tags: Dict[str, Any]) -> Optional[str]:
 
     Handles the two shapes that actually turn up: `YYYY:MM:DD HH:MM:SS`
     (TIFFTAG_DATETIME) and `YYYY-MM-DD...` (most product metadata).
-    Returns None when nothing parseable is present — never a guessed date.
+    Returns None when nothing parseable is present - never a guessed date.
     """
     if not tags:
         return None

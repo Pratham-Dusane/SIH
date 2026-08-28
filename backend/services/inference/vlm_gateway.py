@@ -1,5 +1,5 @@
 """
-VLM gateway — PRD §7.1.
+VLM gateway - PRD §7.1.
 
 Thin, provider-agnostic wrapper around a hosted vision API.  `rs_vqa`,
 `rs_caption`, `rs_ground`, `change_describe` and `change_vqa` are all thin
@@ -41,7 +41,7 @@ bounding box in the form (x1,y1),(x2,y2) with values in [0,1]."""
 
 
 # ---------------------------------------------------------------------------
-# Task-specific instruction templates — carried over unchanged from the old
+# Task-specific instruction templates - carried over unchanged from the old
 # §7.3 TEMPLATES dict.  The user's own question/phrase is always passed as
 # *data* into a template slot, never concatenated into the system prompt (§8.4).
 # ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ def _provider_error(response: "httpx.Response") -> str:
     """
     try:
         payload = response.json()
-    except Exception:  # noqa: BLE001 — non-JSON error body
+    except Exception:  # noqa: BLE001 - non-JSON error body
         return (response.text or "")[:400]
     err = payload.get("error")
     if isinstance(err, dict):
@@ -156,7 +156,7 @@ async def _post_with_retry(url: str, *, json: dict, headers: dict) -> "httpx.Res
             r = await client.post(url, json=json, headers=headers)
             if r.status_code not in _RETRY_STATUS:
                 if r.status_code >= 400:
-                    # Surface the provider's message, not just the status line —
+                    # Surface the provider's message, not just the status line -
                     # this is what ends up in the ToolResult and the trace.
                     raise VLMProviderError(
                         f"HTTP {r.status_code}: {_provider_error(r)}")
@@ -172,7 +172,7 @@ async def _post_with_retry(url: str, *, json: dict, headers: dict) -> "httpx.Res
     detail = _provider_error(last)
     if last.status_code == 429:
         raise VLMRateLimited(
-            f"provider rate limit (HTTP 429) persisted after {_MAX_ATTEMPTS} attempts — "
+            f"provider rate limit (HTTP 429) persisted after {_MAX_ATTEMPTS} attempts - "
             f"quota is likely exhausted; wait, or switch VLM_BACKEND. {detail}"
         )
     raise VLMRateLimited(
@@ -216,7 +216,7 @@ def _backend_spec(backend: Optional[str]) -> Dict[str, str]:
     }
     if backend not in specs:
         raise VLMUnavailable(
-            f"Unknown VLM backend {backend!r} — expected one of {sorted(specs)}"
+            f"Unknown VLM backend {backend!r} - expected one of {sorted(specs)}"
         )
     spec = dict(specs[backend])
     spec["backend"] = backend
@@ -224,9 +224,9 @@ def _backend_spec(backend: Optional[str]) -> Dict[str, str]:
 
 
 def vlm_available(backend: Optional[str] = None) -> Tuple[bool, str]:
-    """(available, reason).  Never raises — the input gate (§9.3) reads this."""
+    """(available, reason).  Never raises - the input gate (§9.3) reads this."""
     if settings.OFFLINE_MODE:
-        return False, "OFFLINE_MODE=true — hosted VLM is not offline-capable (PRD §11.5)"
+        return False, "OFFLINE_MODE=true - hosted VLM is not offline-capable (PRD §11.5)"
     try:
         spec = _backend_spec(backend)
     except VLMUnavailable as e:
@@ -263,18 +263,18 @@ def gateway_status(backend: Optional[str] = None) -> Dict[str, Any]:
         "configured": ok,
         "reason": reason,
         "offline_capable": False,
-        "adaptation": "none — hosted general-purpose model, no fine-tuning",
+        "adaptation": "none - hosted general-purpose model, no fine-tuning",
     }
 
 
 # ---------------------------------------------------------------------------
-# Provider calls.  Raw HTTP via httpx — no provider SDKs, so the offline eval
+# Provider calls.  Raw HTTP via httpx - no provider SDKs, so the offline eval
 # image stays small and no extra transitive deps enter requirements.txt.
 # ---------------------------------------------------------------------------
 def _gemini_body(images: List[bytes], instruction: str) -> Dict[str, Any]:
     """
     GenerateContent request body.  Shared verbatim by the AI Studio and Vertex
-    transports — the two APIs take the same shape, only URL and auth differ.
+    transports - the two APIs take the same shape, only URL and auth differ.
     """
     parts: List[dict] = [
         {"inline_data": {"mime_type": "image/png",
@@ -386,7 +386,7 @@ async def _call_anthropic(spec, images: List[bytes], instruction: str) -> Dict[s
 # Vertex AI transport.
 #
 # Same GenerateContent request/response shape as the AI Studio API, so the
-# Gemini body builder is reused verbatim — only the URL and the auth differ.
+# Gemini body builder is reused verbatim - only the URL and the auth differ.
 # Auth is an OAuth token minted from the service-account JSON, cached until a
 # minute before it expires.
 # ---------------------------------------------------------------------------
@@ -472,13 +472,13 @@ async def vlm_call(images: List[bytes], instruction: str,
 def response_warnings(out: Dict[str, Any]) -> List[str]:
     """
     Provider-level problems worth surfacing in a ToolResult.  An empty response
-    must never reach the user as a confident blank — it is reported as what it
+    must never reach the user as a confident blank - it is reported as what it
     is: truncated, blocked, or simply empty.
     """
     warnings: List[str] = []
     if out.get("blocked"):
         warnings.append(
-            "The VLM provider blocked this response under its safety filters — "
+            "The VLM provider blocked this response under its safety filters - "
             "no analysis was returned."
         )
     if out.get("truncated"):
@@ -494,7 +494,7 @@ def response_warnings(out: Dict[str, Any]) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
-# Heuristic confidence — §7.1.
+# Heuristic confidence - §7.1.
 #
 # NOT a calibrated score and NOT the old self-consistency signal.  It is a
 # hedging-language score over the response text, and every ToolResult that
@@ -520,8 +520,8 @@ _REFUSAL_RE = re.compile(
 
 def heuristic_confidence(text: Optional[str]) -> float:
     """
-    Hedging-language score in [0, 1].  Starts at 0.72 — an unadapted hosted VLM
-    never earns a high prior on remote-sensing imagery — then subtracts for
+    Hedging-language score in [0, 1].  Starts at 0.72 - an unadapted hosted VLM
+    never earns a high prior on remote-sensing imagery - then subtracts for
     hedging language, and floors hard on refusal language.
     """
     if not text or not text.strip():
@@ -530,7 +530,7 @@ def heuristic_confidence(text: Optional[str]) -> float:
 
     if _REFUSAL_RE.search(low):
         # An honest "I cannot tell" is correct behaviour, but it is not an
-        # answer — fusion and abstention (§9.7) must see it as low confidence.
+        # answer - fusion and abstention (§9.7) must see it as low confidence.
         return 0.15
 
     score = 0.72
@@ -545,7 +545,7 @@ def heuristic_confidence(text: Optional[str]) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Bounding-box parsing for rs_ground — §7.1 / §8.3.3.
+# Bounding-box parsing for rs_ground - §7.1 / §8.3.3.
 #
 # The fixed format is (x1,y1),(x2,y2) with values in [0,1].  If parsing fails
 # or the box is out of range we return None; the tool then reports

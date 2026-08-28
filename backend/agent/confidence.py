@@ -1,5 +1,5 @@
 """
-Confidence aggregation and abstention — PRD §9.7.
+Confidence aggregation and abstention - PRD §9.7.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from agent.trace import Confidence
 
 
 # ---------------------------------------------------------------------------
-# Tool weights — how much each tool's confidence matters to the final answer
+# Tool weights - how much each tool's confidence matters to the final answer
 # PRD §9.7
 # ---------------------------------------------------------------------------
 TOOL_WEIGHTS: Dict[str, float] = {

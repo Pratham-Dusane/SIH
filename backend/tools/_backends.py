@@ -1,5 +1,5 @@
 """
-Shared backend-availability contract for the online tools — PRD §7.2, §11.5.
+Shared backend-availability contract for the online tools - PRD §7.2, §11.5.
 
 Both hosted backends (V1 hosted VLM, G1/G2 Earth Engine) are online,
 quota-limited services and declare `offline_capable=False` (§8.1/§8.2).
@@ -7,10 +7,10 @@ quota-limited services and declare `offline_capable=False` (§8.1/§8.2).
 Two failure shapes, kept deliberately distinct so a judge reading a trace can
 tell them apart:
 
-* `NOT_EVALUATED_OFFLINE` — OFFLINE_MODE is set (§11.5).  The tool did not
+* `NOT_EVALUATED_OFFLINE` - OFFLINE_MODE is set (§11.5).  The tool did not
   attempt a call.  This is expected, correct behaviour in the ISRO/SAC offline
   container, not an error.
-* `BACKEND_UNAVAILABLE`  — the backend is missing credentials or failed to
+* `BACKEND_UNAVAILABLE`  - the backend is missing credentials or failed to
   initialise.  The input gate (§9.3) reports this as a missing capability.
 
 Either way the tool returns a structured `ToolResult`, never an exception.
@@ -53,7 +53,7 @@ def unavailable_result(tool: str, model_id: Optional[str], reason: str,
         text=text,
         facts={"status": status, "reason": reason, "backend": backend_label},
         confidence=0.0,
-        confidence_basis=f"{status} — no inference was performed",
+        confidence_basis=f"{status} - no inference was performed",
         warnings=[f"{status}: {reason}"],
     )
 
@@ -83,7 +83,7 @@ def error_result(tool: str, model_id: Optional[str], exc: BaseException,
                   "window to reset, or switch VLM_BACKEND to another provider."),
             facts={"status": RATE_LIMITED, "reason": str(exc), "backend": backend_label},
             confidence=0.0,
-            confidence_basis=f"{RATE_LIMITED} — no inference was performed",
+            confidence_basis=f"{RATE_LIMITED} - no inference was performed",
             warnings=[f"{RATE_LIMITED}: {exc}"],
         )
 
@@ -93,6 +93,6 @@ def error_result(tool: str, model_id: Optional[str], exc: BaseException,
         text=f"{tool} failed: the {backend_label} call did not complete ({detail}).",
         facts={"status": "BACKEND_ERROR", "reason": detail, "backend": backend_label},
         confidence=0.0,
-        confidence_basis="backend call failed — no inference result was produced",
+        confidence_basis="backend call failed - no inference result was produced",
         warnings=[f"BACKEND_ERROR: {detail}"],
     )

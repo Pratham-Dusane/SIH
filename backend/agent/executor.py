@@ -1,5 +1,5 @@
 """
-Executor — PRD §9.5.
+Executor - PRD §9.5.
 
 Runs plan steps sequentially, binding and validating parameters,
 enforcing per-tool timeouts, and streaming status events to the client.
@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Per-tool timeouts in seconds — PRD §9.5
+# Per-tool timeouts in seconds - PRD §9.5
 # ---------------------------------------------------------------------------
 TOOL_TIMEOUTS: Dict[str, int] = {
     "spectral_index":   30,
@@ -50,7 +50,7 @@ def _resolve_refs(step, ctx: ExecutionContext) -> dict:
     for key, ref in step.inputs.items():
         artifact = ctx.get_artifact(ref)
         if artifact is not None:
-            # For mask_ref params, keep the string reference — the tool resolves it
+            # For mask_ref params, keep the string reference - the tool resolves it
             if key == "mask_ref":
                 merged[key] = ref
             else:
@@ -69,7 +69,7 @@ async def execute_plan(
 ) -> Dict[str, Any]:
     """
     Execute every step in the plan.  Failed/timed-out steps produce a
-    low-confidence ToolResult instead of aborting — later steps run with
+    low-confidence ToolResult instead of aborting - later steps run with
     whatever is available, and fusion reports honestly on partial evidence.
     """
     from tools.base import ToolResult  # local import to avoid circular

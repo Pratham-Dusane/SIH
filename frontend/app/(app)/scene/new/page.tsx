@@ -43,7 +43,7 @@ export default function NewScenePage() {
 
   /**
    * Upload every file, then ingest. The scene that comes back is the real one
-   * from the backend — its name, CRS, GSD and compatibility verdict are read
+   * from the backend - its name, CRS, GSD and compatibility verdict are read
    * from the raster, never from a fixture.
    */
   const handleProceedToValidate = async () => {
@@ -79,7 +79,7 @@ export default function NewScenePage() {
       setCurrentStep(1);
     } catch (err) {
       if (err instanceof CompatibilityError) {
-        // R8 refusal — show the checklist rather than a generic error.
+        // R8 refusal - show the checklist rather than a generic error.
         setCompatFail(err.report);
       } else {
         setUploadError(err instanceof Error ? err.message : String(err));
@@ -155,7 +155,7 @@ export default function NewScenePage() {
                 onFilesChange={handleFilesUploaded}
               />
 
-              {/* Scene name — defaults to the first uploaded filename so the
+              {/* Scene name - defaults to the first uploaded filename so the
                   scene is identifiable, instead of a generic timestamp. */}
               <div className="mt-6 max-w-xl">
                 <label htmlFor="scene-name"
@@ -207,7 +207,7 @@ export default function NewScenePage() {
                 <div className="mt-4 max-w-xl rounded-lg border border-destructive/40 bg-destructive/5 p-4">
                   <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
                     <AlertTriangle className="w-4 h-4" />
-                    Compatibility check failed — scene rejected (R8)
+                    Compatibility check failed - scene rejected (R8)
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     These inputs cannot be analysed together. The system refuses rather
@@ -217,7 +217,7 @@ export default function NewScenePage() {
                     {compatFail.checks.filter((c) => c.status === 'FAIL').map((c) => (
                       <li key={c.name} className="text-xs">
                         <span className="font-mono text-destructive">{c.status}</span>
-                        <span className="text-muted-foreground"> · {c.name} — {c.detail}</span>
+                        <span className="text-muted-foreground"> · {c.name} - {c.detail}</span>
                       </li>
                     ))}
                   </ul>

@@ -1,5 +1,5 @@
 """
-coreg_check tool — PRD §8.3.8.
+coreg_check tool - PRD §8.3.8.
 
 Deterministic, on-demand co-registration re-validation.
 Re-runs phase-cross-correlation on the scene pair and reports
@@ -18,7 +18,7 @@ from tools.registry import register
 
 
 class CoregCheckParams(ToolParams):
-    """No parameters required — operates on the scene pair as-is."""
+    """No parameters required - operates on the scene pair as-is."""
     pass
 
 
@@ -90,10 +90,10 @@ class CoregCheckTool(Tool):
             quality = "well co-registered"
         elif shift_px <= 8.0:
             status = "WARN"
-            quality = "moderate misregistration — proceed with caution"
+            quality = "moderate misregistration - proceed with caution"
         else:
             status = "FAIL"
-            quality = "poor co-registration — change detection will be unreliable"
+            quality = "poor co-registration - change detection will be unreliable"
 
         # Compute overlap from the scene metadata if available
         overlap = ctx.scene_overlap_fraction()
@@ -101,7 +101,7 @@ class CoregCheckTool(Tool):
         text = (
             f"Co-registration check: shift {shift_px:.2f} px "
             f"(normalised error {norm_err:.3f}).  "
-            f"Status: {status} — {quality}."
+            f"Status: {status} - {quality}."
         )
         if overlap is not None:
             text += f"  Spatial overlap: {overlap * 100:.1f}%."
@@ -118,5 +118,5 @@ class CoregCheckTool(Tool):
                 "overlap_fraction": round(overlap, 4) if overlap is not None else None,
             },
             confidence=conf,
-            confidence_basis=f"phase cross-correlation at 4× upsample — shift {shift_px:.2f} px",
+            confidence_basis=f"phase cross-correlation at 4× upsample - shift {shift_px:.2f} px",
         )

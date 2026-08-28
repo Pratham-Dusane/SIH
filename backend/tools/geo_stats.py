@@ -1,5 +1,5 @@
 """
-geo_stats tool — PRD §8.3.8.
+geo_stats tool - PRD §8.3.8.
 
 Deterministic. Converts any binary mask to area / percentage / counts,
 using GSD from scene metadata.  Refuses to report absolute area (m², ha, km²)
@@ -88,7 +88,7 @@ class GeoStatsTool(Tool):
             georeferenced = True
             gsd_source = f"the mask's own grid ({own_gsd:g} m)"
             warnings.append(
-                f"Area computed on {gsd_source}, not the uploaded raster's grid — "
+                f"Area computed on {gsd_source}, not the uploaded raster's grid - "
                 "this mask was produced by a different pipeline."
             )
 
@@ -97,7 +97,7 @@ class GeoStatsTool(Tool):
             # percentage only, with a warning. Never report hectares for a benchmark PNG.
             if params.units != "percent":
                 warnings.append(
-                    f"Scene is not georeferenced — cannot compute {params.units}. "
+                    f"Scene is not georeferenced - cannot compute {params.units}. "
                     "Returning percentage instead."
                 )
             units_used = "percent"
@@ -135,7 +135,7 @@ class GeoStatsTool(Tool):
             facts=facts,
             confidence=1.0,
             confidence_basis=(
-                "deterministic pixel count and GSD-based area — exact computation "
+                "deterministic pixel count and GSD-based area - exact computation "
                 f"(GSD from {gsd_source})"
             ),
             warnings=warnings,

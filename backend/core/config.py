@@ -1,5 +1,5 @@
 """
-Runtime configuration — PRD §15.
+Runtime configuration - PRD §15.
 
 Every value here is an environment-variable switch.  Design Rule 5: the same
 code path runs locally and on GCP; only these values change.
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     FUSION_BACKEND: str = os.getenv("FUSION_BACKEND", "template")  # template | vertex
     AUTH_DISABLED: bool = os.getenv("AUTH_DISABLED", "true").lower() == "true"
 
-    # Offline evaluation mode — PRD §11.5 / Design Rule 3.
+    # Offline evaluation mode - PRD §11.5 / Design Rule 3.
     # When true, no tool with offline_capable=False may attempt a network call;
     # each returns a structured NOT_EVALUATED_OFFLINE result instead.
     OFFLINE_MODE: bool = os.getenv("OFFLINE_MODE", "false").lower() == "true"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8080")
 
     # ------------------------------------------------------------------
-    # VLM gateway — PRD §7.1
+    # VLM gateway - PRD §7.1
     # ------------------------------------------------------------------
     # gemini = AI Studio API key | vertex = Vertex AI on your own GCP project
     # | gpt4v | claude
@@ -43,12 +43,12 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 
     # ------------------------------------------------------------------
-    # Vertex AI — the same Gemini models served from your own GCP project.
+    # Vertex AI - the same Gemini models served from your own GCP project.
     #
     # The AI Studio free tier caps some models at 20 requests/day per project,
     # which is unusable for a live demo.  Vertex is billed per token instead of
     # rationed, and authenticates with the *same* service-account JSON as Earth
-    # Engine — so one credential file serves both hosted backends.
+    # Engine - so one credential file serves both hosted backends.
     # ------------------------------------------------------------------
     VERTEX_PROJECT: str = os.getenv("VERTEX_PROJECT", "")   # defaults to GEE_PROJECT
     VERTEX_LOCATION: str = os.getenv("VERTEX_LOCATION", "global")
@@ -72,19 +72,19 @@ class Settings(BaseSettings):
     # text (400-800 tokens even on a one-line answer), so this ceiling covers
     # thinking + answer.  Too low and the response comes back empty.
     VLM_MAX_TOKENS: int = int(os.getenv("VLM_MAX_TOKENS", "2048"))
-    # "low" | "high" — low cuts thinking roughly in half at no measured cost on
+    # "low" | "high" - low cuts thinking roughly in half at no measured cost on
     # these extraction tasks.  Ignored by providers that do not support it.
     GEMINI_THINKING_LEVEL: str = os.getenv("GEMINI_THINKING_LEVEL", "low")
 
     # ------------------------------------------------------------------
-    # Google Earth Engine — PRD §7.2
+    # Google Earth Engine - PRD §7.2
     # ------------------------------------------------------------------
     GEE_SERVICE_ACCOUNT: str = os.getenv("GEE_SERVICE_ACCOUNT", "")
     GEE_KEY_PATH: str = os.getenv("GEE_KEY_PATH", "")
     GEE_PROJECT: str = os.getenv("GEE_PROJECT", "")
 
     # ------------------------------------------------------------------
-    # Resolved accessors — Vertex falls back to the Earth Engine credentials
+    # Resolved accessors - Vertex falls back to the Earth Engine credentials
     # so a single service-account JSON configures both hosted backends.
     # ------------------------------------------------------------------
     @property
@@ -96,7 +96,7 @@ class Settings(BaseSettings):
         return self.VERTEX_KEY_PATH or self.GEE_KEY_PATH
 
     # ------------------------------------------------------------------
-    # Agent tuning — PRD §15
+    # Agent tuning - PRD §15
     # ------------------------------------------------------------------
     ABSTAIN_THRESHOLD: float = float(os.getenv("ABSTAIN_THRESHOLD", "0.35"))
     MAX_PLAN_STEPS: int = int(os.getenv("MAX_PLAN_STEPS", "8"))
@@ -104,6 +104,11 @@ class Settings(BaseSettings):
     TILE_THRESHOLD_PX: int = int(os.getenv("TILE_THRESHOLD_PX", str(4096 * 4096)))
     TILE_SIZE: int = int(os.getenv("TILE_SIZE", "1024"))
     TILE_OVERLAP: int = int(os.getenv("TILE_OVERLAP", "128"))
+
+    # Self-verification: a second VLM pass cross-checks the answer against the
+    # image before returning it.  Doubles VLM cost but shows deliberate quality
+    # control to judges.  Toggled by env var and overridable per-request from UI.
+    VERIFY_ANSWERS: bool = os.getenv("VERIFY_ANSWERS", "true").lower() == "true"
 
     # ------------------------------------------------------------------
     # GCP & Firebase (Section 17; unused while STORAGE_BACKEND=local)

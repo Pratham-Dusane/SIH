@@ -1,5 +1,5 @@
 """
-Plan schema — PRD §9.4.
+Plan schema - PRD §9.4.
 
 PlanStep and ExecutionPlan models with Pydantic validation.
 Steps reference tools from the registry and declare data dependencies.

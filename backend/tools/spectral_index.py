@@ -1,5 +1,5 @@
 """
-spectral_index tool — PRD §8.3.8.
+spectral_index tool - PRD §8.3.8.
 
 Deterministic. Computes NDVI / NDWI / NDBI / NDMI from multispectral bands.
 Applies an optional threshold (or Otsu auto-threshold) to produce a binary mask.
@@ -42,7 +42,7 @@ INDEX_FORMULAS: Dict[str, Dict[str, Any]] = {
     "NDBI": {
         "label": "Normalised Difference Built-up Index",
         "s2": (11, 7),      # (SWIR1=B11, NIR=B8)
-        "generic4": None,   # needs SWIR — not available in 4-band
+        "generic4": None,   # needs SWIR - not available in 4-band
     },
     "NDMI": {
         "label": "Normalised Difference Moisture Index",
@@ -95,7 +95,7 @@ def _select_bands(arr: np.ndarray, band_count: int, index_name: str):
     elif band_count >= 4 and spec.get("generic4") is None:
         return None, None  # needs SWIR which isn't available
     elif band_count == 3 and index_name == "NDVI":
-        # Approximate: treat band 2 as pseudo-NIR proxy — very rough
+        # Approximate: treat band 2 as pseudo-NIR proxy - very rough
         a_idx, b_idx = 2, 0
     else:
         return None, None
@@ -131,7 +131,7 @@ class SpectralIndexTool(Tool):
     offline_capable = True
 
     async def run(self, ctx, params: SpectralIndexParams) -> ToolResult:
-        # Get the raw raster array — channel-first (C, H, W)
+        # Get the raw raster array - channel-first (C, H, W)
         arr = ctx.get_optical_array()
         if arr is None:
             return ToolResult(
@@ -197,5 +197,5 @@ class SpectralIndexTool(Tool):
             },
             artifacts={"mask": mask_key, "continuous": f"{params.index.lower()}_continuous"},
             confidence=1.0,
-            confidence_basis="deterministic spectral index — exact computation, no model involved",
+            confidence_basis="deterministic spectral index - exact computation, no model involved",
         )

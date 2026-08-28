@@ -1,5 +1,5 @@
 """
-Query router — PRD §14.
+Query router - PRD §14.
 
 SSE endpoint: POST /api/scenes/{scene_id}/query
 Streams execution stages, plan steps, and the final answer as server-sent events.
@@ -32,6 +32,9 @@ class QueryRequest(BaseModel):
     # Defaults to the configured VLM_BACKEND (§15) rather than a hardcoded
     # provider; callers may still override per request.
     vlm_backend: Optional[Literal["gemini", "gpt4v", "claude"]] = None
+    # Per-request override for self-verification.  None = use the global
+    # VERIFY_ANSWERS setting; True/False = force on/off for this request.
+    verify: Optional[bool] = None
 
 
 @router.post("/{scene_id}/query")
@@ -57,7 +60,7 @@ async def query_scene(
         raise HTTPException(
             status_code=422,
             detail={
-                "message": "Scene failed compatibility checks — cannot query",
+                "message": "Scene failed compatibility checks - cannot query",
                 "verdict": scene.compatibility.verdict,
             },
         )
@@ -80,6 +83,7 @@ async def query_scene(
                     emit=emit,
                     storage=storage,
                     vlm_backend=payload.vlm_backend or settings.VLM_BACKEND,
+                    verify=payload.verify,
                 )
                 await queue.put({"type": "result", "data": {
                     "answer": result.answer,
@@ -87,6 +91,7 @@ async def query_scene(
                     "evidence": result.evidence,
                     "refused": result.refused,
                     "trace_id": result.trace.trace_id if result.trace else None,
+                    "verification": result.verification.model_dump() if result.verification else None,
                 }})
             except Exception as e:
                 log.exception("Query pipeline error")
@@ -143,7 +148,7 @@ async def query_scene_sync(
         raise HTTPException(
             status_code=422,
             detail={
-                "message": "Scene failed compatibility checks — cannot query",
+                "message": "Scene failed compatibility checks - cannot query",
                 "verdict": scene.compatibility.verdict,
             },
         )
@@ -161,6 +166,7 @@ async def query_scene_sync(
         emit=emit,
         storage=storage,
         vlm_backend=payload.vlm_backend or settings.VLM_BACKEND,
+        verify=payload.verify,
     )
 
     return {
@@ -170,5 +176,6 @@ async def query_scene_sync(
         "refused": result.refused,
         "refusal": result.refusal.model_dump() if result.refusal else None,
         "trace": result.trace.model_dump() if result.trace else None,
+        "verification": result.verification.model_dump() if result.verification else None,
         "events": events,
     }

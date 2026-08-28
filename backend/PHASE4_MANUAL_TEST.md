@@ -1,4 +1,4 @@
-# Phase 4 — manual test script
+# Phase 4 - manual test script
 
 What to upload, where to upload it, what you should see, and what a *wrong* result
 looks like. Automated coverage is 129 hermetic tests plus 9 live ones; this script
@@ -24,7 +24,7 @@ cd frontend && npm run dev
 Every test below says *"upload X as Y"*. Here is what that means, once:
 
 1. Go to **<http://localhost:3000/scene/new>** (Dashboard → *New Scene*).
-2. Pick the **input mode tab** — this decides which slots appear:
+2. Pick the **input mode tab** - this decides which slots appear:
 
 | Tab | Slots you get |
 |---|---|
@@ -34,7 +34,7 @@ Every test below says *"upload X as Y"*. Here is what that means, once:
 
 3. Drop the file(s) into the named slot(s).
 4. Optionally set a **Scene name**. Left blank, the scene is named after the uploaded
-   file — never a fixed label.
+   file - never a fixed label.
 5. Toggle **Benchmark mode** ON *only* for `benchmark.png` (test 5b). A
    **Benchmark dataset** field appears; put `VRSBench` or `RSVQA` in it.
 6. Click **Validate**. The files upload, the backend reads real raster metadata, and the
@@ -44,10 +44,10 @@ Every test below says *"upload X as Y"*. Here is what that means, once:
 7. **Confirm & Open Workspace** → you land on the real scene.
 
 > If the dashboard shows no scenes and a red *"Could not load scenes"* banner, the
-> backend is down. An empty workspace and a failed request now look different — the
+> backend is down. An empty workspace and a failed request now look different - the
 > UI no longer substitutes demo scenes for either.
 
-### Setting acquisition dates — required for tests 5 and 6
+### Setting acquisition dates - required for tests 5 and 6
 
 `rs_classify` and `change_detect` query the Earth Engine catalog by **AOI + date range**.
 Most downloaded GeoTIFFs carry no date tag this backend recognises, so it reads as
@@ -71,7 +71,7 @@ carry a readable date tag, ingest picks it up and you can skip this.
 
 ---
 
-## 0. Readiness — do this first
+## 0. Readiness - do this first
 
 Open <http://localhost:8080/api/health/models>.
 
@@ -88,12 +88,12 @@ should say **12 of 12**. If anything is off, `reason` names the exact fix.
 
 ---
 
-## 1. The R1 disclosure page — the highest-stakes screen
+## 1. The R1 disclosure page - the highest-stakes screen
 
 **Nothing to upload.** Go to **<http://localhost:3000/models>** (sidebar → *Backend Registry*).
 
 **Must be true:**
-- Amber panel at top: **"Requirement R1 — Not Attempted"**, stating what was fine-tuned is **nothing**.
+- Amber panel at top: **"Requirement R1 - Not Attempted"**, stating what was fine-tuned is **nothing**.
 - Three status tiles: VLM Gateway, Google Earth Engine, Tool Availability.
 - Five backend cards: `V1`, `G1`, `G2`, `G3`, `DET`.
 - `DET` is the only card with **Offline capable: yes**.
@@ -104,11 +104,11 @@ were never built. Showing them to a judge is the worst outcome in this repo. Har
 if they persist the page did not rebuild.
 
 **Also:** stop the backend and reload. Expect a red "Could not reach the backend registry"
-card naming the URL — not a blank page, not stale cards.
+card naming the URL - not a blank page, not stale cards.
 
 ---
 
-## 2. `rs_vqa` and `rs_caption` — does it refuse to hallucinate?
+## 2. `rs_vqa` and `rs_caption` - does it refuse to hallucinate?
 
 > **Upload:** `single_optical.tif` → **SINGLE** tab → *Upload Image* slot.
 
@@ -118,11 +118,11 @@ Then ask in the query console:
 |---|---|
 | "What land cover types are visible?" | Names only things actually in frame. |
 | "How many buildings are in this image?" | A hedged estimate **or** an explicit refusal to count. A confident precise integer from 10 m imagery is wrong. |
-| "What is the population of this area?" | Must decline — not visible in imagery. |
+| "What is the population of this area?" | Must decline - not visible in imagery. |
 | "Describe this scene." | Routes to `rs_caption`. |
 
 Open the trace drawer. **`confidence_basis` must read** *"heuristic hedging-language
-score on a hosted, unadapted VLM response — not self-consistency"*. If it ever claims
+score on a hosted, unadapted VLM response - not self-consistency"*. If it ever claims
 self-consistency or calibration, that is a bug.
 
 **Worth doing deliberately:** upload a **non-satellite image** (a photo or screenshot) as
@@ -131,14 +131,14 @@ imagery rather than inventing land cover. Verified live during implementation.
 
 ---
 
-## 3. `rs_ground` — the honest-negative contract
+## 3. `rs_ground` - the honest-negative contract
 
 > **Upload:** `single_optical.tif` → **SINGLE** tab → *Upload Image* slot.
-> Use a scene with obvious water (Ukai Dam, Chilika Lake — see the data doc).
+> Use a scene with obvious water (Ukai Dam, Chilika Lake - see the data doc).
 
 1. **Something present:** *"Locate the water body"*.
    Expect a box on the canvas and text like
-   `Located 'the water body' at normalised box (0.120,0.340),(0.560,0.780) — 19.4% of the image footprint.`
+   `Located 'the water body' at normalised box (0.120,0.340),(0.560,0.780) - 19.4% of the image footprint.`
    Check the box actually sits over the water.
 2. **Something absent:** *"Locate the international airport terminal"* on a rural scene.
    Expect exactly:
@@ -149,11 +149,11 @@ imagery rather than inventing land cover. Verified live during implementation.
 a failure, even though it demos better.
 
 If *every* grounding query returns the negative, the model is answering on a 0–1000 scale
-instead of `[0,1]`. Check `VERTEX_MODEL` — see the model note in PHASE4_SETUP.md.
+instead of `[0,1]`. Check `VERTEX_MODEL` - see the model note in PHASE4_SETUP.md.
 
 ---
 
-## 4. Missing-capability refusal — R8 on display
+## 4. Missing-capability refusal - R8 on display
 
 > **Upload:** `single_rgbn.tif` (the 4-band file) → **SINGLE** tab → *Upload Image* slot.
 > The 4-band version is needed because the second half of this test uses NDWI.
@@ -161,12 +161,12 @@ instead of `[0,1]`. Check `VERTEX_MODEL` — see the model note in PHASE4_SETUP.
 Break a backend on purpose. In `backend/.env` set `VLM_BACKEND=claude` with no
 `ANTHROPIC_API_KEY`, and restart the API. Then ask any VQA question.
 
-**Expect a structured refusal — not a crash, not an empty answer:**
+**Expect a structured refusal - not a crash, not an empty answer:**
 - Problem code `MISSING_CAPABILITY`
 - Detail naming which backend is unavailable and why
 - A **remedy** naming the env vars to set
 
-Now ask something deterministic instead — *"How much of this image is water?"* — and it
+Now ask something deterministic instead - *"How much of this image is water?"* - and it
 should still answer, because `spectral_index` + `geo_stats` need no hosted backend. It
 should report hectares, computed from the GSD.
 
@@ -175,7 +175,7 @@ does everything it can. Put `VLM_BACKEND=vertex` back afterwards.
 
 ---
 
-## 5. `rs_classify` — land cover
+## 5. `rs_classify` - land cover
 
 > **Upload:** `single_optical.tif` → **SINGLE** tab → *Upload Image* slot.
 > **Then set the acquisition date** (see above) or this will refuse.
@@ -197,19 +197,19 @@ measurement of the uploaded image, that is a misrepresentation.
 > **Upload:** `benchmark.png` → **SINGLE** tab → *Upload Image* slot →
 > **Benchmark mode ON**.
 
-Ask the same land-cover question. Expect a refusal with status `NO_AOI` — never an
+Ask the same land-cover question. Expect a refusal with status `NO_AOI` - never an
 invented AOI. The Compatibility Panel should show CRS/GSD checks as **N/A**, not PASS.
 
 ### 5c. The no-date negative
 
 Upload `single_optical.tif` and ask the land-cover question **without** setting a date.
 Expect `NO_DATE_RANGE` and instructions to set the acquisition date. Then set it and
-re-ask — it should now answer. This is a good two-step demo of the refusal being a
+re-ask - it should now answer. This is a good two-step demo of the refusal being a
 *remedy*, not a dead end.
 
 ---
 
-## 6. `change_detect` + `change_describe` — R5/R4
+## 6. `change_detect` + `change_describe` - R5/R4
 
 > **Upload:** `t1.tif` → **BI_TEMPORAL** tab → *Time 1 (earlier)* slot
 > and `t2.tif` → *Time 2 (later)* slot.
@@ -224,15 +224,15 @@ Expect, in order:
 4. `change_describe` → narrative
 
 **The thing to actually verify:** open the trace and confirm the narrative quotes the
-*same numbers* `change_detect` produced — it is prompted to use them verbatim. If the
+*same numbers* `change_detect` produced - it is prompted to use them verbatim. If the
 prose says "roughly 30%" while `change_detect` says 34.38%, the anchoring broke.
 
 `change_detect` confidence is fixed at **0.6**, basis *"NDVI/NDBI differencing threshold,
-not a trained detector — expect lower IoU than a labeled-benchmark model"*. Say that out
+not a trained detector - expect lower IoU than a labeled-benchmark model"*. Say that out
 loud in the demo before a judge asks.
 
 `geo_stats` should warn that area was computed on **the mask's own grid**, not the
-uploaded raster's — the GEE mask is at 10 m in EPSG:4326 and does not share your file's
+uploaded raster's - the GEE mask is at 10 m in EPSG:4326 and does not share your file's
 pixel grid.
 
 ### 6b. The misregistration refusal
@@ -241,24 +241,24 @@ pixel grid.
 
 Expect either `POOR_CO_REGISTRATION` at the gate, or `REFUSED_MISREGISTERED` from
 `change_detect` with *"registration error is indistinguishable from real change"*. It
-refuses **before** calling GEE — check the trace shows no GEE call.
+refuses **before** calling GEE - check the trace shows no GEE call.
 
 ### 6c. The unanchored cap
 
 Ask a change question on a bi-temporal pair where you have **not** set dates.
-`change_detect` refuses, but `change_describe` still answers from the two previews — with
+`change_detect` refuses, but `change_describe` still answers from the two previews - with
 confidence **capped at 0.45** and a warning that the narrative is unquantified.
 Confidence must never exceed 0.45 there.
 
 ---
 
-## 7. Offline mode — R11 / §11.5
+## 7. Offline mode - R11 / §11.5
 
 > **Upload:** anything already ingested works; no new file needed.
 
 Set `OFFLINE_MODE=true` in `backend/.env`, restart, re-run a VQA query.
 
-- All seven hosted tools return status `NOT_EVALUATED_OFFLINE` — **not** errors.
+- All seven hosted tools return status `NOT_EVALUATED_OFFLINE` - **not** errors.
 - The deterministic four still run and still answer measurement questions.
 - `/api/health/models` shows `status: degraded`, `offline_mode: true`.
 - The Backend Registry page shows a blue "Offline evaluation mode is on" banner.
@@ -267,7 +267,7 @@ This is the ISRO/SAC offline-container behaviour. Set it back to `false` afterwa
 
 ---
 
-## 8. Cross-modal — the PRD demo script
+## 8. Cross-modal - the PRD demo script
 
 > **Upload:** `optical.tif` → **CROSS_MODAL** tab → *Optical / Multispectral* slot
 > and `sar.tif` → *SAR* slot.
@@ -278,7 +278,7 @@ co-registration shift, all visible before any query runs. That is R8 satisfied o
 
 Ask: *"Use the optical and SAR images together to identify built-up and water-covered regions."*
 
-Note that `sar_optical_fuse` is still a **stub** — it belongs to Phase 5 step 12, not
+Note that `sar_optical_fuse` is still a **stub** - it belongs to Phase 5 step 12, not
 Phase 4. It returns a structured "not yet wired" result. `sar_water_mask` on the SAR image
 and `spectral_index` on the optical both work today.
 
@@ -287,7 +287,7 @@ and `spectral_index` on the optical both work today.
 ## 9. Rate limiting *(only if you switch to `VLM_BACKEND=gemini`)*
 
 The AI Studio free tier allows **20 requests/day** for `gemini-3.6-flash`. When exhausted,
-tools return `BACKEND_RATE_LIMITED` with text telling you to wait or switch backend —
+tools return `BACKEND_RATE_LIMITED` with text telling you to wait or switch backend -
 after four retries with exponential backoff. It should never surface as a stack trace.
 This is why Vertex is the default.
 
@@ -299,7 +299,7 @@ This is why Vertex is the default.
 cd backend && .venv/Scripts/python -m pytest tests/ -q
 ```
 
-129 passed, 9 skipped. Hermetic — no network calls, so it also passes inside a
+129 passed, 9 skipped. Hermetic - no network calls, so it also passes inside a
 `--network none` container.
 
 ```bash

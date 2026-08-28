@@ -1,11 +1,11 @@
 'use client';
 
-import { Download, ArrowRight, CheckCircle2, Clock, Cpu, Sparkles } from 'lucide-react';
+import { Download, ArrowRight, Clock, Cpu, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ToolStepCard from './ToolStepCard';
+import PipelineVisualizer, { ToolStep, VerificationState } from './PipelineVisualizer';
 import { ExecutionTrace } from '@/lib/types';
-import { cn } from '@/lib/utils';
 
 interface ExecutionTimelineProps {
   trace: ExecutionTrace;
@@ -22,6 +22,22 @@ export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const toolSteps: ToolStep[] = (trace.steps || []).map((s) => ({
+    id: s.id,
+    tool: s.tool,
+    status: s.status === 'OK' ? 'complete' : s.status === 'FAILED' ? 'failed' : 'skipped',
+    summary: s.outputSummary,
+    confidence: s.confidence,
+    durationMs: s.durationMs,
+  }));
+
+  const verification: VerificationState | null = trace.verification
+    ? {
+        status: trace.verification.status as VerificationState['status'],
+        reason: trace.verification.reason,
+      }
+    : null;
 
   return (
     <div className="space-y-3">
@@ -57,6 +73,16 @@ export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
           <Download className="w-3 h-3" />
           Download Trace JSON
         </Button>
+      </div>
+
+      {/* Completed Pipeline Visualizer Graph */}
+      <div className="p-2 rounded-lg bg-card/60 border border-border/60">
+        <PipelineVisualizer
+          currentStage="complete"
+          toolSteps={toolSteps}
+          verification={verification}
+          isLive={false}
+        />
       </div>
 
       {/* Horizontal Step Cards Sequence */}

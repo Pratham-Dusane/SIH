@@ -1,7 +1,7 @@
 """
-Google Earth Engine integration — PRD §7.2, §7.3, §7.4, §7.5.
+Google Earth Engine integration - PRD §7.2, §7.3, §7.4, §7.5.
 
-Everything here takes **AOI bounds and dates** — metadata only.  The uploaded
+Everything here takes **AOI bounds and dates** - metadata only.  The uploaded
 pixel array is never sent to Earth Engine.  That is why the GEE-backed tools
 break Design Rule 3 (online-only) but not Design Rule 2 (§7.0).
 
@@ -48,7 +48,7 @@ def init_gee(force: bool = False) -> bool:
     _STATE["initialized"] = False
 
     if settings.OFFLINE_MODE:
-        _STATE["reason"] = ("OFFLINE_MODE=true — Earth Engine is not offline-capable "
+        _STATE["reason"] = ("OFFLINE_MODE=true - Earth Engine is not offline-capable "
                             "(PRD §11.5)")
         return False
 
@@ -78,7 +78,7 @@ def init_gee(force: bool = False) -> bool:
         # Force a real round-trip so a bad enrolment fails here, at startup,
         # rather than inside a tool call mid-query.
         ee.Number(1).getInfo()
-    except Exception as e:  # noqa: BLE001 — startup must degrade, not crash
+    except Exception as e:  # noqa: BLE001 - startup must degrade, not crash
         _STATE["reason"] = f"{type(e).__name__}: {e}"
         log.warning("Earth Engine initialisation failed: %s", _STATE["reason"])
         return False
@@ -91,7 +91,7 @@ def init_gee(force: bool = False) -> bool:
 
 
 def gee_available() -> Tuple[bool, str]:
-    """(available, reason).  Never raises — the input gate (§9.3) reads this."""
+    """(available, reason).  Never raises - the input gate (§9.3) reads this."""
     ok = init_gee()
     return ok, str(_STATE["reason"])
 
@@ -124,7 +124,7 @@ def _rect(ee, bounds: Sequence[float]):
 
 
 # ---------------------------------------------------------------------------
-# §7.3 Land cover — Dynamic World, falling back to ESA WorldCover
+# §7.3 Land cover - Dynamic World, falling back to ESA WorldCover
 # ---------------------------------------------------------------------------
 DYNAMIC_WORLD_CLASSES = [
     "water", "trees", "grass", "flooded_vegetation", "crops",
@@ -232,7 +232,7 @@ def land_cover(bounds: Sequence[float], start: str, end: str,
                     "fallback_reason": (
                         "Dynamic World had no coverage for this AOI and date range"),
                 }
-        except Exception as e:  # noqa: BLE001 — try the next collection
+        except Exception as e:  # noqa: BLE001 - try the next collection
             log.debug("WorldCover %s failed: %s", coll_id, e)
 
     return {
@@ -250,7 +250,7 @@ def land_cover(bounds: Sequence[float], start: str, end: str,
 
 
 # ---------------------------------------------------------------------------
-# §7.4 Change detection — NDVI/NDBI differencing over Sentinel-2 composites
+# §7.4 Change detection - NDVI/NDBI differencing over Sentinel-2 composites
 # ---------------------------------------------------------------------------
 def s2_composite(ee, aoi, date: str, window_days: int = 30):
     """
@@ -284,7 +284,7 @@ def _download_geotiff(ee, image, aoi, scale: int, out_path: str) -> Optional[str
     only target Drive or GCS, which is unusable while STORAGE_BACKEND=local, and
     adds minutes of polling to an interactive query.  `getDownloadURL` returns
     the same raster synchronously for AOI-sized requests, so that is the path
-    used here; it is the only deviation from §7.4 and it fails soft — a None
+    used here; it is the only deviation from §7.4 and it fails soft - a None
     return means stats-only, never a crash.
     """
     import httpx
@@ -314,7 +314,7 @@ def _download_geotiff(ee, image, aoi, scale: int, out_path: str) -> Optional[str
             with open(out_path, "wb") as f:
                 f.write(payload)
         return out_path
-    except Exception as e:  # noqa: BLE001 — export is best-effort
+    except Exception as e:  # noqa: BLE001 - export is best-effort
         log.warning("GEE GeoTIFF download failed: %s", e)
         return None
 
@@ -425,7 +425,7 @@ def change_ndvi_ndbi(bounds: Sequence[float], t1_date: str, t2_date: str,
 
 
 # ---------------------------------------------------------------------------
-# §7.5 SAR — Sentinel-1 GRD backscatter (optional acceleration only)
+# §7.5 SAR - Sentinel-1 GRD backscatter (optional acceleration only)
 # ---------------------------------------------------------------------------
 def sentinel1_grd(bounds: Sequence[float], start: str, end: str,
                   polarisation: str = "VV", scale: int = 10,

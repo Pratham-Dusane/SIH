@@ -1,5 +1,5 @@
 """
-Parameter whitelisting — PRD §8.4 (R9).
+Parameter whitelisting - PRD §8.4 (R9).
 
 Enforced in three layers so no single mistake opens the gate:
 1. Schema: ToolParams.model_config = ConfigDict(extra='forbid')
@@ -34,6 +34,6 @@ def bind_params(tool: Tool, requested: dict) -> Tuple[ToolParams, List[str]]:
                 rejected.add(str(err["loc"][0]))
         cleaned = {k: v for k, v in requested.items() if k not in rejected}
         warnings.append(f"Rejected non-permitted or invalid parameters: {sorted(rejected)}")
-        # This will raise again if a required field was in the rejected set —
+        # This will raise again if a required field was in the rejected set -
         # that's intentional; a missing required param is a hard error.
         return tool.params_model(**cleaned), warnings

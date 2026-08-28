@@ -32,7 +32,7 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--live"):
         return
-    skip = pytest.mark.skip(reason="live backend test — run with --live")
+    skip = pytest.mark.skip(reason="live backend test - run with --live")
     for item in items:
         if "live" in item.keywords:
             item.add_marker(skip)
@@ -47,7 +47,7 @@ def no_network_by_default(monkeypatch):
     Keep the suite hermetic.
 
     Once a real `.env` exists, anything that calls `gee_available()` or
-    `vlm_available()` would reach out to Google — making tests slow, flaky, and
+    `vlm_available()` would reach out to Google - making tests slow, flaky, and
     impossible to run in the `--network none` offline evaluation container the
     PRD requires (§11.5).  Earth Engine init is stubbed to a clean "unavailable"
     and the VLM keys are blanked; tests that need a backend to look available
@@ -149,7 +149,7 @@ class _LiveImage:
 
 
 class _LiveScene:
-    """~10 km AOI over Bengaluru — real Sentinel-2 and Dynamic World coverage."""
+    """~10 km AOI over Bengaluru - real Sentinel-2 and Dynamic World coverage."""
     BOUNDS = [77.55, 12.90, 77.65, 13.00]
 
     def __init__(self, input_config):

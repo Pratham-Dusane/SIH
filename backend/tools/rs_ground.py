@@ -1,12 +1,12 @@
 """
-rs_ground tool — PRD §7.1, §8.3.3.  Text-guided region grounding (R3).
+rs_ground tool - PRD §7.1, §8.3.3.  Text-guided region grounding (R3).
 
 There is no dedicated grounding model any more (M3 no longer exists).  The VLM
 is asked directly for a normalised bounding box in the fixed `(x1,y1),(x2,y2)`
 format and the answer is parsed.
 
 If parsing fails or the box is out of range, this returns `confidence=0.0` and
-`text="No region matching '<phrase>' could be located"` rather than guessing —
+`text="No region matching '<phrase>' could be located"` rather than guessing -
 the same honest-negative contract as the old M3 fallback path (old §8.3.3).
 
 Confidence is the VLM's self-reported certainty language, heuristically scored,
@@ -41,7 +41,7 @@ def _box_to_geojson(box: List[float], bounds: Optional[List[float]],
     Uses the same pixel->lat/lng mapping as the client (§6.6):
         lat = north - y * (north - south)
         lng = west  + x * (east  - west)
-    Returns None for a non-georeferenced scene — no fabricated coordinates.
+    Returns None for a non-georeferenced scene - no fabricated coordinates.
     """
     if not bounds or len(bounds) != 4:
         return None
@@ -67,7 +67,7 @@ class RSGroundTool(Tool):
         "Locate a region in the image matching a text description, returning a "
         "normalised bounding box (and a GeoJSON polygon when the scene is "
         "georeferenced). Backed by a hosted general-purpose vision model asked "
-        "for a box in text, not a trained detector — it returns an explicit "
+        "for a box in text, not a trained detector - it returns an explicit "
         "negative rather than a guess when nothing matches. Requires network access."
     )
     accepts: list = ["SINGLE", "CROSS_MODAL"]
@@ -97,7 +97,7 @@ class RSGroundTool(Tool):
         box = parse_bbox(out["text"])
 
         if box is None:
-            # Parsing failed or the box was out of range — honest negative.
+            # Parsing failed or the box was out of range - honest negative.
             return ToolResult(
                 tool=self.name,
                 model_id="V1",
@@ -106,7 +106,7 @@ class RSGroundTool(Tool):
                 facts={"phrase": p.phrase, "boxes": [], "raw_response": out["text"]},
                 confidence=0.0,
                 confidence_basis=(
-                    "no parseable normalised bounding box in the VLM response — "
+                    "no parseable normalised bounding box in the VLM response - "
                     "honest negative, not a low-scoring detection"
                 ),
                 warnings=["rs_ground returned no box: response did not contain a "
@@ -125,7 +125,7 @@ class RSGroundTool(Tool):
         conf = heuristic_confidence(out["text"])
         area_frac = (box[2] - box[0]) * (box[3] - box[1])
         text = (f"Located '{p.phrase}' at normalised box "
-                f"({box[0]:.3f},{box[1]:.3f}),({box[2]:.3f},{box[3]:.3f}) — "
+                f"({box[0]:.3f},{box[1]:.3f}),({box[2]:.3f},{box[3]:.3f}) - "
                 f"{area_frac * 100:.1f}% of the image footprint.")
         if geojson is None:
             text += ("  Scene is not georeferenced, so no map coordinates are "
@@ -147,7 +147,7 @@ class RSGroundTool(Tool):
             confidence=round(conf, 3),
             confidence_basis=(
                 "heuristic hedging-language score on the VLM's own certainty "
-                "language — this is NOT a detector softmax and is not calibrated"
+                "language - this is NOT a detector softmax and is not calibrated"
             ),
             warnings=response_warnings(out),
         )

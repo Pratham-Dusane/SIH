@@ -1,6 +1,6 @@
 # Where to get real test data
 
-Real imagery from public portals — no generated or synthetic files. Every source below
+Real imagery from public portals - no generated or synthetic files. Every source below
 is free and downloadable through a browser.
 
 Read this once, download the corpus, then work through
@@ -18,7 +18,7 @@ This matters more than it sounds, because it makes most of the corpus easy:
 | `rs_classify`, `change_detect` | Only **CRS + bounds + acquisition date**. The pixels are never sent to Earth Engine. A plain 3-band RGB GeoTIFF is enough. |
 | `spectral_index` (NDVI/NDWI/NDBI) | **Real multispectral bands.** This is the only thing needing a 4-band file. |
 | `sar_water_mask` | A **SAR** raster (1–2 bands, linear intensity). |
-| `geo_stats`, `coreg_check` | Nothing extra — they consume prior steps. |
+| `geo_stats`, `coreg_check` | Nothing extra - they consume prior steps. |
 
 So a **georeferenced 3-band RGB GeoTIFF covers tests 2, 3, 5 and 6**. Only test 4's
 deterministic fallback needs the 4-band version.
@@ -44,7 +44,7 @@ Put everything in `D:\SIH\_testdata\`. Names are referenced by the manual test d
 
 ---
 
-## 1. Copernicus Browser — the workhorse
+## 1. Copernicus Browser - the workhorse
 
 Free ESA portal. Sentinel-2 (optical, 10 m) and Sentinel-1 (SAR). Exports georeferenced
 GeoTIFF directly from the browser.
@@ -54,17 +54,17 @@ GeoTIFF directly from the browser.
 
 ### 1a. A single optical scene (`single_optical.tif`)
 
-1. Search for a place in the box at top-left. Pick somewhere with **obvious water** —
+1. Search for a place in the box at top-left. Pick somewhere with **obvious water** -
    you need it for the grounding test. Good options:
-   - *Ukai Dam, Gujarat* — large reservoir, sharp shoreline
-   - *Chilika Lake, Odisha* — lagoon plus farmland
-   - *Bhakra Dam, Himachal* — reservoir in terrain
+   - *Ukai Dam, Gujarat* - large reservoir, sharp shoreline
+   - *Chilika Lake, Odisha* - lagoon plus farmland
+   - *Bhakra Dam, Himachal* - reservoir in terrain
 2. Left panel → **Search** tab. Set:
    - **Data source:** Sentinel-2 → **L2A**
    - **Time range:** any 3-month window
    - **Max cloud coverage:** `10%`
 3. Click **Search**, then **Visualize** on a result.
-4. Note the **acquisition date** shown on the result card. **Write it down** — you will
+4. Note the **acquisition date** shown on the result card. **Write it down** - you will
    type it into the app, and tests 5 and 6 fail without it.
 5. Click the **download icon** (⬇, right-hand toolbar) → **Analytical** tab:
    - **Image format:** `TIFF (32-bit float)`
@@ -76,7 +76,7 @@ GeoTIFF directly from the browser.
 > Keep the scene under roughly 2000×2000 px. Drag the map to a tighter view before
 > downloading; the whole-tile export is large and slow to preview.
 
-### 1b. The 4-band version (`single_rgbn.tif`) — only for test 4
+### 1b. The 4-band version (`single_rgbn.tif`) - only for test 4
 
 `spectral_index` needs real NIR and green bands, which a true-colour export does not
 have. Same steps, but first create a custom layer:
@@ -99,7 +99,7 @@ function evaluatePixel(s) {
 
 3. Download via **Analytical** → `TIFF (32-bit float)` as above.
 
-Band order is **R, G, B, NIR** — exactly the `generic4` layout `spectral_index`
+Band order is **R, G, B, NIR** - exactly the `generic4` layout `spectral_index`
 expects, so NDVI and NDWI both work. The backend will detect it as `MULTISPECTRAL`.
 
 ---
@@ -136,7 +136,7 @@ download `mismatch_a.tif` as above, then **pan the map by roughly a third of the
 and download `mismatch_b.tif`. Same area, different footprint.
 
 Expect either `POOR_CO_REGISTRATION` at the gate or `REFUSED_MISREGISTERED` from
-`change_detect` — both are correct outcomes.
+`change_detect` - both are correct outcomes.
 
 ---
 
@@ -171,7 +171,7 @@ option is offered.
 
 ---
 
-## 4. Benchmark PNGs (`benchmark.png`) — for the no-CRS refusal
+## 4. Benchmark PNGs (`benchmark.png`) - for the no-CRS refusal
 
 These are plain images with no georeferencing, which is exactly the point: they prove
 the system refuses to invent an AOI rather than fabricating coordinates.
@@ -179,11 +179,11 @@ the system refuses to invent an AOI rather than fabricating coordinates.
 | Dataset | What it is | Link |
 |---|---|---|
 | **RSVQA-LR / HR** | RS visual question answering, with ground-truth Q&A | [Zenodo LR](https://zenodo.org/records/6344333) · [Zenodo HR](https://zenodo.org/records/6344366) |
-| **VRSBench** | 29,614 images with captions, object references, and Q&A — covers captioning *and* grounding | [Project page](https://vrsbench.github.io/) |
+| **VRSBench** | 29,614 images with captions, object references, and Q&A - covers captioning *and* grounding | [Project page](https://vrsbench.github.io/) |
 | **LEVIR-CD** | 637 bi-temporal 1024×1024 building-change pairs, 2002–2018 | [Project page](https://justchenhao.github.io/LEVIR/) |
 | **OSCD** | Sentinel-2 urban change pairs (multispectral) | [IEEE DataPort / GitHub mirrors](https://github.com/3SPP/awesome-remote-sensing-change-detection-1) |
 
-RSVQA and VRSBench are the useful ones here because they ship reference answers — you
+RSVQA and VRSBench are the useful ones here because they ship reference answers - you
 can check whether `rs_vqa` is actually right, not just fluent.
 
 **Upload these with the *Benchmark mode* toggle ON.** That is what tells the backend to
@@ -191,7 +191,7 @@ record CRS/GSD checks as `N/A` instead of faking a pass (PRD §6.7).
 
 ---
 
-## 5. Bhoonidhi — Cartosat-2S and RISAT (ISRO data)
+## 5. Bhoonidhi - Cartosat-2S and RISAT (ISRO data)
 
 This is the one that matters most for the actual evaluation. The PRD's demo script calls
 for a **Cartosat-2S + RISAT pair**, and the ISRO/SAC evaluation set is exactly that.
@@ -205,12 +205,12 @@ for a **Cartosat-2S + RISAT pair**, and the ISRO/SAC evaluation set is exactly t
    for SAR.
 4. Set the date range and submit the order.
 5. Open products download immediately; others queue as **delayed downloads** and arrive
-   by email. Plan for this — it is not instant.
+   by email. Plan for this - it is not instant.
 
 Products arrive as GeoTIFF with a real CRS, which is the path the ISRO/SAC evaluation
 uses (PRD §11.5 requires GeoTIFF-native, never the PNG path).
 
-> Cartosat-2S is sub-metre to ~2 m — far finer than Sentinel's 10 m. Expect large files
+> Cartosat-2S is sub-metre to ~2 m - far finer than Sentinel's 10 m. Expect large files
 > and exercise the tiling path. This is called out in §11.5 as something to test before
 > submission.
 
@@ -222,7 +222,7 @@ For API access: `bhoonidhi@nrsc.gov.in`.
 
 | Source | Good for | Link |
 |---|---|---|
-| **USGS EarthExplorer** | Landsat 8/9 (30 m), long archive back to 1972 — great for decades-apart change | <https://earthexplorer.usgs.gov/> |
+| **USGS EarthExplorer** | Landsat 8/9 (30 m), long archive back to 1972 - great for decades-apart change | <https://earthexplorer.usgs.gov/> |
 | **NASA Earthdata Search** | MODIS, VIIRS, ASTER, NISAR | <https://search.earthdata.nasa.gov/> |
 | **Sentinel Hub EO Browser** | Same data as Copernicus Browser, alternative UI | <https://apps.sentinel-hub.com/eo-browser/> |
 
@@ -232,10 +232,10 @@ For API access: `bhoonidhi@nrsc.gov.in`.
 
 After uploading anything, open the scene detail page and confirm:
 
-- **CRS** is populated (e.g. `EPSG:4326` or a UTM zone) — blank means tests 5 and 6 will refuse
+- **CRS** is populated (e.g. `EPSG:4326` or a UTM zone) - blank means tests 5 and 6 will refuse
 - **GSD** is sensible (10 m for Sentinel-2)
 - **Modality** is what you expect (`OPTICAL`, `MULTISPECTRAL`, or `SAR`)
 - **Band count** matches what you downloaded
 
 If modality comes back `AMBIGUOUS`, the detector was not confident. That is a legitimate
-state, not a bug — the compatibility panel will say so.
+state, not a bug - the compatibility panel will say so.

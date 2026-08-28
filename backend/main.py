@@ -9,6 +9,9 @@ from routers import auth, workspaces, uploads, scenes, query, stats, tools as to
 # Import tools package to trigger @register decorators at startup
 import tools  # noqa: F401
 
+# Force settings reload
+from core.config import settings
+
 log = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -40,7 +43,7 @@ app.include_router(tools_router.router)
 async def startup_backends():
     """
     Earth Engine is a startup-time dependency for the GEE-backed tools (PRD §7.2).
-    If init fails, those tools mark lemons as unavailable — it is never a crash.
+    If init fails, those tools mark lemons as unavailable - it is never a crash.
     Also seeds demo scenes (scn_single_01) so real queries run on sample GeoTIFFs.
     """
     from core.db import get_db

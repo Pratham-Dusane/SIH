@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SatQuery AI — Agentic Remote Sensing Assistant",
+  title: "SatQuery AI - Agentic Remote Sensing Assistant",
   description:
     "An interactive vision-language assistant for multimodal remote sensing image analysis through text queries. ISRO / SAC.",
 };

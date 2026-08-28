@@ -1,5 +1,5 @@
 """
-Tool interface — PRD §8.1.
+Tool interface - PRD §8.1.
 
 Every capability is a Tool.  The agent may only ever invoke tools; it cannot
 call a model directly.  This is what makes R7/R9/R11 enforceable rather than
@@ -21,7 +21,7 @@ InputConfig = Literal["SINGLE", "CROSS_MODAL", "BI_TEMPORAL"]
 
 
 # ---------------------------------------------------------------------------
-# ToolParams — base for every tool's parameter model.
+# ToolParams - base for every tool's parameter model.
 # extra='forbid' is the R9 enforcement point: a planner that invents a
 # parameter gets a ValidationError, not silent behaviour.
 # ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ class ToolParams(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# ToolResult — returned by every tool execution.
+# ToolResult - returned by every tool execution.
 # ---------------------------------------------------------------------------
 class ToolResult(BaseModel):
     tool: str
@@ -41,23 +41,23 @@ class ToolResult(BaseModel):
     facts: Dict[str, Any] = Field(default_factory=dict)  # machine-checkable values used by fusion
     artifacts: Dict[str, Any] = Field(default_factory=dict)  # {"mask": path, "boxes": [...], ...}
     confidence: float                                 # [0, 1]
-    confidence_basis: str                             # how it was computed — shown in the UI
+    confidence_basis: str                             # how it was computed - shown in the UI
     duration_ms: int = 0
     warnings: List[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
-# Tool — abstract base class for every capability.
+# Tool - abstract base class for every capability.
 # ---------------------------------------------------------------------------
 class Tool(ABC):
     name: str
-    description: str                                   # read by the planner — write it for an LLM
+    description: str                                   # read by the planner - write it for an LLM
     accepts: List[InputConfig]
     required_modalities: List[str]                     # e.g. ["SAR"] or ["OPTICAL|MULTISPECTRAL","SAR"]
     params_model: Type[ToolParams]
     produces: List[str]                                # "text" | "mask" | "boxes" | "map" | "stats"
     model_id: Optional[str] = None
-    offline_capable: bool = True                       # §8.2 — gate and eval harness read this
+    offline_capable: bool = True                       # §8.2 - gate and eval harness read this
 
     @abstractmethod
     async def run(self, ctx: "ExecutionContext", params: ToolParams) -> ToolResult:

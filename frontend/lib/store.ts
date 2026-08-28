@@ -14,7 +14,7 @@ interface Turn {
   streamStage?: string;
   streamSteps?: { id: string; tool: string; status: string; reason?: string }[];
   /** Set when the query failed. A failed turn shows the error, never a
-   *  fabricated answer — a made-up result would carry a confidence value and
+   *  fabricated answer - a made-up result would carry a confidence value and
    *  an evidence list that no tool produced. */
   error?: string;
 }

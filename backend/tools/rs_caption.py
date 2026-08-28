@@ -1,9 +1,9 @@
 """
-rs_caption tool — PRD §7.1, §8.3.2.  Single-image captioning (R3).
+rs_caption tool - PRD §7.1, §8.3.2.  Single-image captioning (R3).
 
 Same shape as rs_vqa using V1, `accepts=["SINGLE"]`, params
 `{detail: Literal["brief","standard","detailed"] = "standard"}`.
-`detail` maps to fixed prompt variants from §7.1 — it never becomes free text.
+`detail` maps to fixed prompt variants from §7.1 - it never becomes free text.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class RSCaptionTool(Tool):
         "Generate a natural-language description of a single satellite image: "
         "dominant land-cover types, structures and spatial layout. Backed by a "
         "hosted general-purpose vision model with no remote-sensing fine-tuning, "
-        "so it produces narrative, never measurements — pair it with "
+        "so it produces narrative, never measurements - pair it with "
         "spectral_index/geo_stats when the answer needs a number. "
         "Requires network access."
     )
@@ -66,7 +66,7 @@ class RSCaptionTool(Tool):
             confidence=round(conf, 3),
             confidence_basis=(
                 "heuristic hedging-language score on a hosted, unadapted VLM "
-                "response — not self-consistency"
+                "response - not self-consistency"
             ),
             warnings=response_warnings(out),
         )

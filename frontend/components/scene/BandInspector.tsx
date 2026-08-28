@@ -25,7 +25,7 @@ export default function BandInspector({ bands }: BandInspectorProps) {
           <span className="font-mono text-foreground">{band.min.toFixed(1)}</span>
           <span className="font-mono text-foreground">{band.max.toFixed(1)}</span>
           <span className="font-mono text-foreground">{band.mean.toFixed(1)}</span>
-          <span className="text-brand-500 truncate">{band.label || band.description || '—'}</span>
+          <span className="text-brand-500 truncate">{band.label || band.description || '-'}</span>
         </div>
       ))}
     </div>

@@ -1,5 +1,5 @@
 """
-Input gate — PRD §9.3 (R8).
+Input gate - PRD §9.3 (R8).
 
 Validates that the classified task is achievable with the given scene.
 Refusals are structured, never a generic apology.
@@ -24,13 +24,13 @@ class GateResult(BaseModel):
     ok: bool
     problems: List[Problem] = []
     warnings: List[str] = []
-    # Live backend availability at gate time — PRD §7.2.  A failed init_gee()
+    # Live backend availability at gate time - PRD §7.2.  A failed init_gee()
     # or a missing VLM key surfaces here as a missing capability, not a crash.
     capabilities: dict = {}
 
 
 # ---------------------------------------------------------------------------
-# Remedies — user-facing instructions for how to fix the problem
+# Remedies - user-facing instructions for how to fix the problem
 # ---------------------------------------------------------------------------
 REMEDY = {
     TaskType.SINGLE_VQA:           "Upload a single image and ask a question about it.",
@@ -46,7 +46,7 @@ REMEDY = {
 
 
 # ---------------------------------------------------------------------------
-# Task requirements matrix — PRD §9.3
+# Task requirements matrix - PRD §9.3
 # ---------------------------------------------------------------------------
 TASK_REQUIREMENTS = {
     TaskType.SINGLE_VQA:           {"configs": ["SINGLE", "CROSS_MODAL", "BI_TEMPORAL"], "modalities": []},
@@ -61,7 +61,7 @@ TASK_REQUIREMENTS = {
 
 
 # ---------------------------------------------------------------------------
-# Backend requirements per task — PRD §7.2.
+# Backend requirements per task - PRD §7.2.
 #
 # `required`: no other tool can serve this task, so an unavailable backend is a
 #             hard refusal with a remedy.
@@ -86,14 +86,14 @@ BACKEND_LABELS = {
 }
 
 BACKEND_REMEDY = {
-    "V1": ("Set VLM_BACKEND and its credentials — vertex needs VERTEX_PROJECT and a "
+    "V1": ("Set VLM_BACKEND and its credentials - vertex needs VERTEX_PROJECT and a "
            "service-account key (it reuses GEE_PROJECT / GEE_KEY_PATH by default); "
            "gemini/gpt4v/claude need GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY. "
            "Or ask a question the deterministic tools can measure (water extent, "
            "vegetation index, built-up area, alignment)."),
     "G1": ("Configure GEE_SERVICE_ACCOUNT, GEE_KEY_PATH and GEE_PROJECT, or use "
            "spectral_index on the uploaded bands instead of a catalog land-cover product."),
-    "G2": ("Configure GEE_SERVICE_ACCOUNT, GEE_KEY_PATH and GEE_PROJECT — change mapping "
+    "G2": ("Configure GEE_SERVICE_ACCOUNT, GEE_KEY_PATH and GEE_PROJECT - change mapping "
            "has no offline equivalent in this build."),
 }
 
@@ -113,7 +113,7 @@ def backend_capabilities() -> dict:
     try:
         from core.gee import gee_available
         gee_ok, gee_reason = gee_available()
-    except Exception as e:  # noqa: BLE001 — availability probing must never crash the gate
+    except Exception as e:  # noqa: BLE001 - availability probing must never crash the gate
         gee_ok, gee_reason = False, f"{type(e).__name__}: {e}"
 
     for bid in ("G1", "G2"):
@@ -148,7 +148,7 @@ def input_gate(tc: TaskClassification, scene) -> GateResult:
     problems: List[Problem] = []
     capability_warnings: List[str] = []
 
-    # Backend availability — §7.2.  A missing hosted backend is a missing
+    # Backend availability - §7.2.  A missing hosted backend is a missing
     # capability with a remedy, never a crash and never a silent empty answer.
     backends = TASK_BACKENDS.get(tc.task, {"required": [], "optional": []})
     for bid in backends["required"]:
@@ -167,7 +167,7 @@ def input_gate(tc: TaskClassification, scene) -> GateResult:
         if not cap.get("available"):
             capability_warnings.append(
                 f"{cap.get('label', bid)} (backend {bid}) is unavailable "
-                f"({cap.get('reason', 'unknown')}) — this answer will fall back to the "
+                f"({cap.get('reason', 'unknown')}) - this answer will fall back to the "
                 "deterministic tools and will be less specific."
             )
 

@@ -1,5 +1,5 @@
 """
-Backend cards — PRD §7.6.
+Backend cards - PRD §7.6.
 
 Replaces the old `model_card.json` (old §7.7): no training lineage exists to
 record, because nothing was fine-tuned.  `GET /api/models` (§14) serves these
@@ -12,7 +12,7 @@ it is not.  In Firestore this becomes one `models/{modelId}` document per card
 with an `active: bool` field (§13).
 
 **When a judge asks "what exactly did you fine-tune?", this must say plainly:
-nothing — and point to §7.0.**
+nothing - and point to §7.0.**
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ CARDS_PATH = Path(__file__).resolve().parent.parent / "cards" / "backend_card.js
 R1_DISCLOSURE = (
     "No component of this system was fine-tuned on remote-sensing data. "
     "Requirement R1 (an RS-adapted visual/VL component) is NOT ATTEMPTED in this "
-    "version — see PRD §7.0 for the trade-off that was made and what it costs. "
+    "version - see PRD §7.0 for the trade-off that was made and what it costs. "
     "Perception comes from a hosted general-purpose VLM and from Google Earth "
     "Engine catalog products, neither of which is remote-sensing-adapted by us."
 )
@@ -64,7 +64,7 @@ def load_backend_cards() -> List[Dict[str, Any]]:
             card["gee_project"] = settings.GEE_PROJECT or None
         else:
             card["active"] = True
-            card["status_reason"] = "local computation — always available"
+            card["status_reason"] = "local computation - always available"
 
         card["r1_status"] = "NOT_ATTEMPTED"
         cards.append(card)
@@ -73,7 +73,7 @@ def load_backend_cards() -> List[Dict[str, Any]]:
 
 
 def fine_tuning_disclosure() -> Dict[str, Any]:
-    """The plain-language answer to 'what did you fine-tune?' — §7.6."""
+    """The plain-language answer to 'what did you fine-tune?' - §7.6."""
     return {
         "fine_tuned_components": [],
         "r1_status": "NOT_ATTEMPTED",

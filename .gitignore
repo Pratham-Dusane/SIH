@@ -91,7 +91,7 @@ Thumbs.db
 *.tsbuildinfo
 next-env.d.ts
 
-# Phase 4: service-account keys — never commit
+# Phase 4: service-account keys - never commit
 _secrets/
 backend/_secrets/
 *-service-account.json

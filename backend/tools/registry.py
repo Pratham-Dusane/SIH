@@ -1,5 +1,5 @@
 """
-Tool registry — PRD §8.2.
+Tool registry - PRD §8.2.
 
 Provides a decorator-based registration mechanism and a manifest function
 that is both injected into the planner prompt AND exposed at GET /api/tools.
@@ -13,7 +13,7 @@ from tools.base import Tool
 
 
 # ---------------------------------------------------------------------------
-# Global registry — populated at import time via the @register decorator.
+# Global registry - populated at import time via the @register decorator.
 # ---------------------------------------------------------------------------
 REGISTRY: Dict[str, Tool] = {}
 

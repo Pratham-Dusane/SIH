@@ -1,19 +1,19 @@
 'use client';
 
-import { ExternalLink, Download, Eye } from 'lucide-react';
+import { ExternalLink, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import ConfidenceMeter from '@/components/trace/ConfidenceMeter';
+import TrafficLightBadge from '@/components/trace/TrafficLightBadge';
+import VerificationBadge from './VerificationBadge';
 import { QueryResult, EvidenceLayer } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { cn } from '@/lib/utils';
 
 interface AnswerCardProps {
   result: QueryResult;
 }
 
 export default function AnswerCard({ result }: AnswerCardProps) {
-  const { setTraceDrawerOpen } = useStore();
 
   // Simple markdown-style rendering for bold text
   const renderAnswer = (text: string) => {
@@ -40,8 +40,21 @@ export default function AnswerCard({ result }: AnswerCardProps) {
       : [];
 
   return (
-    <Card className="bg-card/50 border-border">
+    <Card className="bg-card/50 border-border shadow-sm">
       <CardContent className="p-3.5 space-y-3">
+        {/* Header with TrafficLight & Verification */}
+        <div className="flex items-center justify-between pb-1 border-b border-border/40">
+          <div className="flex items-center gap-2">
+            {result.confidence && (
+              <TrafficLightBadge confidence={result.confidence} size="sm" />
+            )}
+            <span className="text-xs font-semibold text-foreground">Grounded Analysis</span>
+          </div>
+          {result.verification && (
+            <VerificationBadge verification={result.verification} />
+          )}
+        </div>
+
         {/* Answer text */}
         <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
           {result.answer ? renderAnswer(result.answer) : 'No answer produced.'}
@@ -49,7 +62,7 @@ export default function AnswerCard({ result }: AnswerCardProps) {
 
         {/* Evidence chips */}
         {evidenceList.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 pt-1">
             {evidenceList.map((ev) => (
               <button
                 key={ev.id}
@@ -70,34 +83,30 @@ export default function AnswerCard({ result }: AnswerCardProps) {
           </div>
         )}
 
-        {/* Confidence */}
-        <ConfidenceMeter confidence={result.confidence} />
+        {/* Confidence Meter Details */}
+        {result.confidence && (
+          <ConfidenceMeter confidence={result.confidence} />
+        )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-1 border-t border-border/50">
-          <div className="flex flex-wrap gap-1">
-            {result.trace?.steps
-              ?.filter((s) => s?.status === 'OK')
-              ?.map((s) => (
-                <Badge
-                  key={s.id}
-                  variant="outline"
-                  className="text-[9px] font-mono border-border text-muted-foreground"
-                >
-                  {s.tool}
-                </Badge>
-              ))}
+        {/* Footer with active specialist steps */}
+        {result.trace?.steps && result.trace.steps.length > 0 && (
+          <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[10px] text-muted-foreground font-mono">
+            <span className="text-[9px] uppercase tracking-wider">Specialists:</span>
+            <div className="flex flex-wrap gap-1">
+              {result.trace.steps
+                .filter((s) => s?.status === 'OK')
+                .map((s) => (
+                  <Badge
+                    key={s.id}
+                    variant="outline"
+                    className="text-[9px] font-mono border-border text-muted-foreground bg-secondary/30 py-0 px-1.5"
+                  >
+                    {s.tool}
+                  </Badge>
+                ))}
+            </div>
           </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setTraceDrawerOpen(true)}
-              className="text-[10px] text-brand-500 hover:text-brand-400 flex items-center gap-1 transition-colors"
-            >
-              <ExternalLink className="w-2.5 h-2.5" />
-              View trace
-            </button>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

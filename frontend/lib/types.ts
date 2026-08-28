@@ -85,6 +85,12 @@ export interface Confidence {
   contributions: ConfidenceContribution[];
 }
 
+export interface VerificationResult {
+  status: 'verified' | 'uncertain' | 'skipped';
+  reason: string;
+  confidence_delta: number;
+}
+
 export interface TraceStep {
   id: string; tool: string; model: string | null;
   paramsRequested: Record<string, unknown>;
@@ -104,6 +110,7 @@ export interface ExecutionTrace {
   steps: TraceStep[];
   fusion: { mode: 'template' | 'llm'; groundingCheck: 'PASS' | 'FAIL'; unsupportedNumbers: string[] };
   confidence: Confidence;
+  verification?: VerificationResult;
   warnings: string[];
 }
 
@@ -115,6 +122,7 @@ export interface QueryResult {
   evidence: EvidenceLayer[];
   confidence: Confidence;
   trace: ExecutionTrace;
+  verification?: VerificationResult;
   createdAt: string;
 }
 
@@ -124,6 +132,7 @@ export type QueryStreamEvent =
   | { type: 'step'; id: string; tool: string; status: 'running' | 'complete' | 'skipped';
       params?: Record<string, unknown>; reason?: string; summary?: string;
       confidence?: number; durationMs?: number; note?: string }
+  | { type: 'verification'; status: 'verified' | 'uncertain' | 'skipped'; reason: string }
   | { type: 'result'; payload: QueryResult }
   | { type: 'error'; message: string };
 
@@ -146,7 +155,7 @@ export interface PreviewMeta {
 
 // ─── Phase 4: backend registry & health (PRD §7.6, §14) ───
 // There are no trained-model cards any more. `BackendCard` describes a hosted
-// service, and `r1_status` is always NOT_ATTEMPTED — nothing was fine-tuned.
+// service, and `r1_status` is always NOT_ATTEMPTED - nothing was fine-tuned.
 
 export interface BackendCard {
   backend_id: string | null;

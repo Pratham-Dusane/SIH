@@ -1,5 +1,5 @@
 """
-Dashboard stats — GET /api/stats.
+Dashboard stats - GET /api/stats.
 
 Real counts from the store, computed on read.  The dashboard was calling this
 endpoint before it existed; the frontend answered the 404 by substituting demo

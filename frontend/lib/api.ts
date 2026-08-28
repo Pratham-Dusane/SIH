@@ -3,7 +3,7 @@ import {
   QueryStreamEvent, QueryResult, Scene, DashboardStats,
   BackendRegistry, BackendHealth, ToolManifestEntry,
 } from './types';
-// Mocks are used ONLY when NEXT_PUBLIC_USE_MOCKS is not 'false' — an explicit
+// Mocks are used ONLY when NEXT_PUBLIC_USE_MOCKS is not 'false' - an explicit
 // opt-in for UI work without a backend. They are never a fallback for a failed
 // real call.
 import { mockScenes, mockDashboardStats, getDynamicQueryResult } from './mocks';
@@ -20,7 +20,7 @@ import { auth } from './firebase';
  * When mocks are off, every call in this file throws instead of quietly
  * substituting demo data. Silently falling back to `mockScenes` on a 404 is
  * what made a missing scene look like a working one with the wrong imagery and
- * a hardcoded case-study name — the UI must show the failure, not paper over it.
+ * a hardcoded case-study name - the UI must show the failure, not paper over it.
  */
 export class ApiError extends Error {
   status: number;
@@ -43,7 +43,7 @@ export class ApiError extends Error {
  *
  * The API nests raster fields under `image.metadata` and modality under
  * `image.modality`, while `ImageMeta` in lib/types.ts is flat. Without this
- * adapter every component that reads `image.bandCount` gets `undefined` — which
+ * adapter every component that reads `image.bandCount` gets `undefined` - which
  * is what crashed SceneMetaCard the moment real data replaced the mocks.
  *
  * Keeping the mapping here means components and mocks stay unchanged and there
@@ -101,7 +101,7 @@ export function normalizeScene(raw: any): Scene {
     ...camel,
     images,
     compatibility,
-    // Not stored by the backend — derived from what the rasters actually carry.
+    // Not stored by the backend - derived from what the rasters actually carry.
     georeferenced: images.some((i: any) => i.georeferenced),
     status: camel.status ?? 'READY',
   } as Scene;
@@ -166,6 +166,7 @@ export async function streamQuery(
   sceneId: string,
   query: string,
   onEvent: (e: QueryStreamEvent) => void,
+  verify?: boolean,
 ): Promise<QueryResult> {
   if (USE_MOCKS) {
     // Generate query-specific dynamic mock result
@@ -197,6 +198,14 @@ export async function streamQuery(
 
     await new Promise((r) => setTimeout(r, 200));
     onEvent({ type: 'stage', stage: 'fusing' });
+    if (verify !== false) {
+      await new Promise((r) => setTimeout(r, 200));
+      onEvent({
+        type: 'verification',
+        status: 'verified',
+        reason: 'Grounding and consistency validated against source preview.',
+      });
+    }
     await new Promise((r) => setTimeout(r, 300));
     onEvent({ type: 'result', payload: dynamicResult });
     return dynamicResult;
@@ -206,7 +215,7 @@ export async function streamQuery(
     const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, verify }),
     });
 
     if (!res.ok) {
@@ -248,7 +257,7 @@ export async function streamQuery(
       `/api/scenes/${sceneId}/query`);
   } catch (err) {
     // Never invent an answer. A fabricated result here would carry a
-    // confidence value and an evidence list that no tool ever produced —
+    // confidence value and an evidence list that no tool ever produced -
     // exactly the failure mode this whole system is built to avoid.
     const apiErr = err instanceof ApiError
       ? err
@@ -315,7 +324,7 @@ export async function fetchModelHealth(): Promise<{ status: 'healthy' | 'degrade
 
 // ─── Backend registry (PRD §7.6) ───
 // Replaces the old trained-model registry: no fine-tuning was performed, so
-// there is no training lineage to show — only hosted-service descriptions.
+// there is no training lineage to show - only hosted-service descriptions.
 export async function fetchBackends(): Promise<BackendRegistry> {
   const res = await fetch(`${API_BASE}/api/models`);
   if (!res.ok) throw new Error(`GET /api/models failed: ${res.status}`);
@@ -431,7 +440,7 @@ export async function confirmScene(
   });
 
   if (res.status === 422) {
-    // R8: ingest refused the scene and returned the checklist. Surface it —
+    // R8: ingest refused the scene and returned the checklist. Surface it -
     // this refusal is a feature, and the panel is what demonstrates it.
     const body = await res.json().catch(() => ({}));
     throw new CompatibilityError(body?.detail ?? body, '/api/scenes/confirm');
@@ -460,4 +469,21 @@ export async function setSceneDates(
       res.status, `/api/scenes/${sceneId}/dates`);
   }
   return normalizeScene(await res.json());
+}
+
+/** Fetch context-aware query suggestions for a scene. */
+export async function fetchSceneSuggestions(sceneId: string): Promise<string[]> {
+  if (USE_MOCKS) {
+    return [];
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/suggestions`, {
+      headers: await authHeader(),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.suggestions || [];
+  } catch {
+    return [];
+  }
 }

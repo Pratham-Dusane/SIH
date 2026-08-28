@@ -1,5 +1,5 @@
 """
-sar_water_mask tool — PRD §8.3.8, with the optional GEE path from §7.5.
+sar_water_mask tool - PRD §8.3.8, with the optional GEE path from §7.5.
 
 Deterministic. Otsu backscatter thresholding on SAR dB imagery to produce a
 binary water mask.  Fully offline-capable.
@@ -52,13 +52,13 @@ def _gee_sar_db(ctx, polarisation: str) -> tuple:
     """
     §7.5 optional acceleration: pull an already-processed Sentinel-1 GRD dB
     raster for the scene AOI.  Returns (db_array, provenance_dict) or
-    (None, reason_string) — never raises, so the caller always falls back to
+    (None, reason_string) - never raises, so the caller always falls back to
     the mandatory local pipeline.
     """
     from core.config import settings
 
     if settings.OFFLINE_MODE:
-        return None, "OFFLINE_MODE=true — the GEE path is not offline-capable (PRD §11.5)"
+        return None, "OFFLINE_MODE=true - the GEE path is not offline-capable (PRD §11.5)"
 
     from core.gee import gee_available, sentinel1_grd
 
@@ -68,15 +68,15 @@ def _gee_sar_db(ctx, polarisation: str) -> tuple:
 
     bounds = ctx.scene_bounds_wgs84()
     if not bounds:
-        return None, "scene is not georeferenced — no AOI to query Earth Engine with"
+        return None, "scene is not georeferenced - no AOI to query Earth Engine with"
     start, end = ctx.scene_acquisition_window()
     if not start or not end:
-        return None, "scene has no acquisition date — no date range to query"
+        return None, "scene has no acquisition date - no date range to query"
 
     try:
         out = sentinel1_grd(bounds, start, end, polarisation=polarisation,
                             export_path=ctx.artifact_path("s1_grd_db.tif"))
-    except Exception as e:  # noqa: BLE001 — optional path, must fail soft
+    except Exception as e:  # noqa: BLE001 - optional path, must fail soft
         return None, f"{type(e).__name__}: {e}"
 
     if not out.get("available") or not out.get("tif_path"):
@@ -102,7 +102,7 @@ def _gee_sar_db(ctx, polarisation: str) -> tuple:
 class SARWaterMaskParams(ToolParams):
     threshold_db: float | None = Field(None, ge=-30.0, le=5.0)  # None -> Otsu
     band_index: int = Field(0, ge=0, le=3)  # which SAR band (0 = VV or first)
-    # §7.5 — 'local' is the deterministic, offline-capable, mandatory default.
+    # §7.5 - 'local' is the deterministic, offline-capable, mandatory default.
     source: Literal["local", "gee"] = "local"
     polarisation: Literal["VV", "VH"] = "VV"   # only used when source='gee'
 
@@ -133,24 +133,24 @@ class SARWaterMaskTool(Tool):
 
         # --- §7.5 optional acceleration: GEE Sentinel-1 GRD ----------------
         if params.source == "gee":
-            # Earth Engine's client is synchronous — keep it off the event loop.
+            # Earth Engine's client is synchronous - keep it off the event loop.
             import asyncio
             gee_db, info = await asyncio.to_thread(_gee_sar_db, ctx, params.polarisation)
             if gee_db is None:
                 warnings.append(
-                    f"GEE Sentinel-1 path unavailable ({info}) — fell back to the "
+                    f"GEE Sentinel-1 path unavailable ({info}) - fell back to the "
                     "deterministic local dB pipeline"
                 )
             else:
                 db = np.clip(gee_db, -30.0, 10.0)
-                # `info` carries a `source` of its own (the catalog id) — keep it
+                # `info` carries a `source` of its own (the catalog id) - keep it
                 # under `catalog` so it cannot clobber the local/gee provenance flag.
                 provenance = {**info, "catalog": info.get("source"),
                               "source": "gee",
                               "pipeline": "GEE Sentinel-1 GRD (dB)"}
                 warnings.append(
                     "Backscatter came from GEE's Sentinel-1 GRD catalog for this AOI, "
-                    "not from the uploaded raster — this path is online-only and is not "
+                    "not from the uploaded raster - this path is online-only and is not "
                     "a measurement of the uploaded image."
                 )
 
@@ -207,7 +207,7 @@ class SARWaterMaskTool(Tool):
             text += ("  Backscatter source: GEE Sentinel-1 GRD catalog for the scene AOI, "
                      "not the uploaded raster.")
 
-        basis = "deterministic Otsu threshold on SAR dB backscatter — exact computation"
+        basis = "deterministic Otsu threshold on SAR dB backscatter - exact computation"
         if provenance["source"] == "gee":
             basis += "; backscatter from the GEE Sentinel-1 GRD catalog (online-only path)"
 

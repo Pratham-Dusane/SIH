@@ -146,7 +146,7 @@ export default function AnalysisWorkspacePage() {
       {/* Execution Trace Drawer */}
       <div className={cn(
         'border-t border-border bg-card transition-all duration-300 shrink-0 overflow-hidden',
-        traceDrawerOpen ? 'h-[260px]' : 'h-10'
+        traceDrawerOpen ? 'h-[320px]' : 'h-10'
       )}>
         <button
           id="btn-toggle-trace"

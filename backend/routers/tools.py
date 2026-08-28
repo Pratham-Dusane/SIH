@@ -1,10 +1,10 @@
 """
-Tools router — PRD §14.
+Tools router - PRD §14.
 
-GET /api/tools          — tool registry manifest (name, schema, accepts)
-GET /api/models         — backend cards (VLM provider, GEE datasets);
+GET /api/tools          - tool registry manifest (name, schema, accepts)
+GET /api/models         - backend cards (VLM provider, GEE datasets);
                           no trained-model versions exist (§7.6)
-GET /api/health/models  — VLM & GEE readiness check
+GET /api/health/models  - VLM & GEE readiness check
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api", tags=["tools"])
 
 @router.get("/tools")
 async def list_tools():
-    """Return the tool registry manifest — used by the planner and for API documentation."""
+    """Return the tool registry manifest - used by the planner and for API documentation."""
     from tools.registry import registry_manifest
     return registry_manifest()
 
@@ -24,7 +24,7 @@ async def list_tools():
 @router.get("/models")
 async def list_models():
     """
-    Backend cards — PRD §7.6.
+    Backend cards - PRD §7.6.
 
     No fine-tuned models exist; these are service descriptions with live
     availability merged in.  `fine_tuning` states plainly that nothing was
@@ -38,6 +38,7 @@ async def list_models():
 
 
 @router.get("/health/models")
+@router.get("/health/backends")
 async def health_models():
     """VLM & GEE readiness, plus per-tool availability derived from it."""
     from core.config import settings
@@ -67,7 +68,7 @@ async def health_models():
         reason = "available"
         if settings.OFFLINE_MODE and not tool.offline_capable:
             available = False
-            reason = "NOT_EVALUATED_OFFLINE — excluded in OFFLINE_MODE (PRD §11.5)"
+            reason = "NOT_EVALUATED_OFFLINE - excluded in OFFLINE_MODE (PRD §11.5)"
         elif not tool.offline_capable:
             available = bool(backend_ready.get(tool.model_id, False))
             reason = backend_reason.get(tool.model_id, "unknown backend")

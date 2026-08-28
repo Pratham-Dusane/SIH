@@ -1,5 +1,5 @@
 """
-Execution context — the runtime environment tools receive.
+Execution context - the runtime environment tools receive.
 
 Provides access to scene data, image arrays, prior tool results,
 and a transient artifact store for passing data between tool steps.
@@ -69,7 +69,7 @@ class ExecutionContext:
         return None
 
     # ------------------------------------------------------------------
-    # AOI + acquisition window — metadata handed to Earth Engine (§7.3-§7.5).
+    # AOI + acquisition window - metadata handed to Earth Engine (§7.3-§7.5).
     # The uploaded pixel array is never sent; only these numbers are.
     # ------------------------------------------------------------------
     def scene_bounds_wgs84(self) -> Optional[List[float]]:
@@ -83,7 +83,7 @@ class ExecutionContext:
         """
         (start, end) ISO dates for a catalog query.  Falls back to a padded
         window around whatever single date is known, and to (None, None) when
-        the scene carries no acquisition date at all — callers must refuse
+        the scene carries no acquisition date at all - callers must refuse
         rather than invent a date range.
         """
         fn = getattr(self.scene, "acquisition_window", None)
@@ -115,7 +115,7 @@ class ExecutionContext:
         return rel
 
     # ------------------------------------------------------------------
-    # Array access — lazy load from storage
+    # Array access - lazy load from storage
     # ------------------------------------------------------------------
     def _load_array(self, image_path: str) -> Optional[np.ndarray]:
         """Load a raster file and return its data as a channel-first numpy array."""
@@ -182,7 +182,7 @@ class ExecutionContext:
     def _ordered_images(self) -> list:
         """
         Scene images in the order the VLM must see them.  For a bi-temporal
-        pair that is strictly t1 then t2 — every change template in the
+        pair that is strictly t1 then t2 - every change template in the
         gateway names "image 1" as the earlier date, so the order is part of
         the contract, not a convenience.
         """
@@ -227,7 +227,7 @@ class ExecutionContext:
         return result
 
     # ------------------------------------------------------------------
-    # Artifact store — for passing data between tool steps
+    # Artifact store - for passing data between tool steps
     # ------------------------------------------------------------------
     def store_artifact(self, key: str, data: Any,
                        gsd_m: Optional[float] = None) -> None:
@@ -235,7 +235,7 @@ class ExecutionContext:
         Store an artifact for downstream steps.
 
         `gsd_m` records the ground sample distance of *this* array when it does
-        not share the uploaded raster's grid — a GEE-derived mask is on GEE's
+        not share the uploaded raster's grid - a GEE-derived mask is on GEE's
         grid, so measuring it with the scene GSD would silently produce a wrong
         area.  geo_stats prefers this value when present.
         """

@@ -1,10 +1,10 @@
 'use client';
 
-import { Download, ArrowRight, Clock, Cpu, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowRight, Clock, Cpu, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ToolStepCard from './ToolStepCard';
 import PipelineVisualizer, { ToolStep, VerificationState } from './PipelineVisualizer';
+import DownloadModal from './DownloadModal';
 import { ExecutionTrace } from '@/lib/types';
 
 interface ExecutionTimelineProps {
@@ -12,17 +12,6 @@ interface ExecutionTimelineProps {
 }
 
 export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
-  const downloadTraceJson = () => {
-    const jsonStr = JSON.stringify(trace, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trace_${trace.traceId}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const toolSteps: ToolStep[] = (trace.steps || []).map((s) => ({
     id: s.id,
     tool: s.tool,
@@ -38,6 +27,10 @@ export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
         reason: trace.verification.reason,
       }
     : null;
+
+  // The backend persists queries keyed by trace_id, so that is the query ID
+  // the export endpoints need.
+  const queryId = trace.traceId;
 
   return (
     <div className="space-y-3">
@@ -63,16 +56,7 @@ export default function ExecutionTimeline({ trace }: ExecutionTimelineProps) {
           </div>
         </div>
 
-        <Button
-          id="btn-download-trace"
-          variant="outline"
-          size="sm"
-          onClick={downloadTraceJson}
-          className="h-7 text-[11px] gap-1.5 border-border hover:bg-secondary"
-        >
-          <Download className="w-3 h-3" />
-          Download Trace JSON
-        </Button>
+        <DownloadModal queryId={queryId} compact />
       </div>
 
       {/* Completed Pipeline Visualizer Graph */}

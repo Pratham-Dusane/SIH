@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     LOCAL_STORAGE_ROOT: str = os.getenv("LOCAL_STORAGE_ROOT", "./_data")
     SQLITE_PATH: str = os.getenv("SQLITE_PATH", "./_data/satquery.db")
-    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8080")
+    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
 
     # ------------------------------------------------------------------
     # VLM gateway - PRD §7.1

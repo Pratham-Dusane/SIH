@@ -18,3 +18,13 @@ pytest-asyncio>=0.23.0
 
 # --- Phase 4: Google Earth Engine (PRD 7.2) ---
 earthengine-api>=1.4.0
+
+# --- Phase 7: Evidence, Outputs & Reporting (PRD §10) ---
+jinja2>=3.1.0
+# WeasyPrint is the primary PDF renderer. Requires GTK/Cairo native libs on
+# Windows — see https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
+# Falls back to xhtml2pdf automatically if WeasyPrint is unavailable.
+weasyprint>=60.0
+xhtml2pdf>=0.2.11           # pure-Python fallback (no native deps)
+shapely>=2.0.0              # mask → polygon vectorisation
+pyproj>=3.6.0               # CRS reprojection for GeoJSON export

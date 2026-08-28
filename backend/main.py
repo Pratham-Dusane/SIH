@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
-from routers import auth, workspaces, uploads, scenes, query, stats, tools as tools_router
+from routers import auth, workspaces, uploads, scenes, query, stats, tools as tools_router, reports
 
 # Import tools package to trigger @register decorators at startup
 import tools  # noqa: F401
@@ -37,6 +37,7 @@ app.include_router(scenes.router)
 app.include_router(query.router)
 app.include_router(stats.router)
 app.include_router(tools_router.router)
+app.include_router(reports.router)  # Phase 7 — evidence & reporting
 
 
 @app.on_event("startup")

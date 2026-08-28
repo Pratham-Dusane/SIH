@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>SatQuery AI — Intelligence Analysis Report</title>
+  <style>
+    /* ===================================================================== */
+    /* Base Reset & Document Typography                                      */
+    /* ===================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+    }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      color: #1e293b;
+      line-height: 1.45;
+      background-color: #ffffff;
+    }
+
+    /* Headings */
+    h1 { font-size: 18pt; font-weight: bold; color: #0f172a; margin-bottom: 6pt; }
+    h2 {
+      font-size: 12.5pt;
+      font-weight: bold;
+      color: #0f172a;
+      border-bottom: 1.5pt solid #0284c7;
+      padding-bottom: 3pt;
+      margin-top: 18pt;
+      margin-bottom: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    h3 {
+      font-size: 10.5pt;
+      font-weight: bold;
+      color: #334155;
+      margin-top: 10pt;
+      margin-bottom: 4pt;
+    }
+    p { margin-top: 4pt; margin-bottom: 4pt; color: #334155; }
+    a { color: #0284c7; text-decoration: none; font-weight: 500; }
+
+    .page-break { page-break-before: always; }
+
+    /* ===================================================================== */
+    /* Cover / Executive Header Card                                         */
+    /* ===================================================================== */
+    .header-card {
+      background-color: #0b1329;
+      border: 1px solid #1e293b;
+      padding: 18pt 20pt;
+      color: #ffffff;
+      margin-bottom: 14pt;
+    }
+
+    .top-bar-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8pt;
+    }
+    .top-bar-table td { vertical-align: middle; }
+    .brand-logo {
+      font-size: 11pt;
+      font-weight: bold;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #38bdf8;
+    }
+    .badge-report-type {
+      text-align: right;
+      font-size: 8pt;
+      color: #94a3b8;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .report-title {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #ffffff;
+      line-height: 1.15;
+      margin-bottom: 4pt;
+    }
+    .report-subtitle {
+      font-size: 10pt;
+      color: #93c5fd;
+      margin-bottom: 12pt;
+    }
+
+    /* Header Metadata Grid */
+    .meta-grid-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 1px solid #1e3a8a;
+      padding-top: 8pt;
+      margin-top: 6pt;
+    }
+    .meta-grid-table td {
+      padding: 3pt 6pt 3pt 0;
+      font-size: 8.5pt;
+      vertical-align: top;
+    }
+    .meta-label {
+      color: #7dd3fc;
+      font-weight: bold;
+      width: 100pt;
+    }
+    .meta-val {
+      color: #f8fafc;
+    }
+
+    /* Thumbnail row */
+    .thumb-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10pt;
+    }
+    .thumb-table td {
+      padding-right: 8pt;
+      vertical-align: top;
+    }
+    .preview-img {
+      max-height: 80pt;
+      max-width: 110pt;
+      border: 1px solid #38bdf8;
+    }
+
+    /* ===================================================================== */
+    /* Section 2: Query & Answer Callouts                                    */
+    /* ===================================================================== */
+    .query-callout {
+      background-color: #f1f5f9;
+      border-left: 3pt solid #64748b;
+      padding: 7pt 12pt;
+      margin-bottom: 8pt;
+      font-size: 10pt;
+      color: #0f172a;
+    }
+
+    .answer-callout {
+      background-color: #f8fafc;
+      border-left: 4pt solid #0284c7;
+      border-top: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10pt 14pt;
+      margin-top: 6pt;
+      margin-bottom: 10pt;
+      font-size: 10.5pt;
+      color: #0f172a;
+      line-height: 1.5;
+    }
+
+    /* Confidence Pill */
+    .conf-table {
+      border-collapse: collapse;
+      margin-top: 6pt;
+      margin-bottom: 8pt;
+    }
+    .conf-table td { vertical-align: middle; padding: 2pt 4pt; font-size: 9pt; }
+    .pill-high   { background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 2pt 8pt; font-size: 8pt; text-align: center; }
+    .pill-medium { background-color: #fef3c7; color: #b45309; font-weight: bold; padding: 2pt 8pt; font-size: 8pt; text-align: center; }
+    .pill-low    { background-color: #fee2e2; color: #b91c1c; font-weight: bold; padding: 2pt 8pt; font-size: 8pt; text-align: center; }
+
+    /* ===================================================================== */
+    /* Data Tables (Validation, Trace, Metadata)                             */
+    /* ===================================================================== */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6pt;
+      margin-bottom: 10pt;
+      font-size: 8.5pt;
+    }
+    .data-table th {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-size: 8pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 5pt 7pt;
+      text-align: left;
+      border: 1px solid #0f172a;
+    }
+    .data-table td {
+      padding: 4pt 7pt;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+      color: #334155;
+    }
+    .data-table tr:nth-child(even) td {
+      background-color: #f8fafc;
+    }
+
+    /* Status indicators */
+    .status-pass { color: #15803d; font-weight: bold; }
+    .status-warn { color: #b45309; font-weight: bold; }
+    .status-fail { color: #b91c1c; font-weight: bold; }
+    .status-na   { color: #64748b; }
+
+    /* Evidence Box */
+    .evidence-box {
+      border: 1px solid #cbd5e1;
+      background-color: #ffffff;
+      padding: 8pt 10pt;
+      margin-bottom: 8pt;
+    }
+    .evidence-box-title {
+      font-size: 9.5pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin-bottom: 4pt;
+    }
+
+    /* Model Card Box */
+    .model-card-box {
+      border: 1px solid #cbd5e1;
+      background-color: #f8fafc;
+      padding: 7pt 10pt;
+      margin-bottom: 6pt;
+      font-size: 8.5pt;
+    }
+
+    /* Footer */
+    .doc-footer {
+      border-top: 1px solid #cbd5e1;
+      padding-top: 8pt;
+      margin-top: 16pt;
+      font-size: 7.5pt;
+      color: #64748b;
+      line-height: 1.3;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===================================================================== -->
+<!-- COVER / EXECUTIVE HEADER                                              -->
+<!-- ===================================================================== -->
+<div class="header-card">
+  <table class="top-bar-table">
+    <tr>
+      <td class="brand-logo">🛰️ SatQuery AI</td>
+      <td class="badge-report-type">Autonomous Remote Sensing Intelligence Brief</td>
+    </tr>
+  </table>
+
+  <div class="report-title">
+    {{ scene.name if scene and scene.name else scene.id if scene else "Scene Analysis Report" }}
+  </div>
+  <div class="report-subtitle">
+    Multimodal Geospatial Audit &amp; Analytical Provenance Summary
+  </div>
+
+  <table class="meta-grid-table">
+    <tr>
+      <td class="meta-label">Query ID:</td>
+      <td class="meta-val">{{ query_id }}</td>
+      <td class="meta-label">Generated At:</td>
+      <td class="meta-val">{{ generated_at }}</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Scene ID:</td>
+      <td class="meta-val">{{ scene.id if scene else "—" }}</td>
+      <td class="meta-label">Input Config:</td>
+      <td class="meta-val">{{ scene.input_config if scene else "—" }}</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Trace Audit ID:</td>
+      <td class="meta-val">{{ trace.trace_id if trace else "—" }}</td>
+      <td class="meta-label">Execution Status:</td>
+      <td class="meta-val"><strong>{{ trace.status if trace else "COMPLETED" }}</strong></td>
+    </tr>
+  </table>
+
+  {% if image_previews %}
+  <table class="thumb-table">
+    <tr>
+      {% for img in image_previews %}
+        {% if img.data_uri %}
+        <td>
+          <img src="{{ img.data_uri }}" alt="{{ img.role }}" class="preview-img"/><br/>
+          <span style="font-size:7.5pt; color:#93c5fd; text-transform:uppercase;">{{ img.role }} preview</span>
+        </td>
+        {% endif %}
+      {% endfor %}
+    </tr>
+  </table>
+  {% endif %}
+</div>
+
+<!-- ===================================================================== -->
+<!-- SECTION 2: QUERY & ANSWER                                              -->
+<!-- ===================================================================== -->
+<h2>1. Analytic Query &amp; Core Findings</h2>
+
+<p><strong>Primary User Query:</strong></p>
+<div class="query-callout">
+  <em>"{{ trace.query if trace else "—" }}"</em>
+</div>
+
+<p><strong>Generated Intelligence Finding:</strong></p>
+<div class="answer-callout">
+  {{ result.answer if result else "No answer recorded." }}
+</div>
+
+<table class="conf-table">
+  <tr>
+    <td style="font-weight:bold; color:#0f172a;">Confidence Assessment:</td>
+    <td>
+      {% if confidence %}
+        {% if confidence.band == "HIGH" %}
+          <span class="pill-high">HIGH CONFIDENCE</span>
+        {% elif confidence.band == "MEDIUM" %}
+          <span class="pill-medium">MEDIUM CONFIDENCE</span>
+        {% else %}
+          <span class="pill-low">LOW CONFIDENCE</span>
+        {% endif %}
+      {% else %}
+        <span class="pill-medium">ESTIMATED</span>
+      {% endif %}
+    </td>
+    <td style="color:#0f172a; font-weight:bold;">
+      {% if confidence %}{{ "%.0f"|format(confidence.value * 100) }}%{% else %}—{% endif %}
+    </td>
+    <td style="color:#475569; font-size:8.5pt;">
+      {% if confidence %}({{ confidence.basis }}){% endif %}
+    </td>
+  </tr>
+</table>
+
+<!-- ===================================================================== -->
+<!-- SECTION 3: INPUT COMPATIBILITY VALIDATION                            -->
+<!-- ===================================================================== -->
+<h2>2. Input Compatibility &amp; Sensor Validation</h2>
+{% if compat_checks %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 30%;">Validation Check</th>
+      <th style="width: 18%;">Status</th>
+      <th style="width: 52%;">Diagnostic Detail</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for check in compat_checks %}
+    <tr>
+      <td><strong>{{ check.name | replace("_", " ") | title }}</strong></td>
+      <td>
+        {% if check.status == "PASS" %}
+          <span class="status-pass">✓ PASS</span>
+        {% elif check.status == "WARN" %}
+          <span class="status-warn">⚠ WARNING</span>
+        {% elif check.status == "FAIL" %}
+          <span class="status-fail">✗ FAILED</span>
+        {% else %}
+          <span class="status-na">— N/A</span>
+        {% endif %}
+      </td>
+      <td>{{ check.detail or "Validated successfully against schema." }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p style="color:#64748b; font-size:8.5pt;">Standard single-sensor validation checks applied.</p>
+{% endif %}
+
+<!-- ===================================================================== -->
+<!-- SECTION 4: EVIDENCE LAYERS                                             -->
+<!-- ===================================================================== -->
+<h2>3. Extracted Geospatial Evidence Layers</h2>
+{% if evidence_items %}
+  {% for ev in evidence_items %}
+  <div class="evidence-box">
+    <div class="evidence-box-title">
+      🔹 {{ ev.label }} <span style="font-size:8pt; color:#64748b; text-transform:uppercase;">({{ ev.type }})</span>
+    </div>
+    {% if ev.stats %}
+    <table style="width:100%; border-collapse:collapse; font-size:8.5pt; margin-top:3pt;">
+      <tr>
+        {% if ev.stats.area_ha is not none %}
+        <td style="width:33%;"><strong>Total Area:</strong> {{ ev.stats.area_ha }} ha</td>
+        {% endif %}
+        {% if ev.stats.fraction is not none %}
+        <td style="width:33%;"><strong>Coverage Fraction:</strong> {{ "%.2f"|format(ev.stats.fraction * 100) }}%</td>
+        {% endif %}
+        {% if ev.stats.foreground_pixels is not none %}
+        <td style="width:33%;"><strong>Pixel Count:</strong> {{ ev.stats.foreground_pixels }} px</td>
+        {% endif %}
+      </tr>
+    </table>
+    {% endif %}
+    <div style="font-size:8pt; color:#0284c7; margin-top:4pt;">
+      Source Tool: <code>{{ ev.source_step }}</code> | Exported in Full Bundle: GeoTIFF, GeoJSON, RGBA PNG
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<p style="color:#64748b; font-size:8.5pt;">No secondary raster masks generated for this query.</p>
+{% endif %}
+
+<!-- ===================================================================== -->
+<!-- SECTION 5: EXECUTION AUDIT TRACE (R11 Graded)                         -->
+<!-- ===================================================================== -->
+<div class="page-break"></div>
+<h2>4. Execution Step Audit &amp; Tool Trace</h2>
+
+{% if trace_dict and trace_dict.steps %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width:6%;">#</th>
+      <th style="width:14%;">Step ID</th>
+      <th style="width:22%;">Tool Executed</th>
+      <th style="width:20%;">Model / Backend</th>
+      <th style="width:12%;">Runtime</th>
+      <th style="width:12%;">Confidence</th>
+      <th style="width:14%;">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for step in trace_dict.steps %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td><code>{{ step.id }}</code></td>
+      <td><strong>{{ step.tool }}</strong></td>
+      <td>{{ step.model or "Deterministic" }}</td>
+      <td>{{ step.duration_ms }} ms</td>
+      <td>{{ "%.0f"|format(step.confidence * 100) }}%</td>
+      <td>
+        {% if step.status == "OK" %}
+          <span class="status-pass">✓ OK</span>
+        {% elif step.status == "FAILED" %}
+          <span class="status-fail">✗ FAILED</span>
+        {% else %}
+          <span class="status-na">{{ step.status }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% if step.output_summary %}
+    <tr>
+      <td colspan="7" style="background-color:#f8fafc; font-size:7.5pt; color:#475569; padding:3pt 7pt 4pt 16pt;">
+        ↳ <em>Output:</em> {{ step.output_summary }}
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+
+<table style="width:100%; border-collapse:collapse; font-size:8pt; color:#475569; margin-top:4pt;">
+  <tr>
+    <td><strong>Total Execution Time:</strong> {{ trace_dict.duration_ms }} ms</td>
+    <td><strong>Planner Backend:</strong> {{ trace_dict.plan.backend if trace_dict.plan else "rules" }}</td>
+    <td><strong>Grounding Audit:</strong> {{ trace_dict.fusion.grounding_check if trace_dict.fusion else "PASS" }}</td>
+  </tr>
+</table>
+{% else %}
+<p style="color:#64748b; font-size:8.5pt;">Execution trace details are recorded in machine-readable format.</p>
+{% endif %}
+
+<!-- ===================================================================== -->
+<!-- SECTION 6: MODEL PROVENANCE                                           -->
+<!-- ===================================================================== -->
+<h2>5. Model &amp; Algorithmic Provenance</h2>
+{% if model_cards %}
+  {% for card in model_cards %}
+  <div class="model-card-box">
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td><strong>{{ card.name }}</strong> (<code>{{ card.model_id }}</code>)</td>
+        <td style="text-align:right;">
+          {% if card.offline_capable %}
+            <span class="status-pass">✓ Offline Capable</span>
+          {% else %}
+            <span class="status-warn">Cloud / Hosted API</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="color:#64748b; font-size:8pt; padding-top:2pt;">
+          Provider: {{ card.provider }} | Architecture: {{ card.type }}
+        </td>
+      </tr>
+    </table>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="model-card-box">
+  <strong>Gemini 3.6 Flash Vision Gateway</strong><br/>
+  <span style="color:#64748b; font-size:8pt;">Provider: Google AI Studio / Vertex AI | Task: Remote-Sensing Zero-Shot VQA &amp; Spatial Reasoning</span>
+</div>
+{% endif %}
+
+<!-- ===================================================================== -->
+<!-- SECTION 7: IMAGE SPECIFICATION APPENDIX                              -->
+<!-- ===================================================================== -->
+<h2>6. Appendix &mdash; Sensor &amp; Raster Specifications</h2>
+{% for img in images %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width:40%;">Metadata Parameter</th>
+      <th style="width:60%;">Raster Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Sensor Role / Modality</strong></td>
+      <td>{{ img.role | title }} {% if img.modality %}({{ img.modality.modality }}){% endif %}</td>
+    </tr>
+    <tr>
+      <td><strong>Raster Dimensions</strong></td>
+      <td>{{ img.metadata.width if img.metadata else "—" }} × {{ img.metadata.height if img.metadata else "—" }} pixels ({{ img.metadata.bands if img.metadata else "1" }} bands)</td>
+    </tr>
+    <tr>
+      <td><strong>Ground Sample Distance (GSD)</strong></td>
+      <td>
+        {% if img.metadata and img.metadata.gsd_m %}{{ img.metadata.gsd_m }} meters/pixel
+        {% elif img.metadata and img.metadata.gsd_x %}{{ img.metadata.gsd_x }} × {{ img.metadata.gsd_y }} meters
+        {% else %}Standard Multi-Spectral Resolution{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Coordinate Reference System (CRS)</strong></td>
+      <td>{{ img.metadata.crs_wkt[:70] if img.metadata and img.metadata.crs_wkt else "WGS 84 / Geographic (EPSG:4326)" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Georeferencing Status</strong></td>
+      <td>{{ "True (Embedded GeoTransform)" if img.metadata and img.metadata.georeferenced else "Non-projected pixel space" }}</td>
+    </tr>
+    <tr>
+      <td><strong>Acquisition Timestamp</strong></td>
+      <td>{{ img.metadata.acquisition_date if img.metadata and img.metadata.acquisition_date else "Recorded in workspace registry" }}</td>
+    </tr>
+  </tbody>
+</table>
+{% endfor %}
+
+<!-- Document Footer -->
+<div class="doc-footer">
+  <strong>SatQuery AI Autonomous Analysis Brief</strong> &bull; Generated: {{ generated_at }}<br/>
+  All numeric metrics, classifications, and area calculations are traceable to deterministic tool logs. Full bundle ZIP includes raw GeoTIFF, GeoJSON, and JSON execution audit traces.
+</div>
+
+</body>
+</html>

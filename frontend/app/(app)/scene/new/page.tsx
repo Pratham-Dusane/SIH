@@ -10,9 +10,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { InputConfig, Scene } from '@/lib/types';
-import { CompatibilityError, confirmScene, uploadSceneImage } from '@/lib/api';
+import { CompatibilityError, confirmScene, setSceneDates, uploadSceneImage } from '@/lib/api';
 import Link from 'next/link';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+
+function roleLabel(role: string): string {
+  switch (role) {
+    case 't1': return 'T1 (earlier)';
+    case 't2': return 'T2 (later)';
+    case 'optical': return 'Optical';
+    case 'sar': return 'SAR';
+    case 'single': return 'Image';
+    default: return role;
+  }
+}
 
 const steps = [
   { label: 'Upload', icon: Upload },
@@ -28,6 +39,10 @@ export default function NewScenePage() {
   const [validatedScene, setValidatedScene] = useState<Scene | null>(null);
   const [sceneName, setSceneName] = useState('');
   const [benchmarkDataset, setBenchmarkDataset] = useState('');
+  // Acquisition dates, per image role. Collected here because the Earth Engine
+  // tools query the catalog by AOI + date range, and they are locked once the
+  // scene has been queried - so upload is the moment to get them right.
+  const [acquiredDates, setAcquiredDates] = useState<Record<string, string>>({});
 
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -58,7 +73,8 @@ export default function NewScenePage() {
       // All images of a scene must share one scene id so they land under the
       // same storage prefix; the first upload mints it.
       let sceneId: string | undefined;
-      const uploaded = [];
+      const uploaded: { role: string; originalFilename: string;
+                        objectPath: string; sceneId: string }[] = [];
       for (const [role, file] of entries) {
         setProgress(`Uploading ${file.name}…`);
         const result = await uploadSceneImage(file, role, sceneId);
@@ -75,7 +91,16 @@ export default function NewScenePage() {
         benchmarkMode ? benchmarkDataset.trim() || undefined : undefined,
       );
 
-      setValidatedScene(scene);
+      // Apply acquisition dates before anything can query the scene.
+      const byRole = Object.fromEntries(
+        Object.entries(acquiredDates).filter(([role, v]) =>
+          v && uploaded.some((u) => u.role === role)),
+      );
+      const finalScene = Object.keys(byRole).length > 0
+        ? await setSceneDates(scene.id, byRole)
+        : scene;
+
+      setValidatedScene(finalScene);
       setCurrentStep(1);
     } catch (err) {
       if (err instanceof CompatibilityError) {
@@ -193,6 +218,47 @@ export default function NewScenePage() {
                   </div>
                 )}
               </div>
+
+              {/* Acquisition dates — required by the Earth Engine tools, and
+                  locked once the scene has been queried, so collect them now. */}
+              {hasFiles && !benchmarkMode && (
+                <div className="mt-4 max-w-xl rounded-lg border border-border bg-secondary/30 p-3">
+                  <p className="text-xs font-medium text-foreground">
+                    Acquisition date{Object.keys(uploadedFiles).length > 1 ? 's' : ''}
+                    {inputConfig === 'BI_TEMPORAL' && (
+                      <span className="text-amber-500"> — required for change detection</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 mb-2.5">
+                    Earth Engine queries its catalog by area <em>and</em> date.
+                    Without these, <span className="font-mono">change_detect</span> and
+                    <span className="font-mono"> rs_classify</span> refuse rather than
+                    guess a window. These cannot be changed after the first query.
+                  </p>
+                  <div className="space-y-2">
+                    {Object.entries(uploadedFiles)
+                      .filter(([, f]) => Boolean(f))
+                      .map(([role, file]) => (
+                        <label key={role} className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground w-28 shrink-0">
+                            {roleLabel(role)}
+                          </span>
+                          <input
+                            type="date"
+                            value={acquiredDates[role] ?? ''}
+                            onChange={(e) =>
+                              setAcquiredDates((d) => ({ ...d, [role]: e.target.value }))}
+                            className="rounded border border-border bg-background px-2 py-1
+                                       text-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
+                          />
+                          <span className="text-[10px] text-muted-foreground truncate">
+                            {file.name}
+                          </span>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+              )}
 
               {uploadError && (
                 <div className="mt-4 max-w-xl rounded-lg border border-destructive/40 bg-destructive/5 p-3">

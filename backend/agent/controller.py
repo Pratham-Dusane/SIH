@@ -98,14 +98,30 @@ async def answer_query(
     # Stage 5: Fusion + Confidence
     # ------------------------------------------------------------------
     await emit({"type": "stage", "stage": "fusing"})
-    answer = await fuse(query, task, results, scene)
+    fusion = await fuse(query, task, results, scene)
+    answer = fusion.answer
     confidence = aggregate_confidence(results, plan)
 
     if should_abstain(confidence):
         answer = abstain(answer, confidence, results)
 
     trace.confidence = confidence
-    trace.fusion = {"mode": "template", "grounding_check": "PASS"}
+    # Record what actually happened.  A hardcoded "PASS" here would claim the
+    # numeric grounding check succeeded even on the runs where it caught an
+    # unsupported figure and forced the fallback rendering (§9.6, R11).
+    trace.fusion = {
+        "mode": fusion.mode,
+        "grounding_check": fusion.grounding_check,
+        "unsupported_numbers": fusion.unsupported_numbers,
+        "unverified_numbers": fusion.unverified_numbers,
+        "abstained": should_abstain(confidence),
+    }
+    if fusion.grounding_check == "FAIL":
+        await emit({
+            "type": "grounding",
+            "status": "FAIL",
+            "unsupported_numbers": fusion.unsupported_numbers,
+        })
 
     # ------------------------------------------------------------------
     # Stage 6: Self-Verification (optional, configurable)

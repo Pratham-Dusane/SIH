@@ -273,7 +273,13 @@ def s2_composite(ee, aoi, date: str, window_days: int = 30):
         keep = (scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10)))
         return img.updateMask(keep)
 
-    return col.map(_mask_clouds).median().clip(aoi)
+    # The image count must come back with the composite.  Reducing an empty
+    # collection yields an image with *no bands*, and the failure only surfaces
+    # much later as "No band named 'B11'. Available band names: []" — which
+    # tells the user nothing about the actual problem: there is no Sentinel-2
+    # imagery for that AOI and date window.
+    count = int(col.size().getInfo())
+    return col.map(_mask_clouds).median().clip(aoi), count
 
 
 def _download_geotiff(ee, image, aoi, scale: int, out_path: str) -> Optional[str]:
@@ -332,8 +338,29 @@ def change_ndvi_ndbi(bounds: Sequence[float], t1_date: str, t2_date: str,
     ee = require_gee()
     aoi = _rect(ee, bounds)
 
-    t1 = s2_composite(ee, aoi, t1_date, window_days)
-    t2 = s2_composite(ee, aoi, t2_date, window_days)
+    t1, n1 = s2_composite(ee, aoi, t1_date, window_days)
+    t2, n2 = s2_composite(ee, aoi, t2_date, window_days)
+
+    # Refuse clearly when either date has no usable imagery, rather than letting
+    # a bandless composite fail deep inside normalizedDifference.
+    if n1 == 0 or n2 == 0:
+        empty = [d for d, n in ((t1_date, n1), (t2_date, n2)) if n == 0]
+        return {
+            "status": "NO_COVERAGE",
+            "empty_dates": empty,
+            "image_counts": {t1_date: n1, t2_date: n2},
+            "composite_window_days": window_days,
+            "changed_fraction": None,
+            "t1_date": t1_date,
+            "t2_date": t2_date,
+            "source": "COPERNICUS/S2_SR_HARMONIZED",
+            "reason": (
+                "No Sentinel-2 scene with under 40% cloud within "
+                f"±{window_days} days of " + " or ".join(empty) +
+                " over this AOI."
+            ),
+            "mask_path": None,
+        }
 
     ndvi1 = t1.normalizedDifference(["B8", "B4"]).rename("ndvi")
     ndvi2 = t2.normalizedDifference(["B8", "B4"]).rename("ndvi")

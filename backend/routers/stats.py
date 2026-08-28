@@ -53,3 +53,38 @@ async def dashboard_stats(
             round(abstained / total_queries, 3) if total_queries else 0.0
         ),
     }
+
+
+@router.get("/traces/{trace_id}")
+async def get_trace(
+    trace_id: str,
+    user: dict = Depends(current_user),
+    db: Database = Depends(get_db),
+):
+    """
+    Full ExecutionTrace JSON - PRD §14.
+
+    R11 requires the execution record to be inspectable after the fact, not
+    only in the response that produced it.
+    """
+    from fastapi import HTTPException
+
+    trace = db.get_document("traces", trace_id)
+    if not trace:
+        raise HTTPException(status_code=404, detail="Trace not found")
+    return trace
+
+
+@router.get("/queries/{query_id}")
+async def get_query(
+    query_id: str,
+    user: dict = Depends(current_user),
+    db: Database = Depends(get_db),
+):
+    """Stored QueryResult - PRD §14."""
+    from fastapi import HTTPException
+
+    q = db.get_document("queries", query_id)
+    if not q:
+        raise HTTPException(status_code=404, detail="Query not found")
+    return q

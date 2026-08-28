@@ -131,17 +131,28 @@ class ChangeDetectTool(Tool):
         except Exception as e:  # noqa: BLE001
             return error_result(self.name, self.model_id, e, BACKEND_LABEL)
 
-        changed = out["changed_fraction"]
-        if changed is None:
+        changed = out.get("changed_fraction")
+        if out.get("status") == "NO_COVERAGE" or changed is None:
+            empty = out.get("empty_dates") or []
+            reason = out.get("reason") or (
+                "Earth Engine had no cloud-free Sentinel-2 coverage for this AOI "
+                f"near {t1_date} and/or {t2_date}.")
+            remedy = (
+                " Pick a date with Sentinel-2 coverage: the archive starts in 2015, "
+                "and a date in the future or within the last few days will have none. "
+                "Widening composite_window_days also helps in cloudy seasons."
+            )
             return ToolResult(
                 tool=self.name, model_id=self.model_id, confidence=0.0,
                 confidence_basis="no usable Sentinel-2 composite for one or both dates",
-                text=("Change detection produced no statistics: Earth Engine had no "
-                      f"cloud-free Sentinel-2 coverage for this AOI near {t1_date} "
-                      f"and/or {t2_date}."),
+                text="Change detection could not run: " + reason + remedy,
                 facts={"status": "NO_COVERAGE", "t1_date": t1_date, "t2_date": t2_date,
+                       "empty_dates": empty,
+                       "image_counts": out.get("image_counts"),
                        "aoi_wgs84": bounds},
-                warnings=["no Sentinel-2 composite available for one or both dates"],
+                warnings=[f"no Sentinel-2 imagery within "
+                          f"±{out.get('composite_window_days', p.composite_window_days)} days of "
+                          + (", ".join(empty) if empty else "one or both dates")],
             )
 
         warnings = []

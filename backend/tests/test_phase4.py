@@ -1319,6 +1319,10 @@ def test_scene_dates_endpoint_sets_per_image_and_window(tmp_path, monkeypatch):
         def set_document(self, coll, key, value):
             store[key] = value
 
+        def list_documents(self, coll, filters=None):
+            # No queries recorded, so dates stay editable.
+            return []
+
     from core.db import get_db
     app.dependency_overrides[get_db] = lambda: FakeDB()
     try:
@@ -1363,6 +1367,9 @@ def test_scene_dates_endpoint_rejects_bad_input(monkeypatch):
         def set_document(self, coll, key, value):
             pass
 
+        def list_documents(self, coll, filters=None):
+            return []
+
     from core.db import get_db
     app.dependency_overrides[get_db] = lambda: FakeDB()
     try:
@@ -1377,5 +1384,196 @@ def test_scene_dates_endpoint_rejects_bad_input(monkeypatch):
         # Unknown scene
         assert c.post("/api/scenes/nope/dates",
                       json={"by_role": {}}).status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Acquisition dates are an input to every Earth Engine result, so they are
+# locked once a scene has been queried — otherwise stored answers and traces
+# would describe a date window that no longer matches their own scene.
+# ---------------------------------------------------------------------------
+def _dates_app(queries=None):
+    from fastapi.testclient import TestClient
+
+    from core.db import get_db
+    from main import app
+
+    store = {
+        "scenes": {"sc_d": {
+            "id": "sc_d", "workspace_id": "ws_demo", "name": "pair",
+            "input_config": "BI_TEMPORAL", "benchmark_mode": False,
+            "modalities": ["OPTICAL", "OPTICAL"], "created_at": "2026-08-28T00:00:00Z",
+            "compatibility": {"verdict": "PASS", "checks": []},
+            "images": [
+                {"role": r, "original_filename": f"{r}.tif", "object_path": f"{r}.tif",
+                 "metadata": {"driver": "GTiff", "width": 8, "height": 8,
+                              "band_count": 1, "dtypes": ["uint16"]},
+                 "modality": {"modality": "OPTICAL", "confidence": 0.9}}
+                for r in ("t1", "t2")
+            ],
+        }},
+        "queries": queries or {},
+    }
+
+    class FakeDB:
+        def get_document(self, coll, key):
+            return store.get(coll, {}).get(key)
+
+        def set_document(self, coll, key, value):
+            store.setdefault(coll, {})[key] = value
+
+        def list_documents(self, coll, filters=None):
+            docs = list(store.get(coll, {}).values())
+            if filters:
+                docs = [d for d in docs
+                        if all(d.get(k) == v for k, v in filters.items())]
+            return docs
+
+    app.dependency_overrides[get_db] = lambda: FakeDB()
+    return TestClient(app), store, app
+
+
+def test_dates_are_editable_before_the_first_query():
+    c, store, app = _dates_app()
+    try:
+        assert c.get("/api/scenes/sc_d/queries").json()["dates_locked"] is False
+        r = c.post("/api/scenes/sc_d/dates",
+                   json={"by_role": {"t1": "2020-01-15", "t2": "2023-01-15"}})
+        assert r.status_code == 200
+        assert [i["acquired_at"] for i in r.json()["images"]] == \
+            ["2020-01-15", "2023-01-15"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_dates_lock_once_the_scene_has_been_queried():
+    c, store, app = _dates_app(queries={
+        "q1": {"id": "q1", "scene_id": "sc_d", "workspace_id": "ws_demo"},
+    })
+    try:
+        hist = c.get("/api/scenes/sc_d/queries").json()
+        assert hist["count"] == 1 and hist["dates_locked"] is True
+
+        r = c.post("/api/scenes/sc_d/dates", json={"by_role": {"t1": "2019-01-01"}})
+        assert r.status_code == 409
+        detail = r.json()["detail"]
+        assert "locked" in detail["message"].lower()
+        assert detail["remedy"], "a refusal must carry a remedy"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_query_history_is_scoped_to_its_own_scene():
+    c, store, app = _dates_app(queries={
+        "q1": {"id": "q1", "scene_id": "other_scene", "workspace_id": "ws_demo"},
+    })
+    try:
+        hist = c.get("/api/scenes/sc_d/queries").json()
+        assert hist["count"] == 0
+        assert hist["dates_locked"] is False, (
+            "another scene's queries must not lock this one")
+    finally:
+        app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Empty Sentinel-2 composites.
+#
+# Reducing an empty ImageCollection yields an image with no bands, and the
+# failure only surfaced far downstream as "No band named 'B11'. Available band
+# names: []" — which says nothing about the real problem: no imagery exists for
+# that AOI and date window (a future date, or a cloudy monsoon month).
+# ---------------------------------------------------------------------------
+def test_change_detect_reports_no_coverage_clearly(monkeypatch):
+    import tools.change_detect as mod
+    from tools.change_detect import ChangeDetectParams
+
+    monkeypatch.setattr(mod, "gee_available", lambda: (True, "stubbed"))
+    monkeypatch.setattr(mod, "change_ndvi_ndbi", lambda *a, **k: {
+        "status": "NO_COVERAGE",
+        "empty_dates": ["2026-08-28"],
+        "image_counts": {"2026-08-28": 0, "2020-01-15": 7},
+        "composite_window_days": 30,
+        "changed_fraction": None,
+        "t1_date": "2020-01-15", "t2_date": "2026-08-28",
+        "source": "COPERNICUS/S2_SR_HARMONIZED",
+        "reason": ("No Sentinel-2 scene with under 40% cloud within +/-30 days of "
+                   "2026-08-28 over this AOI."),
+        "mask_path": None,
+    })
+
+    res = run(mod.ChangeDetectTool().run(
+        make_ctx(bitemporal_scene()), ChangeDetectParams()))
+
+    assert res.confidence == 0.0
+    assert res.facts["status"] == "NO_COVERAGE"
+    assert res.facts["empty_dates"] == ["2026-08-28"]
+    # The message must name the cause and a remedy, not a GEE stack detail.
+    assert "No Sentinel-2 scene" in res.text
+    assert "archive starts in 2015" in res.text
+    assert "B11" not in res.text
+
+
+def test_change_detect_reports_which_date_had_no_imagery(monkeypatch):
+    """image_counts must show *which* date was empty, not just that one was."""
+    import tools.change_detect as mod
+    from tools.change_detect import ChangeDetectParams
+
+    monkeypatch.setattr(mod, "gee_available", lambda: (True, "stubbed"))
+    monkeypatch.setattr(mod, "change_ndvi_ndbi", lambda *a, **k: {
+        "status": "NO_COVERAGE",
+        "empty_dates": ["2020-08-28"],
+        "image_counts": {"2020-08-28": 0, "2023-01-15": 12},
+        "composite_window_days": 30,
+        "changed_fraction": None,
+        "t1_date": "2020-08-28", "t2_date": "2023-01-15",
+        "source": "COPERNICUS/S2_SR_HARMONIZED",
+        "reason": "No Sentinel-2 scene with under 40% cloud within +/-30 days of 2020-08-28.",
+        "mask_path": None,
+    })
+
+    res = run(mod.ChangeDetectTool().run(
+        make_ctx(bitemporal_scene()), ChangeDetectParams()))
+
+    counts = res.facts["image_counts"]
+    assert counts["2020-08-28"] == 0
+    assert counts["2023-01-15"] == 12
+    assert res.warnings and "2020-08-28" in res.warnings[0]
+
+
+# ---------------------------------------------------------------------------
+# T1 must precede T2 — the slots are labelled earlier/later and every change
+# result is signed accordingly, so a reversed pair inverts the direction.
+# ---------------------------------------------------------------------------
+def test_dates_endpoint_rejects_reversed_bitemporal_pair():
+    c, store, app = _dates_app()
+    try:
+        r = c.post("/api/scenes/sc_d/dates",
+                   json={"by_role": {"t1": "2026-08-28", "t2": "2020-08-28"}})
+        assert r.status_code == 422
+        detail = r.json()["detail"]
+        assert "must be earlier than" in detail["message"]
+        assert detail["remedy"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_dates_endpoint_accepts_correctly_ordered_pair():
+    c, store, app = _dates_app()
+    try:
+        r = c.post("/api/scenes/sc_d/dates",
+                   json={"by_role": {"t1": "2020-08-28", "t2": "2026-08-28"}})
+        assert r.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_dates_endpoint_rejects_identical_dates():
+    c, store, app = _dates_app()
+    try:
+        r = c.post("/api/scenes/sc_d/dates",
+                   json={"by_role": {"t1": "2022-01-01", "t2": "2022-01-01"}})
+        assert r.status_code == 422
     finally:
         app.dependency_overrides.clear()

@@ -18,6 +18,7 @@ from pydantic import Field
 
 from tools.base import Tool, ToolParams, ToolResult
 from tools.registry import register
+from core.sar import is_degenerate, to_db, uncalibrated_warning
 
 log = logging.getLogger(__name__)
 
@@ -36,10 +37,9 @@ def _normalized_difference(arr: np.ndarray, b1: int, b2: int) -> np.ndarray:
     return (a - b) / denom
 
 
-def _to_db(arr: np.ndarray) -> np.ndarray:
-    """Convert SAR amplitude/intensity to dB, clipping to physical range."""
-    db = 10.0 * np.log10(np.clip(arr.astype("float64"), 1e-6, None))
-    return np.clip(db, -25.0, 5.0)
+# dB conversion lives in tools/_sar_db.py: a fixed calibrated clip range
+# flattens uncalibrated DN products to a constant and silently zeroes every
+# SAR mask.  See that module for the full explanation.
 
 
 def _otsu_threshold(data: np.ndarray) -> float:
@@ -118,7 +118,15 @@ class SAROpticalFuseTool(Tool):
             sar_band = sar_arr[0]  # VV or first polarisation
         else:
             sar_band = sar_arr
-        sar_db = _to_db(sar_band)
+        sar_db, sar_calibrated = to_db(sar_band)
+        if is_degenerate(sar_db):
+            return ToolResult(
+                tool=self.name, confidence=0.0,
+                confidence_basis="SAR raster has no usable contrast",
+                text=("Cross-modal fusion cannot run: the SAR image carries no "
+                      "variation to threshold on."),
+                warnings=["SAR raster is single-valued after dB conversion."],
+            )
 
         # Resize to match if shapes differ
         from skimage.transform import resize as sk_resize
@@ -201,6 +209,15 @@ class SAROpticalFuseTool(Tool):
         # Floor at 0.3 since deterministic tools always have some value
         conf = max(conf, 0.3)
 
+        facts["sar_calibrated"] = sar_calibrated
+        warnings = [] if sar_calibrated else [uncalibrated_warning(self.name)]
+
+        basis = ("inter-sensor agreement fraction -- fully deterministic, "
+                 "offline-capable, no learned prior")
+        if not sar_calibrated:
+            basis += ("; SAR thresholds derived from this scene's own dB "
+                      "distribution because the product is uncalibrated")
+
         return ToolResult(
             tool=self.name,
             model_id=None,
@@ -212,8 +229,6 @@ class SAROpticalFuseTool(Tool):
             },
             text=text,
             confidence=round(conf, 3),
-            confidence_basis=(
-                "inter-sensor agreement fraction -- fully deterministic, "
-                "offline-capable, no learned prior"
-            ),
+            confidence_basis=basis,
+            warnings=warnings,
         )

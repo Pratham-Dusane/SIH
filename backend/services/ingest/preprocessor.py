@@ -7,6 +7,8 @@ from rasterio.transform import Affine, from_bounds
 from rasterio.warp import calculate_default_transform, reproject, transform_bounds
 import scipy.ndimage
 
+from core.sar import to_db
+
 
 def _ensure_channel_first(arr: np.ndarray) -> np.ndarray:
     """Ensure array has shape (C, H, W)."""
@@ -65,17 +67,26 @@ def prepare(meta: Dict[str, Any], arr: np.ndarray, modality: str) -> np.ndarray:
     modality_upper = (modality or "OPTICAL").upper()
 
     if modality_upper == "SAR":
-        # 1. amplitude/intensity -> dB (10 * log10)
-        db = 10.0 * np.log10(np.clip(arr, 1e-6, None))
-        # 2. clip to physically meaningful backscatter range [-25 dB, 5 dB]
-        db = np.clip(db, -25.0, 5.0)
-        # 3. speckle reduction via 3x3 median filter (preserves edges better than mean)
+        # 1. amplitude/intensity -> dB, with calibration detection.
+        #    A fixed [-25, 5] dB clip assumes calibrated sigma0.  An
+        #    uncalibrated DN product (uint16, +17..+38 dB) lands entirely above
+        #    that ceiling, so every pixel became 5.0 and the preview rendered as
+        #    a pure white rectangle.  core.sar.to_db falls back to the raster's
+        #    own percentile range when the product is not calibrated.
+        db = np.stack([to_db(arr[b])[0] for b in range(arr.shape[0])], axis=0)
+        # 2. speckle reduction via 3x3 median filter (preserves edges better than mean)
         filtered = np.stack([
             scipy.ndimage.median_filter(db[b], size=3) for b in range(db.shape[0])
         ], axis=0)
-        # 4. normalise to [0, 1]
-        out = (filtered + 25.0) / 30.0
-        out = np.clip(out, 0.0, 1.0)
+        # 3. normalise each band on its own dynamic range, so the stretch works
+        #    for calibrated and uncalibrated products alike.
+        out = np.empty_like(filtered, dtype="float32")
+        for b in range(filtered.shape[0]):
+            band = filtered[b]
+            finite = band[np.isfinite(band)]
+            lo, hi = (float(finite.min()), float(finite.max())) if finite.size else (0.0, 1.0)
+            out[b] = 0.5 if hi - lo < 1e-9 else (band - lo) / (hi - lo)
+        out = np.clip(np.nan_to_num(out, nan=0.0), 0.0, 1.0)
         # 5. channel mapping: 1 band -> grayscale RGB; 2 bands (VV, VH) -> [VV, VH, ratio]
         if out.shape[0] == 1:
             out = np.repeat(out, 3, axis=0)

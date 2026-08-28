@@ -3,6 +3,7 @@
 import { ExternalLink, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import Markdown from './Markdown';
 import ConfidenceMeter from '@/components/trace/ConfidenceMeter';
 import TrafficLightBadge from '@/components/trace/TrafficLightBadge';
 import VerificationBadge from './VerificationBadge';
@@ -16,16 +17,6 @@ interface AnswerCardProps {
 export default function AnswerCard({ result }: AnswerCardProps) {
 
   // Simple markdown-style rendering for bold text
-  const renderAnswer = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="text-foreground">{part.slice(2, -2)}</strong>;
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
-
   const rawEvidence = result.evidence;
   const evidenceList: EvidenceLayer[] = Array.isArray(rawEvidence)
     ? rawEvidence
@@ -55,9 +46,11 @@ export default function AnswerCard({ result }: AnswerCardProps) {
           )}
         </div>
 
-        {/* Answer text */}
-        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-          {result.answer ? renderAnswer(result.answer) : 'No answer produced.'}
+        {/* Answer text - model replies are markdown, not plain text */}
+        <div className="text-sm text-muted-foreground leading-relaxed">
+          {result.answer
+            ? <Markdown text={result.answer} />
+            : 'No answer produced.'}
         </div>
 
         {/* Evidence chips */}

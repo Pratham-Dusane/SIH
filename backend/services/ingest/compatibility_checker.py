@@ -48,22 +48,145 @@ def _gray_512(img_info: Dict[str, Any]) -> np.ndarray:
     return gray.astype("float32")
 
 
+def _same_modality(a: Dict[str, Any], b: Dict[str, Any]) -> bool:
+    def _m(img):
+        m = img.get("modality")
+        if isinstance(m, dict):
+            return m.get("modality", "")
+        return m or ""
+    ma, mb = _m(a), _m(b)
+    optical = {"OPTICAL", "MULTISPECTRAL"}
+    if ma in optical and mb in optical:
+        return True
+    return ma == mb
+
+
+def shift_from_geotransform(a: Dict[str, Any], b: Dict[str, Any]) -> Optional[float]:
+    """
+    Misregistration in pixels, read straight off the two geotransforms.
+
+    For georeferenced products this is the *exact* answer and it is completely
+    modality-independent — the grid origins either line up or they do not.
+    Returns None when either image lacks a usable footprint.
+    """
+    ba, bb = a.get("bounds_wgs84"), b.get("bounds_wgs84")
+    if not ba or not bb or len(ba) != 4 or len(bb) != 4:
+        return None
+    aw, a_s, ae, an = (float(v) for v in ba)
+    bw, _bs, _be, bn = (float(v) for v in bb)
+
+    width = max(int(a.get("width") or 0), 1)
+    height = max(int(a.get("height") or 0), 1)
+    px_w = (ae - aw) / width
+    px_h = (an - a_s) / height
+    if abs(px_w) < 1e-15 or abs(px_h) < 1e-15:
+        return None
+
+    dx = (bw - aw) / px_w
+    dy = (bn - an) / px_h
+    return float(np.hypot(dx, dy))
+
+
 def estimate_shift(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[float, float]:
     """
-    Estimate relative shift between two images using phase cross-correlation on 512x512 downsamples.
+    Estimate relative shift by phase cross-correlation on 512x512 downsamples.
     Returns (shift_in_original_pixels, normalized_error).
+
+    **Only valid for same-modality pairs.**  Optical and SAR measure different
+    physics, so correlating their raw intensities produces noise — see
+    `co_registration_estimate` for how that case is handled.
     """
     ga = _gray_512(a)
     gb = _gray_512(b)
 
+    if not _same_modality(a, b):
+        # Structural (edge) content is the only thing an optical and a SAR
+        # image share, so correlate gradient magnitude rather than intensity.
+        ga, gb = _gradient_magnitude(ga), _gradient_magnitude(gb)
+
     shifts, err, _ = phase_cross_correlation(ga, gb, upsample_factor=4)
     dy, dx = shifts[0], shifts[1]
-    
+
     # Scale shift back to original pixel dimension (based on maximum width/height of image A)
     orig_dim = max(a.get("width", 512), a.get("height", 512))
     scale = orig_dim / 512.0
     shift_px = float(np.hypot(dy, dx) * scale)
     return float(shift_px), float(err)
+
+
+def _gradient_magnitude(g: np.ndarray) -> np.ndarray:
+    """Normalised Sobel gradient magnitude — a modality-invariant structure map."""
+    gy, gx = np.gradient(g.astype("float64"))
+    mag = np.hypot(gx, gy)
+    peak = np.percentile(mag, 99) if mag.size else 0.0
+    if peak > 0:
+        mag = np.clip(mag / peak, 0.0, 1.0)
+    return mag.astype("float32")
+
+
+def co_registration_estimate(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[Optional[float], str, str]:
+    """
+    Misregistration in pixels plus how it was obtained: (shift_px, method, note).
+
+    Two independent things can be misaligned, and they are not the same:
+
+    * **grid offset** — the geotransforms disagree.  Exact, and completely
+      modality-independent.
+    * **content offset** — the geotransforms agree but the imagery does not,
+      i.e. the product's own georeferencing is wrong.  Only detectable by
+      correlating pixels, which is meaningful *within* a modality.
+
+    Same-modality pairs are checked both ways and the worse number wins, since
+    either kind of offset breaks change detection.  For a cross-modal pair,
+    optical and SAR measure different physics, so intensity correlation between
+    them is noise — the geotransform is the only trustworthy signal, and noise
+    must never be allowed to FAIL a well-georeferenced scene.
+
+    `shift_px` is None when no trustworthy estimate exists; the caller reports
+    that as unknown rather than inventing a number.
+    """
+    geo_both = bool(a.get("georeferenced") and a.get("bounds_wgs84")
+                    and b.get("georeferenced") and b.get("bounds_wgs84"))
+    same_modality = _same_modality(a, b)
+
+    geo_shift = shift_from_geotransform(a, b) if geo_both else None
+
+    # Cross-modal + georeferenced: trust the grid, ignore correlation entirely.
+    if geo_shift is not None and not same_modality:
+        return geo_shift, "geotransform", (
+            "grid origins compared directly; intensity correlation is not "
+            "meaningful between optical and SAR")
+
+    corr_shift = None
+    corr_note = ""
+    try:
+        corr_shift, err = estimate_shift(a, b)
+        corr_note = f"normalised error {err:.3f}"
+    except Exception as e:  # noqa: BLE001
+        corr_note = f"correlation failed: {e}"
+
+    if geo_shift is not None and corr_shift is not None:
+        # Both available and comparable — the larger offset is the real problem.
+        if corr_shift >= geo_shift:
+            return corr_shift, "phase_correlation", (
+                f"image content offset by {corr_shift:.2f} px while the geotransforms "
+                f"differ by only {geo_shift:.2f} px — the georeferencing may be wrong")
+        return geo_shift, "geotransform", (
+            f"grid origins differ by {geo_shift:.2f} px; image content agrees "
+            f"to {corr_shift:.2f} px")
+
+    if geo_shift is not None:
+        return geo_shift, "geotransform", "grid origins compared directly"
+
+    if corr_shift is None:
+        return None, "unavailable", corr_note
+
+    # No usable georeferencing (benchmark PNGs, unreferenced products).
+    if not same_modality:
+        return corr_shift, "gradient_correlation", (
+            "cross-modal pair with no georeferencing — estimated from edge "
+            "structure, treat as indicative only")
+    return corr_shift, "phase_correlation", corr_note
 
 
 def _overlap_fraction(a: Dict[str, Any], b: Dict[str, Any]) -> float:
@@ -187,13 +310,22 @@ def check_compatibility(
             checks.append(_mk("gsd_ratio", WARN, "GSD unavailable for one or both images"))
 
         # --- C6: co-registration -----------------------------------------
-        try:
-            shift, err = estimate_shift(a, b)
-            coreg_shift_px = shift
+        shift, method, note = co_registration_estimate(a, b)
+        coreg_shift_px = shift
+
+        if shift is None:
+            checks.append(_mk("co_registration", WARN,
+                              f"Co-registration could not be estimated ({note})"))
+        elif method == "gradient_correlation":
+            # Cross-modal edge correlation with no georeferencing to fall back
+            # on: indicative only, so it may warn but must never fail a scene.
+            status = PASS if shift <= 2.0 else WARN
+            checks.append(_mk("co_registration", status,
+                              f"Estimated misregistration {shift:.2f} px — {note}"))
+        else:
             status = PASS if shift <= 2.0 else (WARN if shift <= 8.0 else FAIL)
-            checks.append(_mk("co_registration", status, f"Estimated misregistration {shift:.2f} px (normalised error {err:.3f})"))
-        except Exception as e:
-            checks.append(_mk("co_registration", WARN, f"Co-registration estimation failed: {str(e)}"))
+            checks.append(_mk("co_registration", status,
+                              f"Misregistration {shift:.2f} px — {note}"))
 
     # Determine overall verdict
     verdict = PASS

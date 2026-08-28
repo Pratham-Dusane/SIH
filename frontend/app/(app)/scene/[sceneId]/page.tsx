@@ -7,6 +7,7 @@ import EvidenceCanvas from '@/components/evidence/EvidenceCanvas';
 import LayerControls from '@/components/evidence/LayerControls';
 import QueryConsole from '@/components/query/QueryConsole';
 import ExecutionTimeline from '@/components/trace/ExecutionTimeline';
+import AcquisitionDates from '@/components/scene/AcquisitionDates';
 import Link from 'next/link';
 import { ApiError, fetchScene } from '@/lib/api';
 import { useStore } from '@/lib/store';
@@ -119,13 +120,19 @@ export default function AnalysisWorkspacePage() {
 
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden">
-      <TopNav
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Scene', href: '/dashboard' },
-          { label: activeScene.name },
-        ]}
-      />
+      <div className="relative">
+        <TopNav
+          breadcrumbs={[
+            { label: 'Dashboard', href: '/dashboard' },
+            { label: 'Scene', href: '/dashboard' },
+            { label: activeScene.name },
+          ]}
+        />
+        {/* Earth Engine tools need acquisition dates; make that fixable here. */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-30">
+          <AcquisitionDates scene={activeScene} onUpdated={setActiveScene} />
+        </div>
+      </div>
 
       {/* Main content: Canvas + Console */}
       <div className="flex-1 min-h-0 flex overflow-hidden">

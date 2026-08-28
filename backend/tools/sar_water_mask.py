@@ -22,6 +22,7 @@ from pydantic import Field
 
 from tools.base import Tool, ToolParams, ToolResult
 from tools.registry import register
+from core.sar import to_db, uncalibrated_warning
 
 
 def _otsu_threshold(data: np.ndarray) -> float:
@@ -177,8 +178,11 @@ class SARWaterMaskTool(Tool):
             band = arr[params.band_index].astype("float64")
 
             # Convert to dB (amplitude/intensity -> dB)
-            db = 10.0 * np.log10(np.clip(band, 1e-10, None))
-            db = np.clip(db, -30.0, 10.0)
+            # A fixed calibrated clip range flattens uncalibrated DN products
+            # to a constant, which silently produces an empty water mask.
+            db, calibrated = to_db(band)
+            if not calibrated:
+                warnings.append(uncalibrated_warning(self.name))
 
         # Determine threshold
         if params.threshold_db is not None:

@@ -107,6 +107,31 @@ export function normalizeScene(raw: any): Scene {
   } as Scene;
 }
 
+/**
+ * Adapt a backend ExecutionTrace to the shape the trace UI reads.
+ *
+ * The backend stores the classifier output as `task: {task, confidence,
+ * evidence}`; `ExecutionTrace` in lib/types.ts declares
+ * `task: {selected, classifierConfidence, evidence}`. Without this the
+ * execution drawer renders "N/A" for the task on every query.
+ */
+function normalizeTrace(raw: any): any {
+  if (!raw) return null;
+  const t = transformKeys(raw) as any;
+  const task = t.task ?? {};
+  return {
+    ...t,
+    task: {
+      selected: task.selected ?? task.task ?? null,
+      classifierConfidence: task.classifierConfidence ?? task.confidence ?? 0,
+      evidence: task.evidence ?? [],
+    },
+    steps: t.steps ?? [],
+    fusion: t.fusion ?? null,
+    warnings: t.warnings ?? [],
+  };
+}
+
 function humanizeCheckName(name: string): string {
   return name
     .split('_')
@@ -247,7 +272,10 @@ export async function streamQuery(
           // evidence list stays missing: grafting a mock trace onto a real
           // answer would put fabricated tool steps, durations and confidences
           // in front of a judge as though they had been executed.
-          final = transformKeys(rawData) as QueryResult;
+          final = {
+            ...(transformKeys(rawData) as QueryResult),
+            trace: normalizeTrace(rawData.trace),
+          } as QueryResult;
         }
       }
     }
@@ -451,6 +479,19 @@ export async function confirmScene(
       res.status, '/api/scenes/confirm');
   }
   return normalizeScene(await res.json());
+}
+
+export interface SceneQueryHistory {
+  sceneId: string;
+  count: number;
+  datesLocked: boolean;
+  queries: unknown[];
+}
+
+/** Conversation history for a scene, and whether its dates are still editable. */
+export async function fetchSceneQueries(sceneId: string): Promise<SceneQueryHistory> {
+  const data = await apiGet<unknown>(`/api/scenes/${sceneId}/queries`);
+  return transformKeys(data) as SceneQueryHistory;
 }
 
 /** Set acquisition dates so the GEE-backed tools have a date range (PRD §7.3/§7.4). */

@@ -314,7 +314,26 @@ async def set_scene_dates(
     date range; without a date they refuse (NO_DATE_RANGE / NO_DATES) rather
     than inventing a window.  This is how the user supplies it when the raster
     tags do not carry one.
+
+    Locked once the scene has been queried: the date range is an *input* to
+    every Earth Engine result already recorded, so changing it afterwards would
+    leave stored answers and traces describing a window that no longer matches
+    the scene they are attached to.
     """
+    existing_queries = db.list_documents("queries", filters={"scene_id": scene_id}) or []
+    if existing_queries:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": ("Acquisition dates are locked: this scene has already been "
+                            "queried, and the dates are an input to the results already "
+                            "recorded against it."),
+                "query_count": len(existing_queries),
+                "remedy": ("Create a new scene from the same imagery if you need a "
+                           "different acquisition window."),
+            },
+        )
+
     scene_data = db.get_document("scenes", scene_id)
     if not scene_data:
         raise HTTPException(status_code=404, detail="Scene not found")
@@ -337,6 +356,22 @@ async def set_scene_dates(
             if img["role"] == role:
                 img["acquired_at"] = date
 
+    # T1 must precede T2.  The slots are labelled "earlier" and "later" and every
+    # change result is signed accordingly — a reversed pair silently inverts the
+    # direction of change rather than failing.
+    dates_by_role = {img["role"]: img.get("acquired_at") for img in scene_data["images"]}
+    t1, t2 = dates_by_role.get("t1"), dates_by_role.get("t2")
+    if t1 and t2 and t1 >= t2:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": (f"T1 ({t1}) must be earlier than T2 ({t2}). "
+                            "Reversing them would invert the reported direction of change."),
+                "remedy": ("Swap the dates, or re-upload with the earlier image in the "
+                           "T1 slot."),
+            },
+        )
+
     if payload.acquired_start is not None:
         scene_data["acquired_start"] = payload.acquired_start
     if payload.acquired_end is not None:
@@ -344,6 +379,29 @@ async def set_scene_dates(
 
     db.set_document("scenes", scene_id, scene_data)
     return Scene(**scene_data)
+
+
+@router.get("/{scene_id}/queries")
+async def list_scene_queries(
+    scene_id: str,
+    user: dict = Depends(current_user),
+    db: Database = Depends(get_db),
+):
+    """
+    Conversation history for a scene - PRD §14.
+
+    Also tells the UI whether acquisition dates are still editable: once a
+    scene has been queried the dates are locked, because they are an input to
+    every stored answer and trace.
+    """
+    queries = db.list_documents("queries", filters={"scene_id": scene_id}) or []
+    queries.sort(key=lambda q: q.get("created_at") or "")
+    return {
+        "scene_id": scene_id,
+        "count": len(queries),
+        "dates_locked": bool(queries),
+        "queries": queries,
+    }
 
 
 @router.delete("/{scene_id}")

@@ -1,16 +1,28 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Scene } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Layers, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
 interface EvidenceCanvasProps {
   scene: Scene;
+}
+
+/** Human label for an image role: t1/t2 read as dates, optical/sar as sensors. */
+function roleLabel(role?: string): string {
+  switch (role) {
+    case 't1': return 'T1 (earlier)';
+    case 't2': return 'T2 (later)';
+    case 'optical': return 'Optical';
+    case 'sar': return 'SAR';
+    case 'single': return 'Image';
+    default: return role ?? 'Image';
+  }
 }
 
 export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
@@ -20,9 +32,22 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [baseImage, setBaseImage] = useState<HTMLImageElement | null>(null);
+  // Every scene image, indexed the same as scene.images. A bi-temporal or
+  // cross-modal scene has two, and both must be reachable - previously only
+  // images[0] was ever loaded, so the SAR / T2 image was invisible.
+  const [loadedImages, setLoadedImages] = useState<(HTMLImageElement | null)[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [blend, setBlend] = useState(false);
+  const [blendAmount, setBlendAmount] = useState(0.5);
   const [imageError, setImageError] = useState(false);
   const { layers, turns } = useStore();
+
+  // Memoised: `scene.images ?? []` would allocate a fresh array every render,
+  // and this array is a dependency of the loader effect — that combination
+  // re-runs the effect, sets state, and loops forever.
+  const images = useMemo(() => scene.images ?? [], [scene.images]);
+  const isMulti = images.length > 1;
+  const baseImage = loadedImages[activeIndex] ?? null;
 
   // Resolve preview URL - handle relative paths, API proxied paths, etc.
   const resolvePreviewUrl = useCallback((url: string): string => {
@@ -37,32 +62,43 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
     return url;
   }, []);
 
-  // Load the scene's base preview image
+  // Load every preview in the scene, preserving index order.
   useEffect(() => {
-    if (!scene.images || scene.images.length === 0) return;
+    let cancelled = false;
 
-    const primaryImage = scene.images[0];
-    const url = primaryImage.previewUrl;
-    if (!url) {
-      setImageError(true);
-      return;
+    if (images.length === 0) {
+      // Resolve asynchronously so the effect body never sets state
+      // synchronously and cascades a render.
+      Promise.resolve().then(() => {
+        if (cancelled) return;
+        setLoadedImages([]);
+        setImageError(true);
+      });
+      return () => { cancelled = true; };
     }
 
-    const resolved = resolvePreviewUrl(url);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
+    Promise.all(
+      images.map((meta) => new Promise<HTMLImageElement | null>((resolve) => {
+        if (!meta.previewUrl) return resolve(null);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => {
+          console.warn('Preview image failed to load:', resolvePreviewUrl(meta.previewUrl));
+          resolve(null);
+        };
+        img.src = resolvePreviewUrl(meta.previewUrl);
+      })),
+    ).then((loaded) => {
+      if (cancelled) return;
+      setLoadedImages(loaded);
+      setImageError(loaded.every((i) => i === null));
+      // Clamp the selection in case the new scene has fewer images.
+      setActiveIndex((i) => (i < loaded.length ? i : 0));
+    });
 
-    img.onload = () => {
-      setBaseImage(img);
-      setImageError(false);
-    };
-    img.onerror = () => {
-      console.warn('Preview image failed to load:', resolved);
-      setImageError(true);
-      setBaseImage(null);
-    };
-    img.src = resolved;
-  }, [scene, resolvePreviewUrl]);
+    return () => { cancelled = true; };
+  }, [scene.id, images, resolvePreviewUrl]);
 
   // Render the canvas: real image or fallback
   useEffect(() => {
@@ -100,6 +136,22 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
       }
 
       ctx.drawImage(baseImage, drawX, drawY, drawW, drawH);
+
+      // Blend mode: draw the other image over the top at partial opacity, so
+      // the two acquisitions (or the optical and SAR views) can be compared in
+      // place. Anything that moved between them shows as a ghosted difference.
+      if (blend && isMulti) {
+        const otherIdx = (activeIndex + 1) % images.length;
+        const other = loadedImages[otherIdx];
+        if (other) {
+          ctx.globalAlpha = blendAmount;
+          // Both previews cover the same footprint, so reuse the same fitted
+          // rect rather than re-fitting - otherwise a 192px SAR frame and a
+          // 195px optical frame would not line up.
+          ctx.drawImage(other, drawX, drawY, drawW, drawH);
+          ctx.globalAlpha = 1;
+        }
+      }
 
       // Evidence overlays from turns
       const lastTurn = turns.length > 0 ? turns[turns.length - 1] : null;
@@ -195,7 +247,8 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
       `CRS: ${scene.compatibility.targetCrs || 'N/A'}  GSD: ${scene.compatibility.targetGsdM || 'N/A'} m`,
       16, h - infoH + 22
     );
-  }, [scene, layers, turns, baseImage, imageError]);
+  }, [scene, layers, turns, baseImage, imageError,
+      blend, blendAmount, activeIndex, isMulti, images.length, loadedImages]);
 
   // Non-passive wheel event listener for zoom to avoid browser warnings
   useEffect(() => {
@@ -252,7 +305,12 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
       </div>
 
       {/* Zoom controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-1 z-20">
+      {/* Controls sit on the pan surface, so their drags must not reach it. */}
+      <div
+        className="absolute top-4 right-4 flex flex-col gap-1 z-20"
+        onMouseDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
         <Button
           variant="outline"
           size="sm"
@@ -279,21 +337,91 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
         </Button>
       </div>
 
-      {/* Modality indicator */}
-      <div className="absolute top-4 left-4 z-20 flex gap-2">
-        {scene?.modalities?.map((m, i) => (
-          <span
-            key={i}
-            className={cn(
-              'px-2 py-0.5 rounded text-[10px] font-medium',
-              m === 'SAR' ? 'bg-modality-sar/20 text-modality-sar' :
-              m === 'MULTISPECTRAL' ? 'bg-modality-optical/20 text-modality-optical' :
-              'bg-modality-optical/20 text-modality-optical'
-            )}
-          >
-            {m}
-          </span>
-        ))}
+      {/* Image switcher + blend — only meaningful when the scene has a pair */}
+      {/* Dragging the blend slider must not also pan the image. */}
+      <div
+        className="absolute top-4 left-4 z-20 flex flex-col gap-2 items-start"
+        onMouseDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex gap-2 items-center">
+          {images.map((img, i) => {
+            const label = roleLabel(img.role);
+            const selected = i === activeIndex;
+            const missing = loadedImages[i] === null;
+            return (
+              <button
+                key={`${img.role}-${i}`}
+                onClick={() => setActiveIndex(i)}
+                disabled={missing}
+                title={missing
+                  ? `${img.filename}: preview unavailable`
+                  : `${img.filename} — ${img.modality}${img.acquiredAt ? ` — ${img.acquiredAt}` : ''}`}
+                className={cn(
+                  'px-2.5 py-1 rounded text-[10px] font-medium transition-colors border',
+                  'backdrop-blur flex items-center gap-1.5',
+                  missing && 'opacity-40 cursor-not-allowed',
+                  selected
+                    ? 'bg-brand-500/25 text-brand-500 border-brand-500/50'
+                    : 'bg-card/70 text-muted-foreground border-border hover:text-foreground',
+                )}
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>{label}</span>
+                <span className={cn(
+                  'px-1 rounded text-[9px]',
+                  img.modality === 'SAR'
+                    ? 'bg-modality-sar/20 text-modality-sar'
+                    : 'bg-modality-optical/20 text-modality-optical',
+                )}>
+                  {img.modality}
+                </span>
+              </button>
+            );
+          })}
+
+          {isMulti && (
+            <button
+              onClick={() => setBlend((b) => !b)}
+              title="Overlay both images semi-transparently to compare them in place"
+              className={cn(
+                'px-2.5 py-1 rounded text-[10px] font-medium transition-colors border',
+                'backdrop-blur flex items-center gap-1.5',
+                blend
+                  ? 'bg-amber-500/25 text-amber-500 border-amber-500/50'
+                  : 'bg-card/70 text-muted-foreground border-border hover:text-foreground',
+              )}
+            >
+              <Layers className="w-3 h-3" />
+              Blend
+            </button>
+          )}
+        </div>
+
+        {isMulti && blend && (
+          <div className="flex items-center gap-2 bg-card/80 backdrop-blur border border-border
+                          rounded px-2.5 py-1.5">
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+              {roleLabel(images[activeIndex]?.role)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={blendAmount}
+              onChange={(e) => setBlendAmount(Number(e.target.value))}
+              className="w-28 accent-amber-500"
+              aria-label="Blend amount"
+            />
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+              {roleLabel(images[(activeIndex + 1) % images.length]?.role)}
+            </span>
+            <span className="text-[10px] font-mono text-foreground w-8 text-right">
+              {(blendAmount * 100).toFixed(0)}%
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

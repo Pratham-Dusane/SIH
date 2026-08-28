@@ -177,3 +177,91 @@ def test_c6_co_registration_shift_synthetic_roll():
     res_fail = check_compatibility([img_a, img_fail_roll], declared_config="BI_TEMPORAL")
     assert next(c for c in res_fail["checks"] if c["name"] == "co_registration")["status"] == FAIL
     assert res_fail["verdict"] == FAIL
+
+
+# ---------------------------------------------------------------------------
+# C6 regression: optical/SAR co-registration.
+#
+# Phase correlation between optical and SAR intensities is noise — they measure
+# different physics. Letting that noise drive the verdict rejected genuinely
+# well-aligned Sentinel-2 + Sentinel-1 pairs with ~65 px of imaginary shift.
+# ---------------------------------------------------------------------------
+def test_c6_cross_modal_uses_geotransform_not_intensity_correlation():
+    from services.ingest.compatibility_checker import co_registration_estimate
+
+    np.random.seed(7)
+    # Same footprint, but radiometrically unrelated content — as optical and
+    # SAR always are, even over the identical patch of ground.
+    optical = _make_dummy_image(
+        "opt", modality="OPTICAL", width=256, height=256,
+        bounds_wgs84=[73.8417, 18.4488, 73.8598, 18.4668],
+        array=(np.random.rand(256, 256) * 255).astype(np.float32))
+    sar = _make_dummy_image(
+        "sar", modality="SAR", width=256, height=256,
+        bounds_wgs84=[73.8417, 18.4488, 73.8598, 18.4668],
+        array=(np.random.rand(256, 256) ** 3 * 255).astype(np.float32))
+
+    shift, method, _ = co_registration_estimate(optical, sar)
+    assert method == "geotransform", "cross-modal must not trust intensity correlation"
+    assert shift is not None and shift < 0.01, f"identical footprints -> ~0 px, got {shift}"
+
+    res = check_compatibility([optical, sar], declared_config="CROSS_MODAL")
+    coreg = next(c for c in res["checks"] if c["name"] == "co_registration")
+    assert coreg["status"] == PASS
+    assert res["verdict"] != FAIL, "a well-georeferenced optical+SAR pair must not be rejected"
+
+
+def test_c6_cross_modal_detects_a_real_grid_offset():
+    """The geotransform path must still catch genuinely offset footprints."""
+    from services.ingest.compatibility_checker import co_registration_estimate
+
+    optical = _make_dummy_image("opt", modality="OPTICAL", width=100, height=100,
+                                bounds_wgs84=[78.0, 20.0, 78.1, 20.1])
+    # Shift the SAR footprint east by 10% of the frame = 10 px.
+    sar = _make_dummy_image("sar", modality="SAR", width=100, height=100,
+                            bounds_wgs84=[78.01, 20.0, 78.11, 20.1])
+
+    shift, method, _ = co_registration_estimate(optical, sar)
+    assert method == "geotransform"
+    assert abs(shift - 10.0) < 0.5, f"expected ~10 px, got {shift}"
+
+    res = check_compatibility([optical, sar], declared_config="CROSS_MODAL")
+    coreg = next(c for c in res["checks"] if c["name"] == "co_registration")
+    assert coreg["status"] == FAIL
+
+
+def test_c6_same_modality_still_catches_content_offset():
+    """
+    Identical geotransforms but shifted pixels means the product's own
+    georeferencing is wrong — still a real misregistration, still detected.
+    """
+    from services.ingest.compatibility_checker import co_registration_estimate
+
+    base = np.zeros((512, 512), dtype=np.float32)
+    base[100:200, 100:200] = 100.0
+    base[300:350, 300:400] = 200.0
+    a = _make_dummy_image("a", array=base.copy(), width=512, height=512)
+    b = _make_dummy_image("b", array=np.roll(np.roll(base, 3, 0), 4, 1),
+                          width=512, height=512)
+
+    shift, method, note = co_registration_estimate(a, b)
+    assert method == "phase_correlation"
+    assert abs(shift - 5.0) < 0.5
+    assert "georeferencing may be wrong" in note
+
+
+def test_c6_unreferenced_cross_modal_can_warn_but_never_fails():
+    """Benchmark PNGs have no geotransform; an edge-correlation guess must not reject."""
+    np.random.seed(11)
+    optical = _make_dummy_image("opt", modality="OPTICAL", georeferenced=False,
+                                bounds_wgs84=None, crs=None, width=256, height=256,
+                                array=(np.random.rand(256, 256) * 255).astype(np.float32))
+    sar = _make_dummy_image("sar", modality="SAR", georeferenced=False,
+                            bounds_wgs84=None, crs=None, width=256, height=256,
+                            array=(np.random.rand(256, 256) * 255).astype(np.float32))
+
+    res = check_compatibility([optical, sar], declared_config="CROSS_MODAL",
+                              benchmark_mode=True)
+    coreg = next(c for c in res["checks"] if c["name"] == "co_registration")
+    assert coreg["status"] in (PASS, WARN)
+    assert coreg["status"] != FAIL

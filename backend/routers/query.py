@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -25,6 +27,37 @@ from models.scene import Scene
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/scenes", tags=["query"])
+
+def _persist_query(db, scene, query_text: str, result) -> None:
+    """
+    Store the query and its trace.
+
+    Without this nothing is ever written: /api/stats reports zero queries
+    forever, and the trace a judge is meant to inspect (R11) exists only for
+    the lifetime of the request. Failure here must not break the answer the
+    user is waiting on, so it is logged and swallowed.
+    """
+    try:
+        trace = result.trace.model_dump() if result.trace else None
+        query_id = (trace or {}).get("trace_id") or f"q_{int(time.time() * 1000)}"
+        db.set_document("queries", query_id, {
+            "id": query_id,
+            "scene_id": scene.id,
+            "workspace_id": getattr(scene, "workspace_id", "ws_demo"),
+            "query": query_text,
+            "answer": result.answer,
+            "confidence": result.confidence.model_dump() if result.confidence else None,
+            "evidence": result.evidence,
+            "refused": result.refused,
+            "abstained": bool(result.refused),
+            "trace_id": (trace or {}).get("trace_id"),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        if trace:
+            db.set_document("traces", trace["trace_id"], trace)
+    except Exception:  # noqa: BLE001 - persistence must never fail the query
+        log.exception("Failed to persist query/trace for scene %s", scene.id)
+
 
 
 class QueryRequest(BaseModel):
@@ -85,12 +118,18 @@ async def query_scene(
                     vlm_backend=payload.vlm_backend or settings.VLM_BACKEND,
                     verify=payload.verify,
                 )
+                _persist_query(db, scene, payload.query, result)
                 await queue.put({"type": "result", "data": {
                     "answer": result.answer,
                     "confidence": result.confidence.model_dump() if result.confidence else None,
                     "evidence": result.evidence,
                     "refused": result.refused,
                     "trace_id": result.trace.trace_id if result.trace else None,
+                    # The trace itself, not just its id.  Sending only the id
+                    # left the UI with nothing to render (R11): there is no
+                    # endpoint it could have fetched the trace from, so the
+                    # execution drawer was permanently empty.
+                    "trace": result.trace.model_dump() if result.trace else None,
                     "verification": result.verification.model_dump() if result.verification else None,
                 }})
             except Exception as e:
@@ -168,6 +207,8 @@ async def query_scene_sync(
         vlm_backend=payload.vlm_backend or settings.VLM_BACKEND,
         verify=payload.verify,
     )
+
+    _persist_query(db, scene, payload.query, result)
 
     return {
         "answer": result.answer,

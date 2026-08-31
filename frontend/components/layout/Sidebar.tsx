@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -26,8 +26,6 @@ const navItems = [
   { label: 'Backend Registry', href: '/models', icon: Boxes },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
-
-import { useAuth } from '@/lib/auth-context';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -48,31 +46,37 @@ export default function Sidebar() {
     <aside
       id="sidebar"
       className={cn(
-        'flex flex-col h-screen bg-[var(--sidebar)] border-r border-sidebar-border transition-all duration-300 ease-in-out',
-        collapsed ? 'w-[68px]' : 'w-[260px]'
+        'fixed left-4 top-4 bottom-4 rounded-3xl glass-sidebar shadow-2xl flex flex-col z-30 transition-all duration-300 ease-in-out overflow-hidden',
+        collapsed ? 'w-[72px]' : 'w-64'
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 min-h-[72px]">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-500/20 shrink-0">
-          <Satellite className="w-5 h-5 text-brand-500" />
+      <div className="flex items-center gap-3 px-4 py-5 min-h-[68px]">
+        <div className="relative flex items-center justify-center w-10 h-10 shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-inner">
+            <Satellite className="w-5 h-5 text-primary" strokeWidth={1.5} />
+          </div>
         </div>
         {!collapsed && (
           <div className="flex flex-col overflow-hidden">
-            <span className="text-sm font-bold tracking-wide text-foreground whitespace-nowrap">
+            <span
+              className="text-base font-bold tracking-tight text-foreground whitespace-nowrap"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
               SatQuery AI
             </span>
-            <span className="text-[10px] text-muted-foreground tracking-wider uppercase whitespace-nowrap">
+            <span className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase whitespace-nowrap">
               Remote Sensing
             </span>
           </div>
         )}
       </div>
 
-      <Separator className="bg-sidebar-border" />
+      {/* Divider */}
+      <div className="mx-4 h-px bg-border/60" />
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -83,19 +87,24 @@ export default function Sidebar() {
               id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group',
+                'flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all duration-200 group relative',
                 isActive
-                  ? 'bg-brand-500/15 text-brand-500 shadow-sm shadow-brand-500/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10'
               )}
             >
               <Icon
                 className={cn(
-                  'w-5 h-5 shrink-0 transition-colors',
-                  isActive ? 'text-brand-500' : 'text-muted-foreground group-hover:text-foreground'
+                  'w-4 h-4 shrink-0 transition-colors',
+                  isActive
+                    ? 'text-white dark:text-slate-900'
+                    : 'text-muted-foreground group-hover:text-foreground'
                 )}
+                strokeWidth={1.5}
               />
-              {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+              {!collapsed && (
+                <span className="whitespace-nowrap font-medium text-xs sm:text-sm">{item.label}</span>
+              )}
             </Link>
           );
 
@@ -105,7 +114,7 @@ export default function Sidebar() {
                 <TooltipTrigger className="w-full">
                   <span className="block">{linkContent}</span>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="bg-card border-border">
+                <TooltipContent side="right">
                   {item.label}
                 </TooltipContent>
               </Tooltip>
@@ -116,20 +125,23 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <Separator className="bg-sidebar-border" />
+      {/* Divider */}
+      <div className="mx-4 h-px bg-border/60" />
 
-      {/* Bottom: User + Collapse */}
-      <div className="px-3 py-4 space-y-3">
-        {/* User */}
-        <div className={cn('flex items-center gap-3 px-3', collapsed && 'justify-center')}>
-          <Avatar className="h-8 w-8 shrink-0 border border-brand-500/30">
-            <AvatarFallback className="bg-brand-500/20 text-brand-500 text-xs font-semibold">
+      {/* Bottom User and Collapse */}
+      <div className="px-3 py-3.5 space-y-2">
+        <div className={cn(
+          'flex items-center gap-3 px-2 py-1.5 rounded-2xl transition-colors',
+          collapsed ? 'justify-center' : 'hover:bg-black/5 dark:hover:bg-white/10'
+        )}>
+          <Avatar className="h-8 w-8 shrink-0 border border-primary/30">
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {userInitials}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{userDisplayName}</p>
+              <p className="text-xs font-semibold text-foreground truncate">{userDisplayName}</p>
               <p className="text-[10px] text-muted-foreground truncate">{workspaceName}</p>
             </div>
           )}
@@ -138,24 +150,23 @@ export default function Sidebar() {
               <TooltipTrigger
                 id="btn-sign-out"
                 onClick={signOutUser}
-                className="text-muted-foreground hover:text-destructive transition-colors p-1 flex items-center justify-center cursor-pointer"
+                className="text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded-xl hover:bg-destructive/10 flex items-center justify-center cursor-pointer"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4" strokeWidth={1.5} />
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-card border-border">
+              <TooltipContent side="right">
                 Sign out
               </TooltipContent>
             </Tooltip>
           )}
         </div>
 
-        {/* Collapse toggle */}
         <button
           id="btn-toggle-sidebar"
           onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-full py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          className="flex items-center justify-center w-full py-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-all cursor-pointer"
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? <ChevronRight className="w-4 h-4" strokeWidth={1.5} /> : <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />}
         </button>
       </div>
     </aside>

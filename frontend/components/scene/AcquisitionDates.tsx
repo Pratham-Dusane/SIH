@@ -6,7 +6,7 @@
  * `rs_classify` and `change_detect` query the Earth Engine catalog by AOI +
  * date range. Most downloaded GeoTIFFs carry no date tag this backend can
  * parse, so those tools correctly refuse with NO_DATES rather than inventing a
- * window — but until now there was no way to supply the dates from the UI, so
+ * window - but until now there was no way to supply the dates from the UI, so
  * the refusal was a dead end instead of a remedy.
  */
 
@@ -96,7 +96,7 @@ export default function AcquisitionDates({ scene, onUpdated }: Props) {
       <button
         onClick={() => setOpen(true)}
         title={allSet
-          ? 'Acquisition dates are set — Earth Engine tools can run'
+          ? 'Acquisition dates are set - Earth Engine tools can run'
           : 'Earth Engine tools need acquisition dates to query the catalog'}
         className={cn(
           'flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium',

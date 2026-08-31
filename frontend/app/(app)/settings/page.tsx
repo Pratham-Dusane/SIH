@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 
 export default function SettingsPage() {
   return (
-    <div className="flex flex-col h-full">
+    <div className="w-full flex flex-col space-y-6">
       <TopNav breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Settings' }]} />
 
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto max-w-4xl">
+      <div className="space-y-6 max-w-4xl">
         <div>
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
             <Settings className="w-5 h-5 text-brand-500" />

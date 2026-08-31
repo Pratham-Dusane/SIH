@@ -29,7 +29,7 @@ const EXPORT_OPTIONS: ExportOption[] = [
   {
     id: 'bundle',
     label: 'Full Bundle (ZIP)',
-    description: 'All artifacts — PDF report, trace, answer, evidence layers',
+    description: 'All artifacts - PDF report, trace, answer, evidence layers',
     icon: <Package className="w-4 h-4" />,
     endpoint: (qid) => `${API_BASE}/api/queries/${qid}/export/bundle`,
     filename: (qid) => `satquery_${qid}.zip`,
@@ -72,7 +72,7 @@ const GEO_OPTIONS: ExportOption[] = [
   {
     id: 'geotiff',
     label: 'GeoTIFF',
-    description: 'Geo-referenced raster mask — open in QGIS',
+    description: 'Geo-referenced raster mask - open in QGIS',
     icon: <Map className="w-4 h-4" />,
     endpoint: (qid) => `${API_BASE}/api/queries/${qid}/export/bundle`,
     filename: (qid) => `satquery_${qid}.zip`,
@@ -82,7 +82,7 @@ const GEO_OPTIONS: ExportOption[] = [
   {
     id: 'geojson',
     label: 'GeoJSON',
-    description: 'Vector polygon — EPSG:4326, for web maps',
+    description: 'Vector polygon - EPSG:4326, for web maps',
     icon: <Globe className="w-4 h-4" />,
     endpoint: (qid) => `${API_BASE}/api/queries/${qid}/export/bundle`,
     filename: (qid) => `satquery_${qid}.zip`,

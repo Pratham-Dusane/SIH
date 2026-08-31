@@ -3,20 +3,31 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Satellite, LogIn, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { Satellite, Mail, Lock, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/lib/auth-context';
+import { useStore } from '@/lib/store';
+import StarField from '@/components/landing/StarField';
+import AuroraBackground from '@/components/landing/AuroraBackground';
 
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail } = useAuth();
+  const { theme, setTheme } = useStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem('satquery-theme') as 'light' | 'dark' | null;
+    if (saved) setTheme(saved);
+  }, [setTheme]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -52,14 +63,37 @@ export default function LoginPage() {
     }
   };
 
+  const isDark = mounted && theme === 'dark';
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md bg-card border-border shadow-xl">
+    <div className="relative min-h-screen w-full flex items-center justify-center p-4 overflow-hidden">
+      {/* Animated background */}
+      {mounted && isDark && <StarField starCount={100} />}
+      {mounted && !isDark && <AuroraBackground />}
+
+      {/* Back to home */}
+      <Link
+        href="/"
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors glass-panel px-3 py-1.5 rounded-full"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to Home
+      </Link>
+
+      <Card className="relative z-10 w-full max-w-md glass-card border-[var(--glass-border)] shadow-2xl rounded-2xl">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-brand-500/20 flex items-center justify-center mb-3">
-            <Satellite className="w-6 h-6 text-brand-500" suppressHydrationWarning />
+          <div className="mx-auto relative w-14 h-14 mb-3">
+            <div className="absolute inset-[-4px] rounded-full border border-brand-500/25 orbit-ring" />
+            <div className="w-14 h-14 rounded-xl bg-brand-500/15 flex items-center justify-center">
+              <Satellite className="w-7 h-7 text-brand-500" suppressHydrationWarning />
+            </div>
           </div>
-          <CardTitle className="text-xl font-bold">Sign in to SatQuery AI</CardTitle>
+          <CardTitle
+            className="text-xl font-bold"
+            style={{ fontFamily: 'var(--font-heading)' }}
+          >
+            Sign in to <span className="gradient-text-subtle">SatQuery AI</span>
+          </CardTitle>
           <CardDescription className="text-xs">
             Agentic Vision-Language Assistant for Remote Sensing - ISRO / SAC
           </CardDescription>
@@ -67,7 +101,7 @@ export default function LoginPage() {
 
         <CardContent className="space-y-4 pt-4">
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs">
               <AlertCircle className="w-4 h-4 shrink-0" suppressHydrationWarning />
               <span>{error}</span>
             </div>
@@ -79,7 +113,7 @@ export default function LoginPage() {
             variant="outline"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full h-11 border-border hover:bg-secondary flex items-center justify-center gap-3 font-medium text-sm"
+            className="w-full h-11 glass-panel border-[var(--glass-border)] hover:bg-white/10 dark:hover:bg-white/5 flex items-center justify-center gap-3 font-medium text-sm rounded-xl"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" suppressHydrationWarning>
               <path
@@ -107,9 +141,9 @@ export default function LoginPage() {
           </Button>
 
           <div className="flex items-center gap-3 my-2">
-            <Separator className="flex-1" />
+            <Separator className="flex-1 bg-[var(--glass-border)]" />
             <span className="text-[10px] text-muted-foreground uppercase">or email</span>
-            <Separator className="flex-1" />
+            <Separator className="flex-1 bg-[var(--glass-border)]" />
           </div>
 
           {/* Email/Password form */}
@@ -124,7 +158,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="analyst@isro.gov.in"
                   required
-                  className="w-full h-10 pl-9 pr-3 rounded-md bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl glass-panel border-[var(--glass-border)] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40 transition-all"
                 />
               </div>
             </div>
@@ -139,7 +173,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full h-10 pl-9 pr-3 rounded-md bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="w-full h-10 pl-9 pr-3 rounded-xl glass-panel border-[var(--glass-border)] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40 transition-all"
                 />
               </div>
             </div>
@@ -147,7 +181,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-10 bg-brand-500 hover:bg-brand-600 text-white font-medium gap-2"
+              className="w-full h-10 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 text-white font-medium gap-2 rounded-xl shadow-lg shadow-brand-500/20 transition-all"
             >
               Sign In
               <ArrowRight className="w-4 h-4" suppressHydrationWarning />
@@ -156,7 +190,7 @@ export default function LoginPage() {
 
           <div className="text-center pt-2">
             <p className="text-xs text-muted-foreground">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-brand-500 font-medium hover:underline">
                 Create Workspace Account
               </Link>

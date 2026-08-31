@@ -16,9 +16,10 @@ interface Breadcrumb {
 
 interface TopNavProps {
   breadcrumbs?: Breadcrumb[];
+  extra?: React.ReactNode;
 }
 
-export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
+export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
   const [healthStatus, setHealthStatus] = useState<'healthy' | 'degraded' | 'down'>('healthy');
   const { theme, setTheme, toggleTheme } = useStore();
   const [mounted, setMounted] = useState(false);
@@ -37,7 +38,7 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
       setHealthStatus(h.status);
     };
     check();
-    const interval = setInterval(check, 30000); // Poll every 30s per PRD §4.2
+    const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
   }, [setTheme]);
 
@@ -56,37 +57,44 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
   return (
     <header
       id="topnav"
-      className="flex items-center justify-between h-14 px-6 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-30 transition-colors"
+      className="sticky top-0 z-20 mb-3 h-14 px-5 rounded-2xl glass-panel flex items-center justify-between transition-colors shadow-sm gap-3"
     >
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-1.5 text-sm min-w-0 truncate">
         {breadcrumbs.map((crumb, i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+          <span key={i} className="flex items-center gap-1.5 truncate">
+            {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />}
             {crumb.href ? (
               <Link
                 href={crumb.href}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground font-medium transition-colors truncate"
               >
                 {crumb.label}
               </Link>
             ) : (
-              <span className="text-foreground font-medium">{crumb.label}</span>
+              <span className="text-foreground font-semibold truncate">{crumb.label}</span>
             )}
           </span>
         ))}
       </nav>
 
-      {/* Right section (Model Status, Theme Toggle, Profile Avatar) */}
-      <div className="flex items-center gap-3">
+      {/* Right controls */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        {/* Optional Extra Action Widget (e.g. Acquisition Dates) */}
+        {extra && (
+          <div className="flex items-center">
+            {extra}
+          </div>
+        )}
+
         {/* Model health */}
         <Tooltip>
           <TooltipTrigger>
             <div
               id="model-health-indicator"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/50 cursor-default"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 cursor-default"
             >
-              <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+              <Activity className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
               <div className="relative flex items-center justify-center w-2.5 h-2.5">
                 <div className={cn('w-2 h-2 rounded-full', healthColor)} />
                 {healthStatus === 'healthy' && (
@@ -96,32 +104,32 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
               <span className="text-xs text-muted-foreground hidden sm:inline font-medium">Models</span>
             </div>
           </TooltipTrigger>
-          <TooltipContent className="bg-card border-border">
+          <TooltipContent>
             <p className="text-xs">{healthLabel}</p>
           </TooltipContent>
         </Tooltip>
 
-        {/* Theme Toggle Button */}
+        {/* Theme Toggle */}
         <Tooltip>
           <TooltipTrigger
             id="btn-theme-toggle"
             onClick={toggleTheme}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 text-foreground transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 text-foreground transition-all cursor-pointer"
           >
             {mounted && theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-400" />
+              <Sun className="w-4 h-4 text-amber-400 transition-transform" strokeWidth={1.5} />
             ) : (
-              <Moon className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+              <Moon className="w-4 h-4 text-slate-700 dark:text-slate-300 transition-transform" strokeWidth={1.5} />
             )}
           </TooltipTrigger>
-          <TooltipContent className="bg-card border-border">
+          <TooltipContent>
             <p className="text-xs">{mounted && theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</p>
           </TooltipContent>
         </Tooltip>
 
         {/* User avatar */}
-        <Avatar className="h-8 w-8 border border-brand-500/30">
-          <AvatarFallback className="bg-brand-500/20 text-brand-500 text-xs font-semibold">
+        <Avatar className="h-8 w-8 border border-primary/30">
+          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
             SA
           </AvatarFallback>
         </Avatar>

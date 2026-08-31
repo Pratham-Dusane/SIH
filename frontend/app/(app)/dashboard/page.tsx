@@ -5,14 +5,11 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Satellite, Search, BarChart3, ShieldAlert,
-  UploadCloud, ExternalLink, RotateCcw, Trash2,
-  ChevronLeft, ChevronRight,
+  UploadCloud, ExternalLink, MessageSquare, Clock,
+  Sparkles, Layers,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,34 +17,25 @@ import TopNav from '@/components/layout/TopNav';
 import { fetchScenes, fetchDashboardStats } from '@/lib/api';
 import { Scene, DashboardStats, Modality, InputConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
-
-const ROWS_PER_PAGE = 10;
+import Image from 'next/image';
 
 const modalityColor: Record<Modality, string> = {
-  OPTICAL: 'bg-modality-optical/20 text-modality-optical border-modality-optical/30',
-  MULTISPECTRAL: 'bg-modality-optical/20 text-modality-optical border-modality-optical/30',
-  SAR: 'bg-modality-sar/20 text-modality-sar border-modality-sar/30',
+  OPTICAL: 'bg-sky-500/15 text-sky-500 border-sky-500/30',
+  MULTISPECTRAL: 'bg-sky-500/15 text-sky-500 border-sky-500/30',
+  SAR: 'bg-orange-500/15 text-orange-500 border-orange-500/30',
   AMBIGUOUS: 'bg-muted text-muted-foreground border-border',
 };
 
 const configBadge: Record<InputConfig, { label: string; className: string }> = {
-  SINGLE: { label: 'SINGLE', className: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-  CROSS_MODAL: { label: 'CROSS-MODAL', className: 'bg-modality-fused/15 text-modality-fused border-modality-fused/30' },
-  BI_TEMPORAL: { label: 'BI-TEMPORAL', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
-};
-
-const statusBadge: Record<string, { className: string; label: string }> = {
-  READY: { className: 'bg-confidence-high/15 text-confidence-high', label: 'Ready' },
-  VALIDATING: { className: 'bg-confidence-medium/15 text-confidence-medium animate-pulse', label: 'Validating' },
-  INCOMPATIBLE: { className: 'bg-confidence-low/15 text-confidence-low', label: 'Incompatible' },
-  UPLOADING: { className: 'bg-brand-500/15 text-brand-500 animate-pulse', label: 'Uploading' },
-  FAILED: { className: 'bg-confidence-low/15 text-confidence-low', label: 'Failed' },
+  SINGLE: { label: 'SINGLE', className: 'bg-blue-500/15 text-blue-500 border-blue-500/30' },
+  CROSS_MODAL: { label: 'CROSS-MODAL', className: 'bg-purple-500/15 text-purple-500 border-purple-500/30' },
+  BI_TEMPORAL: { label: 'BI-TEMPORAL', className: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30' },
 };
 
 function confidenceColor(value: number) {
-  if (value >= 0.75) return 'text-confidence-high';
-  if (value >= 0.45) return 'text-confidence-medium';
-  return 'text-confidence-low';
+  if (value >= 0.75) return 'text-emerald-500';
+  if (value >= 0.45) return 'text-amber-500';
+  return 'text-rose-500';
 }
 
 function formatDate(iso: string) {
@@ -59,9 +47,7 @@ function formatDate(iso: string) {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,8 +60,6 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         if (cancelled) return;
-        // No demo scenes on failure - an empty list that says why beats a
-        // populated list of scenes that do not exist.
         setStats(null);
         setScenes([]);
         setLoadError(err instanceof Error ? err.message : String(err));
@@ -84,287 +68,246 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const totalPages = Math.ceil(scenes.length / ROWS_PER_PAGE);
-  const pagedScenes = scenes.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE);
-
   const statCards = stats
     ? [
         {
           label: 'Scenes Ingested',
           value: stats.scenesIngested,
           icon: Satellite,
-          color: 'text-brand-500',
-          bg: 'bg-brand-500/10',
+          color: 'text-primary',
+          bg: 'bg-primary/10',
         },
         {
           label: 'Queries Answered',
           value: stats.queriesAnswered,
           icon: Search,
-          color: 'text-modality-optical',
-          bg: 'bg-modality-optical/10',
+          color: 'text-sky-500',
+          bg: 'bg-sky-500/10',
         },
         {
           label: 'Avg. Confidence',
           value: `${(stats.averageConfidence * 100).toFixed(0)}%`,
           icon: BarChart3,
           color: confidenceColor(stats.averageConfidence),
-          bg: stats.averageConfidence >= 0.75
-            ? 'bg-confidence-high/10'
-            : stats.averageConfidence >= 0.45
-              ? 'bg-confidence-medium/10'
-              : 'bg-confidence-low/10',
+          bg: 'bg-emerald-500/10',
         },
         {
           label: 'Abstention Rate',
           value: `${(stats.abstentionRate * 100).toFixed(0)}%`,
           icon: ShieldAlert,
-          color: 'text-modality-sar',
-          bg: 'bg-modality-sar/10',
-          tooltip: 'Abstention is a feature - the system declines when evidence is insufficient rather than guessing.',
+          color: 'text-orange-500',
+          bg: 'bg-orange-500/10',
+          tooltip: 'Abstention is a feature: the system declines when evidence is insufficient rather than guessing.',
         },
       ]
     : [];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="w-full flex flex-col space-y-6">
       <TopNav breadcrumbs={[{ label: 'Dashboard' }]} />
 
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <div className="space-y-6">
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="bg-card border-border">
-                  <CardContent className="p-5">
-                    <Skeleton className="h-4 w-24 mb-3" />
-                    <Skeleton className="h-8 w-16" />
-                  </CardContent>
-                </Card>
+                <div key={i} className="glass-card rounded-2xl p-5">
+                  <Skeleton className="h-4 w-24 mb-3" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
               ))
             : statCards.map((card, i) => (
                 <motion.div
                   key={card.label}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
+                  transition={{ delay: i * 0.08 }}
                 >
-                  <Card className="bg-card border-border hover:border-brand-500/30 transition-colors">
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          {card.label}
-                        </p>
-                        <div className={cn('p-2 rounded-lg', card.bg)}>
-                          <card.icon className={cn('w-4 h-4', card.color)} />
-                        </div>
+                  <div className="glass-card rounded-2xl p-5 hover:scale-[1.02] transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        {card.label}
+                      </p>
+                      <div className={cn('p-2 rounded-xl', card.bg)}>
+                        <card.icon className={cn('w-4 h-4', card.color)} strokeWidth={1.5} />
                       </div>
-                      <div className="flex items-end gap-2">
-                        <span className={cn('text-2xl font-bold', card.color)}>
-                          {card.value}
-                        </span>
-                        {card.tooltip && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="text-[10px] text-muted-foreground mb-1 cursor-help underline decoration-dotted">
-                                why?
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-card border-border max-w-[240px]">
-                              <p className="text-xs">{card.tooltip}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <span
+                        className={cn('text-3xl font-bold', card.color)}
+                        style={{ fontFamily: 'var(--font-heading)' }}
+                      >
+                        {card.value}
+                      </span>
+                      {card.tooltip && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <span className="text-[10px] text-muted-foreground mb-1 cursor-help underline decoration-dotted">
+                              info
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[240px]">
+                            <p className="text-xs">{card.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
                 </motion.div>
               ))}
         </div>
 
-        {/* Backend unreachable - distinguish this from a genuinely empty workspace */}
+        {/* Backend unreachable warning */}
         {!loading && loadError && (
-          <Card className="bg-destructive/5 border-destructive/40">
-            <CardContent className="py-3 flex items-start gap-2">
-              <ShieldAlert className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-              <div className="text-xs">
+          <div className="glass-card rounded-2xl p-4 border-destructive/40 bg-destructive/5">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-destructive mt-0.5 shrink-0" strokeWidth={1.5} />
+              <div className="text-xs space-y-1">
                 <p className="font-semibold text-destructive">
                   Could not load scenes from the backend.
                 </p>
-                <p className="text-muted-foreground font-mono mt-1 break-all">{loadError}</p>
-                <p className="text-muted-foreground mt-1">
-                  This list is empty because the request failed - not because the
-                  workspace is empty.
-                </p>
+                <p className="text-muted-foreground font-mono break-all">{loadError}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* Quick Start - shown when no scenes */}
+        {/* Empty State Banner */}
         {!loading && !loadError && scenes.length === 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Card className="bg-gradient-to-br from-brand-900/40 to-card border-brand-500/20">
-              <CardContent className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-500/15 mb-4">
-                  <UploadCloud className="w-8 h-8 text-brand-500" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Upload your first scene</h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                  Start by uploading satellite imagery - GeoTIFF for real analysis,
-                  or PNG/JPEG for benchmark samples.
-                </p>
-                <div className="flex flex-wrap justify-center gap-3">
-                  {[
-                    { label: 'Sentinel-2 Single', config: 'SINGLE' },
-                    { label: 'S2 + S1 Pair', config: 'CROSS_MODAL' },
-                    { label: 'Bi-temporal Pair', config: 'BI_TEMPORAL' },
-                  ].map((preset) => (
-                    <Link key={preset.config} href="/scene/new">
-                      <Button
-                        variant="outline"
-                        className="border-brand-500/30 hover:bg-brand-500/10 hover:border-brand-500/50 transition-all"
-                      >
-                        {preset.label}
-                      </Button>
-                    </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Recent Scenes Table */}
-        {scenes.length > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold">Recent Scenes</CardTitle>
-                  <Link href="/scene/new">
-                    <Button size="sm" className="bg-brand-500 hover:bg-brand-600 text-white gap-1.5">
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      New Scene
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+            <div className="glass-card rounded-3xl p-10 text-center max-w-2xl mx-auto space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mb-2 shadow-inner">
+                <UploadCloud className="w-8 h-8" strokeWidth={1.5} />
+              </div>
+              <h2
+                className="text-2xl font-bold text-foreground"
+                style={{ fontFamily: 'var(--font-heading)' }}
+              >
+                Upload your first scene
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+                Ingest satellite imagery (GeoTIFF / TIFF or benchmark samples) to start asking questions with agentic remote sensing models.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3 pt-2">
+                {[
+                  { label: 'Sentinel-2 Single Image', config: 'SINGLE' },
+                  { label: 'S2 + S1 Cross-Modal Pair', config: 'CROSS_MODAL' },
+                  { label: 'Bi-Temporal Change Pair', config: 'BI_TEMPORAL' },
+                ].map((preset) => (
+                  <Link key={preset.config} href="/scene/new">
+                    <Button
+                      variant="outline"
+                      className="border-border rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all font-medium text-xs sm:text-sm"
+                    >
+                      {preset.label}
                     </Button>
                   </Link>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground">Scene Name</TableHead>
-                      <TableHead className="text-muted-foreground">Input Config</TableHead>
-                      <TableHead className="text-muted-foreground">Modalities</TableHead>
-                      <TableHead className="text-muted-foreground">Sensor / GSD</TableHead>
-                      <TableHead className="text-muted-foreground">Ingested</TableHead>
-                      <TableHead className="text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-muted-foreground text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagedScenes.map((scene) => (
-                      <TableRow
-                        key={scene.id}
-                        className="border-border hover:bg-secondary/30 transition-colors"
-                      >
-                        <TableCell className="font-medium text-foreground">
-                          {scene.name}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={cn('text-[10px] font-mono', configBadge[scene.inputConfig].className)}
-                          >
-                            {configBadge[scene.inputConfig].label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1.5">
-                            {scene.modalities.map((m, i) => (
-                              <Badge
-                                key={i}
-                                variant="outline"
-                                className={cn('text-[10px]', modalityColor[m])}
-                              >
-                                {m}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {scene.images[0]?.sensorHint || '-'} / {scene.images[0]?.gsdM ? `${scene.images[0].gsdM} m` : 'N/A'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(scene.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn('text-[10px]', statusBadge[scene.status]?.className)}>
-                            {statusBadge[scene.status]?.label || scene.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {scene.status === 'READY' && (
-                              <Tooltip>
-                                <TooltipTrigger className="h-7 w-7 p-0 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-brand-500 transition-colors">
-                                  <Link href={`/scene/${scene.id}`}>
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                  </Link>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-card border-border">Open Workspace</TooltipContent>
-                              </Tooltip>
-                            )}
-                            <Tooltip>
-                              <TooltipTrigger className="h-7 w-7 p-0 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-modality-sar transition-colors">
-                                <RotateCcw className="w-3.5 h-3.5" />
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-card border-border">Re-validate</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger className="h-7 w-7 p-0 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive transition-colors">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-card border-border">Delete</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                    <span className="text-xs text-muted-foreground">
-                      Showing {page * ROWS_PER_PAGE + 1}-{Math.min((page + 1) * ROWS_PER_PAGE, scenes.length)} of {scenes.length}
-                    </span>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.max(0, p - 1))}
-                        disabled={page === 0}
-                        className="h-7 px-2"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                        disabled={page === totalPages - 1}
-                        className="h-7 px-2"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            </div>
           </motion.div>
+        )}
+
+        {/* Session Cards Grid / Carousel */}
+        {scenes.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2
+                  className="text-lg font-bold text-foreground flex items-center gap-2"
+                  style={{ fontFamily: 'var(--font-heading)' }}
+                >
+                  <MessageSquare className="w-5 h-5 text-primary" strokeWidth={1.5} />
+                  Active Analysis Sessions
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Resume past scenes or inspect previous queries and evidence
+                </p>
+              </div>
+              <Link href="/scene/new">
+                <Button className="bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:opacity-90 rounded-xl px-4 py-2 font-semibold text-xs gap-1.5 shadow-md">
+                  <UploadCloud className="w-4 h-4" strokeWidth={1.5} />
+                  New Scene
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scenes.map((scene, i) => (
+                <motion.div
+                  key={scene.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                >
+                  <Link href={`/scene/${scene.id}`} className="block group">
+                    <div className="glass-card rounded-2xl p-5 hover:border-primary/50 transition-all space-y-3 relative overflow-hidden">
+                      {/* Top Row: Scene Name & Badges */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                            {scene.name}
+                          </h3>
+                          <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted-foreground">
+                            <Clock className="w-3 h-3" strokeWidth={1.5} />
+                            <span>{formatDate(scene.createdAt)}</span>
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn('text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0', configBadge[scene.inputConfig].className)}
+                        >
+                          {configBadge[scene.inputConfig].label}
+                        </Badge>
+                      </div>
+
+                      {/* Preview Box / Modalities */}
+                      <div className="h-28 rounded-xl bg-secondary/50 border border-border/60 flex items-center justify-center p-3 relative overflow-hidden">
+                        {scene.images[0]?.previewUrl ? (
+                          <div className="relative w-full h-full">
+                            <img
+                              src={scene.images[0].previewUrl}
+                              alt={scene.name}
+                              className="w-full h-full object-cover rounded-lg opacity-85 group-hover:opacity-100 transition-opacity"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1.5 text-muted-foreground/70">
+                            <Layers className="w-6 h-6" strokeWidth={1.5} />
+                            <span className="text-[10px] font-mono">
+                              {scene.images[0]?.sensorHint || 'Satellite Imagery'}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="absolute bottom-2 left-2 flex gap-1">
+                          {scene.modalities.map((m, idx) => (
+                            <span
+                              key={idx}
+                              className={cn('text-[9px] font-semibold px-2 py-0.5 rounded-full border shadow-sm', modalityColor[m])}
+                            >
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Footer Info & Resume Button */}
+                      <div className="flex items-center justify-between pt-1 border-t border-border/50 text-xs">
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          {scene.images[0]?.gsdM ? `${scene.images[0].gsdM}m GSD` : 'Standard GSD'}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-primary font-medium group-hover:underline">
+                          Resume Session
+                          <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

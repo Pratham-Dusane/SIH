@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import SoftgateLanding from '@/components/landing/SoftgateLanding';
 
 export default function Home() {
-  redirect('/login');
+  return <SoftgateLanding />;
 }

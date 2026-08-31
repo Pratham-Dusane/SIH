@@ -11,7 +11,6 @@ import AcquisitionDates from '@/components/scene/AcquisitionDates';
 import Link from 'next/link';
 import { ApiError, fetchScene } from '@/lib/api';
 import { useStore } from '@/lib/store';
-import { Scene } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, ChevronUp, ChevronDown, CloudOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -39,8 +38,6 @@ export default function AnalysisWorkspacePage() {
         setActiveScene(scene);
       } catch (err) {
         if (cancelled) return;
-        // Show the failure. Substituting a demo scene here is what made a
-        // missing scene render as someone else's imagery under a hardcoded name.
         setActiveScene(null);
         setError(err instanceof ApiError
           ? err
@@ -55,10 +52,10 @@ export default function AnalysisWorkspacePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full">
-        <TopNav breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Loading…' }]} />
+      <div className="flex flex-col h-full min-h-0">
+        <TopNav breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Loading...' }]} />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -68,7 +65,7 @@ export default function AnalysisWorkspacePage() {
     const notFound = error?.isNotFound ?? true;
     const unreachable = error?.status === 0;
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-0">
         <TopNav
           breadcrumbs={[
             { label: 'Dashboard', href: '/dashboard' },
@@ -93,15 +90,9 @@ export default function AnalysisWorkspacePage() {
               {unreachable
                 ? 'The API did not respond. Start the backend and try again.'
                 : notFound
-                  ? <>No scene with id <code className="font-mono text-foreground">{sceneId}</code> is
-                    stored in this workspace. Upload imagery to create one.</>
+                  ? <>No scene with id <code className="font-mono text-foreground">{sceneId}</code> is stored in this workspace.</>
                   : error?.message}
             </p>
-            {error && (
-              <p className="text-[11px] font-mono text-muted-foreground/80 break-all">
-                {error.message}
-              </p>
-            )}
             <div className="flex gap-2 justify-center pt-2">
               <Link href="/dashboard">
                 <Button variant="outline" size="sm">Back to dashboard</Button>
@@ -119,25 +110,22 @@ export default function AnalysisWorkspacePage() {
   const lastTrace = turns.length > 0 ? turns[turns.length - 1]?.result?.trace : null;
 
   return (
-    <div className="flex flex-col h-full max-h-full overflow-hidden">
-      <div className="relative">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <div className="shrink-0">
         <TopNav
           breadcrumbs={[
             { label: 'Dashboard', href: '/dashboard' },
             { label: 'Scene', href: '/dashboard' },
             { label: activeScene.name },
           ]}
+          extra={<AcquisitionDates scene={activeScene} onUpdated={setActiveScene} />}
         />
-        {/* Earth Engine tools need acquisition dates; make that fixable here. */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-30">
-          <AcquisitionDates scene={activeScene} onUpdated={setActiveScene} />
-        </div>
       </div>
 
       {/* Main content: Canvas + Console */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex gap-4 overflow-hidden rounded-2xl">
         {/* Evidence Canvas */}
-        <div className="relative flex-1 min-w-0 h-full">
+        <div className="relative flex-1 min-w-0 h-full rounded-2xl overflow-hidden">
           <EvidenceCanvas scene={activeScene} />
           <div className="absolute bottom-4 left-4 z-20">
             <LayerControls />
@@ -145,34 +133,41 @@ export default function AnalysisWorkspacePage() {
         </div>
 
         {/* Query Console */}
-        <div className="w-[420px] shrink-0 border-l border-border flex flex-col bg-card/50 h-full">
+        <div className="w-[390px] shrink-0 rounded-2xl border border-border/80 flex flex-col bg-card/60 backdrop-blur-xl h-full overflow-hidden shadow-sm">
           <QueryConsole scene={activeScene} />
         </div>
       </div>
 
       {/* Execution Trace Drawer */}
       <div className={cn(
-        'border-t border-border bg-card transition-all duration-300 shrink-0 overflow-hidden',
-        traceDrawerOpen ? 'h-[320px]' : 'h-10'
+        'mt-2.5 rounded-2xl border border-border/80 bg-card/75 backdrop-blur-xl transition-all duration-300 shrink-0 overflow-hidden shadow-sm',
+        traceDrawerOpen ? 'h-[230px]' : 'h-9'
       )}>
         <button
           id="btn-toggle-trace"
           onClick={() => setTraceDrawerOpen(!traceDrawerOpen)}
-          className="flex items-center justify-between w-full h-10 px-4 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="w-full h-9 px-4 flex items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
-          <span className="font-medium uppercase tracking-wider">Execution Trace</span>
-          <div className="flex items-center gap-2">
-            {lastTrace && (
-              <span className="text-[10px] text-muted-foreground">
-                {lastTrace.task?.selected} • {lastTrace.steps?.length} steps • {lastTrace.durationMs}ms
-              </span>
-            )}
-            {traceDrawerOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-          </div>
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary" />
+            Execution Trace & Provenance
+          </span>
+          {traceDrawerOpen ? (
+            <ChevronDown className="w-3.5 h-3.5" strokeWidth={1.5} />
+          ) : (
+            <ChevronUp className="w-3.5 h-3.5" strokeWidth={1.5} />
+          )}
         </button>
-        {traceDrawerOpen && lastTrace && (
-          <div className="overflow-auto px-4 pb-4 max-w-full" style={{ height: 'calc(100% - 40px)' }}>
-            <ExecutionTimeline trace={lastTrace} />
+
+        {traceDrawerOpen && (
+          <div className="p-4 pt-1 h-[190px] overflow-y-auto">
+            {lastTrace ? (
+              <ExecutionTimeline trace={lastTrace} />
+            ) : (
+              <p className="text-xs text-muted-foreground py-4 text-center">
+                No trace recorded for this session yet. Run a query to inspect live tool execution timeline.
+              </p>
+            )}
           </div>
         )}
       </div>

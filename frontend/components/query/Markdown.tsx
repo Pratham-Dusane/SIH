@@ -3,8 +3,8 @@
 /**
  * Minimal markdown renderer for model-authored answers.
  *
- * The hosted VLM replies in markdown — bold, inline code, bullet and numbered
- * lists — which previously reached the user as literal `**` and backticks.
+ * The hosted VLM replies in markdown (bold, inline code, bullet and numbered
+ * lists) which previously reached the user as literal `**` and backticks.
  *
  * This covers exactly that subset rather than pulling in a full markdown
  * dependency, and it builds React elements throughout: no
@@ -15,7 +15,7 @@ import { Fragment, type ReactNode } from 'react';
 
 /** Inline spans: `code`, **bold**, *italic* / _italic_. */
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  // Code first — its content must not be re-parsed for emphasis.
+  // Code first: its content must not be re-parsed for emphasis.
   const tokens = text.split(/(`[^`]+`)/g);
 
   return tokens.flatMap((token, i) => {

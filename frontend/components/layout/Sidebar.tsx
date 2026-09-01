@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   UploadCloud,
@@ -16,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -35,12 +35,13 @@ export default function Sidebar() {
   const { user, activeWorkspace, signOutUser } = useAuth();
 
   const userDisplayName = user?.displayName || user?.email?.split('@')[0] || 'ISRO Analyst';
-  const userInitials = userDisplayName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || 'SA';
+  const userInitials =
+    userDisplayName
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'SA';
 
   const workspaceName = activeWorkspace?.name || 'SAC Workspace';
 
@@ -48,31 +49,44 @@ export default function Sidebar() {
     <aside
       id="sidebar"
       className={cn(
-        'flex flex-col h-screen bg-[var(--sidebar)] border-r border-sidebar-border transition-all duration-300 ease-in-out',
-        collapsed ? 'w-[68px]' : 'w-[260px]'
+        'relative flex h-screen flex-col bg-[var(--sidebar)]',
+        'border-r border-sidebar-border transition-[width] duration-300 ease-out',
+        collapsed ? 'w-[76px]' : 'w-[264px]',
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 min-h-[72px]">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-500/20 shrink-0">
-          <Satellite className="w-5 h-5 text-brand-500" />
+      {/* A single ember hairline down the edge — the reference's one warm accent
+          against an otherwise monochrome chrome. */}
+      <div
+        aria-hidden
+        className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-ember-500/25 to-transparent"
+      />
+
+      {/* Wordmark */}
+      <div className="flex min-h-[76px] items-center gap-3 px-5 py-5">
+        <div className="relative grid size-9 shrink-0 place-items-center rounded-pill bg-ember-500/12">
+          <Satellite className="size-[18px] text-ember-500" />
+          <span className="absolute inset-0 rounded-pill ring-1 ring-inset ring-ember-500/25" />
         </div>
         {!collapsed && (
-          <div className="flex flex-col overflow-hidden">
-            <span className="text-sm font-bold tracking-wide text-foreground whitespace-nowrap">
-              SatQuery AI
+          <motion.div
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col overflow-hidden"
+          >
+            <span className="font-display whitespace-nowrap text-[15px] font-semibold tracking-[-0.02em]">
+              SatQuery
+              <span className="text-ember-500">.</span>
             </span>
-            <span className="text-[10px] text-muted-foreground tracking-wider uppercase whitespace-nowrap">
+            <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               Remote Sensing
             </span>
-          </div>
+          </motion.div>
         )}
       </div>
 
-      <Separator className="bg-sidebar-border" />
-
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -83,19 +97,34 @@ export default function Sidebar() {
               id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group',
+                'group relative flex items-center gap-3 rounded-pill px-3 py-2.5',
+                'text-sm font-medium tracking-[-0.01em] transition-colors duration-200',
+                collapsed && 'justify-center px-0',
                 isActive
-                  ? 'bg-brand-500/15 text-brand-500 shadow-sm shadow-brand-500/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+                  ? 'font-semibold text-foreground'
+                  : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground',
               )}
             >
+              {/* Shared-layout pill slides between items instead of fading. */}
+              {isActive && (
+                <motion.span
+                  layoutId="sidebar-active"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                  className="weight absolute inset-0 rounded-pill border border-foreground/15 bg-card"
+                />
+              )}
               <Icon
                 className={cn(
-                  'w-5 h-5 shrink-0 transition-colors',
-                  isActive ? 'text-brand-500' : 'text-muted-foreground group-hover:text-foreground'
+                  'relative size-[18px] shrink-0 transition-colors',
+                  isActive
+                    ? 'text-ember-500'
+                    : 'text-muted-foreground group-hover:text-foreground',
                 )}
               />
-              {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+              {!collapsed && <span className="relative whitespace-nowrap">{item.label}</span>}
+              {!collapsed && isActive && (
+                <span className="relative ml-auto size-1.5 rounded-full bg-ember-500" />
+              )}
             </Link>
           );
 
@@ -105,7 +134,7 @@ export default function Sidebar() {
                 <TooltipTrigger className="w-full">
                   <span className="block">{linkContent}</span>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="bg-card border-border">
+                <TooltipContent side="right" className="border-border bg-popover">
                   {item.label}
                 </TooltipContent>
               </Tooltip>
@@ -116,46 +145,43 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <Separator className="bg-sidebar-border" />
-
-      {/* Bottom: User + Collapse */}
-      <div className="px-3 py-4 space-y-3">
-        {/* User */}
-        <div className={cn('flex items-center gap-3 px-3', collapsed && 'justify-center')}>
-          <Avatar className="h-8 w-8 shrink-0 border border-brand-500/30">
-            <AvatarFallback className="bg-brand-500/20 text-brand-500 text-xs font-semibold">
+      {/* Footer: identity + collapse */}
+      <div className="space-y-2 border-t border-sidebar-border px-3 py-4">
+        <div className={cn('flex items-center gap-3 px-2', collapsed && 'justify-center px-0')}>
+          <Avatar className="size-8 shrink-0 ring-1 ring-border">
+            <AvatarFallback className="bg-brand-500/15 text-[11px] font-semibold text-brand-500">
               {userInitials}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">{userDisplayName}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{workspaceName}</p>
-            </div>
-          )}
-          {!collapsed && (
-            <Tooltip>
-              <TooltipTrigger
-                id="btn-sign-out"
-                onClick={signOutUser}
-                className="text-muted-foreground hover:text-destructive transition-colors p-1 flex items-center justify-center cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-card border-border">
-                Sign out
-              </TooltipContent>
-            </Tooltip>
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium">{userDisplayName}</p>
+                <p className="truncate text-[10px] text-muted-foreground">{workspaceName}</p>
+              </div>
+              <Tooltip>
+                <TooltipTrigger
+                  id="btn-sign-out"
+                  onClick={signOutUser}
+                  className="grid size-7 cursor-pointer place-items-center rounded-pill text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <LogOut className="size-4" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="border-border bg-popover">
+                  Sign out
+                </TooltipContent>
+              </Tooltip>
+            </>
           )}
         </div>
 
-        {/* Collapse toggle */}
         <button
           id="btn-toggle-sidebar"
           onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-full py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="flex w-full items-center justify-center rounded-pill py-1.5 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
         </button>
       </div>
     </aside>

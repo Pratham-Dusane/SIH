@@ -31,7 +31,7 @@ export default function AnswerCard({ result }: AnswerCardProps) {
       : [];
 
   return (
-    <Card className="bg-card/50 border-border shadow-sm">
+    <Card className="border-border bg-card/60 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <CardContent className="p-3.5 space-y-3">
         {/* Header with TrafficLight & Verification */}
         <div className="flex items-center justify-between pb-1 border-b border-border/40">

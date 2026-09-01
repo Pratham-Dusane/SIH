@@ -56,7 +56,7 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
   return (
     <header
       id="topnav"
-      className="flex items-center justify-between h-14 px-6 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-30 transition-colors"
+      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/70 px-6 backdrop-blur-xl transition-colors"
     >
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm">
@@ -66,12 +66,14 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
             {crumb.href ? (
               <Link
                 href={crumb.href}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground transition-colors hover:text-foreground"
               >
                 {crumb.label}
               </Link>
             ) : (
-              <span className="text-foreground font-medium">{crumb.label}</span>
+              <span className="font-display font-semibold tracking-[-0.02em] text-foreground">
+                {crumb.label}
+              </span>
             )}
           </span>
         ))}
@@ -84,7 +86,7 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
           <TooltipTrigger>
             <div
               id="model-health-indicator"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/50 cursor-default"
+              className="flex cursor-default items-center gap-2 rounded-pill border border-border bg-secondary/70 px-3 py-1.5"
             >
               <Activity className="w-3.5 h-3.5 text-muted-foreground" />
               <div className="relative flex items-center justify-center w-2.5 h-2.5">
@@ -106,12 +108,12 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
           <TooltipTrigger
             id="btn-theme-toggle"
             onClick={toggleTheme}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 text-foreground transition-all cursor-pointer"
+            className="grid size-9 cursor-pointer place-items-center rounded-pill border border-border bg-secondary/70 text-foreground transition-colors hover:bg-secondary"
           >
             {mounted && theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-400" />
+              <Sun className="size-4 text-ember-500" />
             ) : (
-              <Moon className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+              <Moon className="size-4 text-muted-foreground" />
             )}
           </TooltipTrigger>
           <TooltipContent className="bg-card border-border">
@@ -120,8 +122,8 @@ export default function TopNav({ breadcrumbs = [] }: TopNavProps) {
         </Tooltip>
 
         {/* User avatar */}
-        <Avatar className="h-8 w-8 border border-brand-500/30">
-          <AvatarFallback className="bg-brand-500/20 text-brand-500 text-xs font-semibold">
+        <Avatar className="size-9 ring-1 ring-border">
+          <AvatarFallback className="bg-brand-500/15 text-[11px] font-semibold text-brand-500">
             SA
           </AvatarFallback>
         </Avatar>

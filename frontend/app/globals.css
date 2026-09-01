@@ -4,12 +4,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ===========================================================================
+   SatQuery design system
+
+   Palette derived from the Spectra reference: a warm near-black ink, a warm
+   cream paper, one hot ember accent, and tight Space Grotesk display type.
+   Blue is carried alongside the ember as the analytical/primary hue, so the
+   two read as "data" and "action" respectively.
+
+   Existing components already reference brand-*, modality-*, confidence-* and
+   evidence-*, so those names are kept and re-mapped rather than renamed —
+   re-skinning the whole app without touching component markup.
+   =========================================================================== */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-heading: var(--font-display);
 
   /* shadcn tokens */
   --color-sidebar-ring: var(--sidebar-ring);
@@ -41,112 +55,183 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+
+  /* Radii — Spectra leans on pills (999px) and soft 12/20/28px cards. */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+  --radius-3xl: 2.25rem;
+  --radius-4xl: 2.75rem;
+  --radius-pill: 999px;
 
-  /* SatQuery brand colours (PRD §4.1) */
-  --color-brand-50: #e6f7ff;
-  --color-brand-100: #b3e8f5;
-  --color-brand-200: #80d9eb;
-  --color-brand-300: #4dc9e1;
-  --color-brand-400: #26b8d4;
-  --color-brand-500: #0ea5b7;
-  --color-brand-600: #0b8697;
-  --color-brand-700: #086878;
-  --color-brand-800: #064a58;
-  --color-brand-900: #063b45;
+  /* --- Brand: azure. The analytical hue — data, evidence, measurement. --- */
+  --color-brand-50:  #eef4ff;
+  --color-brand-100: #d9e6ff;
+  --color-brand-200: #b8d0ff;
+  --color-brand-300: #8ab0ff;
+  --color-brand-400: #5a8bff;
+  --color-brand-500: #1b5cff;
+  --color-brand-600: #0f47e0;
+  --color-brand-700: #0d37b0;
+  --color-brand-800: #0e2d85;
+  --color-brand-900: #0d2668;
 
-  /* Modality colours */
-  --color-modality-optical: #0284c7;
-  --color-modality-sar: #d97706;
-  --color-modality-fused: #9333ea;
+  /* --- Ember: the Spectra accent. Action, emphasis, live state. --- */
+  --color-ember-50:  #fff3ec;
+  --color-ember-100: #ffe1d0;
+  --color-ember-200: #ffc0a1;
+  --color-ember-300: #ff9a68;
+  --color-ember-400: #fd7b3c;
+  --color-ember-500: #fa6317;
+  --color-ember-600: #e04d08;
+  --color-ember-700: #b83c07;
+  --color-ember-800: #8f300a;
+  --color-ember-900: #6d270b;
 
-  /* Confidence colours */
-  --color-confidence-high: #16a34a;
-  --color-confidence-medium: #d97706;
-  --color-confidence-low: #dc2626;
+  /* --- Warm neutrals: paper and ink, never pure white / pure black. --- */
+  --color-paper: #f8f6f2;
+  --color-paper-2: #f2efe9;
+  --color-ink: #050505;
+  --color-ink-2: #0e0e10;
+  --color-ink-3: #16161a;
+  --color-ink-4: #1f1f24;
+  --color-slate-warm: #686a6e;
 
-  /* Evidence colours */
-  --color-evidence-box: #0284c7;
-  --color-evidence-mask: #65a30d;
-  --color-evidence-change: #dc2626;
-  --color-evidence-nochange: #64748b;
+  /* Modality — optical reads azure, SAR reads ember, fusion violet. */
+  --color-modality-optical: #1b5cff;
+  --color-modality-sar: #fa6317;
+  --color-modality-fused: #8b5cf6;
+
+  /* Confidence */
+  --color-confidence-high: #12a150;
+  --color-confidence-medium: #f0a020;
+  --color-confidence-low: #e5484d;
+
+  /* Evidence layers */
+  --color-evidence-box: #1b5cff;
+  --color-evidence-mask: #12a150;
+  --color-evidence-change: #fa6317;
+  --color-evidence-nochange: #686a6e;
 }
 
-/* Light mode by default */
+/* ---------------------------------------------------------------------------
+   Light — warm cream paper, ink text, ember primary on ink text (Spectra's
+   signature: the accent button carries near-black label, not white).
+   --------------------------------------------------------------------------- */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f8f6f2;
+  --foreground: #050505;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #050505;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #0ea5b7;
+  --popover-foreground: #050505;
+  --primary: #1b5cff;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #e0f2fe;
-  --accent-foreground: #0369a1;
-  --destructive: #dc2626;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #0ea5b7;
-  --chart-1: #0ea5b7;
-  --chart-2: #0284c7;
-  --chart-3: #d97706;
-  --chart-4: #9333ea;
-  --chart-5: #16a34a;
-  --radius: 0.625rem;
+  --secondary: #f2efe9;
+  --secondary-foreground: #050505;
+  --muted: #f2efe9;
+  --muted-foreground: #686a6e;
+  --accent: #fff3ec;
+  --accent-foreground: #b83c07;
+  --destructive: #e5484d;
+  --border: #e6e2da;
+  --input: #e6e2da;
+  --ring: #1b5cff;
+  --chart-1: #1b5cff;
+  --chart-2: #fa6317;
+  --chart-3: #8b5cf6;
+  --chart-4: #12a150;
+  --chart-5: #f0a020;
+  --radius: 0.875rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #0f172a;
-  --sidebar-primary: #0ea5b7;
+  --sidebar-foreground: #050505;
+  --sidebar-primary: #1b5cff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
-  --sidebar-ring: #0ea5b7;
+  --sidebar-accent: #f2efe9;
+  --sidebar-accent-foreground: #050505;
+  --sidebar-border: #e6e2da;
+  --sidebar-ring: #1b5cff;
+
+  /* bklit chart tokens */
+  --chart-background: #ffffff;
+  --chart-foreground: #686a6e;
+  --chart-foreground-muted: #9a9ca0;
+  --chart-crosshair: #686a6e;
+  --chart-grid: #e6e2da;
+  --chart-brush-border: var(--chart-grid);
+  --chart-marker-background: #f2efe9;
+  --chart-marker-border: #d8d3c9;
+  --chart-marker-foreground: #050505;
+  --chart-label: #686a6e;
+  --chart-scale-01: #d9e6ff;
+  --chart-scale-02: #b8d0ff;
+  --chart-scale-03: #8ab0ff;
+  --chart-scale-04: #5a8bff;
+  --chart-scale-05: #1b5cff;
+  --chart-scale-pattern-color: #ffffff;
 }
 
-/* Dark mode override */
+/* ---------------------------------------------------------------------------
+   Dark — warm ink, not blue-black. Ember lifts, azure carries data.
+   --------------------------------------------------------------------------- */
 .dark {
-  --background: #0b1120;
-  --foreground: #e2e8f0;
-  --card: #111827;
-  --card-foreground: #e2e8f0;
-  --popover: #111827;
-  --popover-foreground: #e2e8f0;
-  --primary: #0ea5b7;
-  --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #164e63;
-  --accent-foreground: #e2e8f0;
-  --destructive: #dc2626;
-  --border: #1e3a5f;
-  --input: #1e3a5f;
-  --ring: #0ea5b7;
-  --chart-1: #0ea5b7;
-  --chart-2: #38bdf8;
-  --chart-3: #f59e0b;
-  --chart-4: #a855f7;
-  --chart-5: #16a34a;
-  --sidebar: #0a0f1e;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #0ea5b7;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e293b;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: #1e3a5f;
-  --sidebar-ring: #0ea5b7;
+  --background: #050505;
+  --foreground: #f2efe9;
+  --card: #0e0e10;
+  --card-foreground: #f2efe9;
+  --popover: #16161a;
+  --popover-foreground: #f2efe9;
+  --primary: #5a8bff;
+  --primary-foreground: #050505;
+  --secondary: #16161a;
+  --secondary-foreground: #f2efe9;
+  --muted: #16161a;
+  --muted-foreground: #9a9ca0;
+  --accent: #2a1710;
+  --accent-foreground: #ff9a68;
+  --destructive: #ff6369;
+  --border: #28292a;
+  --input: #28292a;
+  --ring: #5a8bff;
+  --chart-1: #5a8bff;
+  --chart-2: #fa6317;
+  --chart-3: #a78bfa;
+  --chart-4: #3ecf8e;
+  --chart-5: #f0a020;
+  --sidebar: #050505;
+  --sidebar-foreground: #f2efe9;
+  --sidebar-primary: #5a8bff;
+  --sidebar-primary-foreground: #050505;
+  --sidebar-accent: #16161a;
+  --sidebar-accent-foreground: #f2efe9;
+  --sidebar-border: #28292a;
+  --sidebar-ring: #5a8bff;
+
+  /* Modality/confidence lift slightly on ink so they stay legible. */
+  --color-modality-optical: #5a8bff;
+  --color-confidence-high: #3ecf8e;
+  --color-confidence-medium: #f0a020;
+  --color-confidence-low: #ff6369;
+
+  /* bklit chart tokens */
+  --chart-background: #0e0e10;
+  --chart-foreground: #9a9ca0;
+  --chart-foreground-muted: #686a6e;
+  --chart-crosshair: #9a9ca0;
+  --chart-grid: #28292a;
+  --chart-brush-border: var(--chart-grid);
+  --chart-marker-background: #16161a;
+  --chart-marker-border: #33343a;
+  --chart-marker-foreground: #f2efe9;
+  --chart-label: #9a9ca0;
+  --chart-scale-01: #0e2d85;
+  --chart-scale-02: #0d37b0;
+  --chart-scale-03: #0f47e0;
+  --chart-scale-04: #1b5cff;
+  --chart-scale-05: #5a8bff;
+  --chart-scale-pattern-color: #0e0e10;
 }
 
 @layer base {
@@ -155,51 +240,83 @@
   }
   body {
     @apply bg-background text-foreground transition-colors duration-200;
+    font-feature-settings: "cv11", "ss01";
   }
   html {
     @apply font-sans;
   }
+  /* Display type is tight and optically tuned, as in the reference. */
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    letter-spacing: -0.022em;
+  }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ===========================================================================
+   Utilities
+   =========================================================================== */
+
+/* Pill — the reference's dominant button shape. */
+.rounded-pill { border-radius: 999px; }
+
+/* Hairline card edge that survives both themes. */
+.edge {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--border) 70%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.04);
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+.dark .edge {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--border) 90%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.4);
 }
+
+/* Ember glow for live/active affordances. */
+.glow-ember { box-shadow: 0 0 0 1px #fa631733, 0 6px 24px -8px #fa631766; }
+.glow-brand { box-shadow: 0 0 0 1px #1b5cff33, 0 6px 24px -8px #1b5cff66; }
+
+/* Grain + vignette used behind hero surfaces. */
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background: color-mix(in oklab, var(--muted-foreground) 30%, transparent);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  background: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
 }
 
 /* Leaflet fix */
-.leaflet-container {
-  background: var(--background) !important;
-}
+.leaflet-container { background: var(--background) !important; }
 
-/* Animated gradient for streaming states */
+/* ===========================================================================
+   Motion
+   =========================================================================== */
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(14, 165, 183, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-ember-500) 22%, transparent), transparent);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
-/* Pulse for status dots */
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 1; }
   100% { transform: scale(2); opacity: 0; }
 }
-
 .status-dot-pulse::before {
   content: '';
   position: absolute;
@@ -207,7 +324,135 @@
   border-radius: 50%;
   animation: pulse-ring 1.5s ease-out infinite;
 }
+.status-dot-pulse.status-green::before { background: #12a150; }
+.status-dot-pulse.status-amber::before { background: #f0a020; }
+.status-dot-pulse.status-red::before { background: #e5484d; }
 
-.status-dot-pulse.status-green::before { background: #16a34a; }
-.status-dot-pulse.status-amber::before { background: #d97706; }
-.status-dot-pulse.status-red::before { background: #dc2626; }
+/* Sweep used on streaming rows in the execution trace. */
+@keyframes sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.animate-sweep { animation: sweep 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+
+/* Slow marquee-ish drift for ambient background beams. */
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -3%, 0) scale(1.06); }
+}
+.animate-drift { animation: drift 18s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer,
+  .animate-sweep,
+  .animate-drift,
+  .status-dot-pulse::before {
+    animation: none !important;
+  }
+}
+
+/* ===========================================================================
+   Weight — the reference's buttons and cards sit *on* the page rather than in
+   it. A layered shadow plus a 1px top highlight gives that physicality; the
+   press state collapses it so the control feels depressible.
+   =========================================================================== */
+
+.weight {
+  box-shadow:
+    0 1px 1px rgba(5, 5, 5, 0.05),
+    0 3px 6px -1px rgba(5, 5, 5, 0.10),
+    0 10px 24px -8px rgba(5, 5, 5, 0.16);
+}
+.weight-lg {
+  box-shadow:
+    0 1px 1px rgba(5, 5, 5, 0.06),
+    0 6px 12px -2px rgba(5, 5, 5, 0.12),
+    0 20px 44px -14px rgba(5, 5, 5, 0.22);
+}
+.dark .weight {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 3px 8px -2px rgba(0, 0, 0, 0.55),
+    0 12px 28px -10px rgba(0, 0, 0, 0.7);
+}
+.dark .weight-lg {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px -4px rgba(0, 0, 0, 0.6),
+    0 26px 56px -18px rgba(0, 0, 0, 0.8);
+}
+/* Ember carries its own coloured lift so the CTA reads hottest on the page. */
+.weight-ember {
+  box-shadow:
+    0 1px 1px rgba(5, 5, 5, 0.06),
+    0 4px 10px -2px rgba(250, 99, 23, 0.35),
+    0 14px 32px -10px rgba(250, 99, 23, 0.45);
+}
+.weight-brand {
+  box-shadow:
+    0 1px 1px rgba(5, 5, 5, 0.06),
+    0 4px 10px -2px rgba(27, 92, 255, 0.32),
+    0 14px 32px -10px rgba(27, 92, 255, 0.42);
+}
+
+/* ===========================================================================
+   Blueprint grid — the reference lays a faint engineering grid behind hero and
+   empty surfaces. Fades out at the edges so it never boxes the content in.
+   =========================================================================== */
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 65%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 65%, transparent) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+}
+
+/* ===========================================================================
+   Ken Burns — slow pan/zoom over real scene previews, used as the login's
+   moving backdrop. Each layer runs the same motion offset in time.
+   =========================================================================== */
+
+@keyframes kenburns {
+  0%   { transform: scale(1.06) translate3d(0, 0, 0); }
+  50%  { transform: scale(1.20) translate3d(-2.5%, -2%, 0); }
+  100% { transform: scale(1.06) translate3d(0, 0, 0); }
+}
+.animate-kenburns { animation: kenburns 26s ease-in-out infinite; }
+
+/* Cross-fade cycle for a 3-frame sequence. */
+@keyframes frame-cycle {
+  0%, 26%   { opacity: 1; }
+  33%, 93%  { opacity: 0; }
+  100%      { opacity: 1; }
+}
+.frame-cycle { animation: frame-cycle 21s linear infinite; }
+
+/* Sensor sweep — a scan bar crossing the imagery, as a live capture would. */
+@keyframes scanline {
+  0%   { transform: translateY(-20%); opacity: 0; }
+  12%  { opacity: 0.55; }
+  88%  { opacity: 0.55; }
+  100% { transform: translateY(120%); opacity: 0; }
+}
+.animate-scanline { animation: scanline 7s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+
+/* Fine horizontal raster lines over the video, like a downlink feed. */
+.raster::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-kenburns, .frame-cycle, .animate-scanline { animation: none !important; }
+}

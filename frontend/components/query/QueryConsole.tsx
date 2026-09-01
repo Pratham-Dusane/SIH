@@ -122,7 +122,7 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border shrink-0">
+      <div className="shrink-0 border-b border-border px-5 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">Query Console</h2>
@@ -191,7 +191,7 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
       </div>
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-border shrink-0">
+      <div className="shrink-0 border-t border-border px-5 py-4">
         <div className="relative">
           <textarea
             id="query-input"
@@ -201,14 +201,15 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
             placeholder="Ask a question about this scene..."
             disabled={isStreaming}
             rows={2}
-            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2.5 pr-12 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-50"
+            className="w-full resize-none rounded-2xl border border-border bg-secondary/50 px-4 py-3 pr-14 text-sm placeholder:text-muted-foreground/70 transition-shadow focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/35 disabled:opacity-50"
           />
           <Button
             id="btn-submit-query"
             size="sm"
             onClick={handleSubmit}
             disabled={!query.trim() || isStreaming}
-            className="absolute right-2 bottom-2 h-7 w-7 p-0 bg-brand-500 hover:bg-brand-600 text-white"
+            variant="ember"
+            className="absolute bottom-2.5 right-2.5 size-9 p-0"
           >
             {isStreaming ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -217,7 +218,7 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
             )}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5">
+        <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
           Ctrl+Enter to submit
         </p>
       </div>

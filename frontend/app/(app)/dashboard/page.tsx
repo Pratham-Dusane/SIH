@@ -8,7 +8,7 @@ import {
   UploadCloud, ExternalLink, RotateCcw, Trash2,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -20,6 +20,7 @@ import TopNav from '@/components/layout/TopNav';
 import { fetchScenes, fetchDashboardStats } from '@/lib/api';
 import { Scene, DashboardStats, Modality, InputConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Beams, Eyebrow, Panel, Stat } from '@/components/ui/spectra';
 
 const ROWS_PER_PAGE = 10;
 
@@ -31,9 +32,9 @@ const modalityColor: Record<Modality, string> = {
 };
 
 const configBadge: Record<InputConfig, { label: string; className: string }> = {
-  SINGLE: { label: 'SINGLE', className: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
-  CROSS_MODAL: { label: 'CROSS-MODAL', className: 'bg-modality-fused/15 text-modality-fused border-modality-fused/30' },
-  BI_TEMPORAL: { label: 'BI-TEMPORAL', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+  SINGLE: { label: 'SINGLE', className: 'bg-brand-500/12 text-brand-500 border-brand-500/30' },
+  CROSS_MODAL: { label: 'CROSS-MODAL', className: 'bg-modality-fused/12 text-modality-fused border-modality-fused/30' },
+  BI_TEMPORAL: { label: 'BI-TEMPORAL', className: 'bg-ember-500/12 text-ember-500 border-ember-500/30' },
 };
 
 const statusBadge: Record<string, { className: string; label: string }> = {
@@ -43,12 +44,6 @@ const statusBadge: Record<string, { className: string; label: string }> = {
   UPLOADING: { className: 'bg-brand-500/15 text-brand-500 animate-pulse', label: 'Uploading' },
   FAILED: { className: 'bg-confidence-low/15 text-confidence-low', label: 'Failed' },
 };
-
-function confidenceColor(value: number) {
-  if (value >= 0.75) return 'text-confidence-high';
-  if (value >= 0.45) return 'text-confidence-medium';
-  return 'text-confidence-low';
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-IN', {
@@ -90,36 +85,35 @@ export default function DashboardPage() {
   const statCards = stats
     ? [
         {
-          label: 'Scenes Ingested',
+          label: 'Scenes ingested',
           value: stats.scenesIngested,
           icon: Satellite,
-          color: 'text-brand-500',
-          bg: 'bg-brand-500/10',
+          tone: 'brand' as const,
+          tooltip: undefined as string | undefined,
         },
         {
-          label: 'Queries Answered',
+          label: 'Queries answered',
           value: stats.queriesAnswered,
           icon: Search,
-          color: 'text-modality-optical',
-          bg: 'bg-modality-optical/10',
+          tone: 'brand' as const,
+          tooltip: undefined as string | undefined,
         },
         {
-          label: 'Avg. Confidence',
+          label: 'Avg. confidence',
           value: `${(stats.averageConfidence * 100).toFixed(0)}%`,
           icon: BarChart3,
-          color: confidenceColor(stats.averageConfidence),
-          bg: stats.averageConfidence >= 0.75
-            ? 'bg-confidence-high/10'
+          tone: (stats.averageConfidence >= 0.75
+            ? 'good'
             : stats.averageConfidence >= 0.45
-              ? 'bg-confidence-medium/10'
-              : 'bg-confidence-low/10',
+              ? 'warn'
+              : 'warn') as 'good' | 'warn',
+          tooltip: undefined as string | undefined,
         },
         {
-          label: 'Abstention Rate',
+          label: 'Abstention rate',
           value: `${(stats.abstentionRate * 100).toFixed(0)}%`,
           icon: ShieldAlert,
-          color: 'text-modality-sar',
-          bg: 'bg-modality-sar/10',
+          tone: 'ember' as const,
           tooltip: 'Abstention is a feature - the system declines when evidence is insufficient rather than guessing.',
         },
       ]
@@ -129,54 +123,57 @@ export default function DashboardPage() {
     <div className="flex flex-col h-full">
       <TopNav breadcrumbs={[{ label: 'Dashboard' }]} />
 
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <div className="grid-bg flex-1 space-y-7 overflow-y-auto p-6 lg:p-8">
+        {/* Page heading */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <Eyebrow>Workspace overview</Eyebrow>
+            <h1 className="font-display mt-2 text-[clamp(1.6rem,2.6vw,2.1rem)] font-semibold tracking-[-0.03em]">
+              Scenes &amp; activity
+            </h1>
+          </div>
+          <Link href="/scene/new">
+            <Button variant="ember" className="gap-2">
+              <UploadCloud className="size-4" />
+              New scene
+            </Button>
+          </Link>
+        </div>
+
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="bg-card border-border">
-                  <CardContent className="p-5">
-                    <Skeleton className="h-4 w-24 mb-3" />
-                    <Skeleton className="h-8 w-16" />
-                  </CardContent>
-                </Card>
+                <div key={i} className="rounded-2xl border border-border bg-card p-5">
+                  <Skeleton className="mb-4 h-3 w-24" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
               ))
             : statCards.map((card, i) => (
                 <motion.div
                   key={card.label}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
+                  transition={{ delay: i * 0.06, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <Card className="bg-card border-border hover:border-brand-500/30 transition-colors">
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          {card.label}
-                        </p>
-                        <div className={cn('p-2 rounded-lg', card.bg)}>
-                          <card.icon className={cn('w-4 h-4', card.color)} />
-                        </div>
-                      </div>
-                      <div className="flex items-end gap-2">
-                        <span className={cn('text-2xl font-bold', card.color)}>
-                          {card.value}
-                        </span>
-                        {card.tooltip && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="text-[10px] text-muted-foreground mb-1 cursor-help underline decoration-dotted">
-                                why?
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-card border-border max-w-[240px]">
-                              <p className="text-xs">{card.tooltip}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <Stat
+                    label={card.label}
+                    value={card.value}
+                    tone={card.tone}
+                    icon={<card.icon className="size-4" />}
+                    hint={card.tooltip ? (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="mb-1 cursor-help text-[10px] text-muted-foreground underline decoration-dotted">
+                            why?
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[240px] border-border bg-popover">
+                          <p className="text-xs">{card.tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : undefined}
+                  />
                 </motion.div>
               ))}
         </div>
@@ -203,15 +200,18 @@ export default function DashboardPage() {
         {/* Quick Start - shown when no scenes */}
         {!loading && !loadError && scenes.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Card className="bg-gradient-to-br from-brand-900/40 to-card border-brand-500/20">
-              <CardContent className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-500/15 mb-4">
-                  <UploadCloud className="w-8 h-8 text-brand-500" />
+            <Panel className="relative overflow-hidden">
+              <Beams className="opacity-60" />
+              <div className="relative p-10 text-center">
+                <div className="mx-auto mb-5 grid size-14 place-items-center rounded-pill bg-ember-500/12 ring-1 ring-inset ring-ember-500/25">
+                  <UploadCloud className="size-6 text-ember-500" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Upload your first scene</h3>
-                <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                  Start by uploading satellite imagery - GeoTIFF for real analysis,
-                  or PNG/JPEG for benchmark samples.
+                <h3 className="font-display text-xl font-semibold tracking-[-0.025em]">
+                  Upload your first scene
+                </h3>
+                <p className="mx-auto mt-2 mb-7 max-w-md text-sm leading-relaxed text-muted-foreground">
+                  GeoTIFF for real analysis, or PNG/JPEG in benchmark mode. The
+                  compatibility checklist runs before anything is queryable.
                 </p>
                 <div className="flex flex-wrap justify-center gap-3">
                   {[
@@ -222,53 +222,58 @@ export default function DashboardPage() {
                     <Link key={preset.config} href="/scene/new">
                       <Button
                         variant="outline"
-                        className="border-brand-500/30 hover:bg-brand-500/10 hover:border-brand-500/50 transition-all"
+                        className="transition-all"
                       >
                         {preset.label}
                       </Button>
                     </Link>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </Panel>
           </motion.div>
         )}
 
         {/* Recent Scenes Table */}
         {scenes.length > 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold">Recent Scenes</CardTitle>
-                  <Link href="/scene/new">
-                    <Button size="sm" className="bg-brand-500 hover:bg-brand-600 text-white gap-1.5">
-                      <UploadCloud className="w-3.5 h-3.5" />
-                      New Scene
-                    </Button>
-                  </Link>
+            <Panel className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4">
+                <div>
+                  <h2 className="font-display text-base font-semibold tracking-[-0.02em]">
+                    Recent scenes
+                  </h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {scenes.length} ingested in this workspace
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
+                <Link href="/scene/new">
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <UploadCloud className="size-3.5" />
+                    New scene
+                  </Button>
+                </Link>
+              </div>
+              <div className="border-t border-border">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground">Scene Name</TableHead>
-                      <TableHead className="text-muted-foreground">Input Config</TableHead>
-                      <TableHead className="text-muted-foreground">Modalities</TableHead>
-                      <TableHead className="text-muted-foreground">Sensor / GSD</TableHead>
-                      <TableHead className="text-muted-foreground">Ingested</TableHead>
-                      <TableHead className="text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Scene Name</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Input Config</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Modalities</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Sensor / GSD</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Ingested</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Status</TableHead>
+                      <TableHead className="text-right text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pagedScenes.map((scene) => (
                       <TableRow
                         key={scene.id}
-                        className="border-border hover:bg-secondary/30 transition-colors"
+                        className="border-border transition-colors hover:bg-foreground/[0.03]"
                       >
-                        <TableCell className="font-medium text-foreground">
+                        <TableCell className="font-display font-medium tracking-[-0.01em] text-foreground">
                           {scene.name}
                         </TableCell>
                         <TableCell>
@@ -362,8 +367,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </Panel>
           </motion.div>
         )}
       </div>

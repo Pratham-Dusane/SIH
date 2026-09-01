@@ -13,6 +13,7 @@
  * metadata, subtle status pulses, and high-density technical clarity.
  */
 
+import ShimmerText from '@/components/kokonutui/shimmer-text';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Cpu, CheckCircle2, XCircle, Loader2, ArrowDown,
@@ -145,12 +146,16 @@ export default function PipelineVisualizer({
               <Cpu className="w-3.5 h-3.5 text-brand-500" />
               Specialist Model Execution
             </div>
-            {isPlanning && (
-              <span className="text-[9px] font-mono text-brand-500 flex items-center gap-1">
-                <Loader2 className="w-2.5 h-2.5 animate-spin" /> Planning DAG...
-              </span>
-            )}
           </div>
+
+          {isPlanning && (
+            <div className="-my-4 flex justify-center">
+              <ShimmerText
+                text="Planning execution DAG"
+                className="!text-[11px] !font-mono !font-semibold !uppercase !tracking-[0.14em]"
+              />
+            </div>
+          )}
 
           {/* Render Specialists */}
           {toolSteps.length > 0 ? (
@@ -167,7 +172,7 @@ export default function PipelineVisualizer({
                     animate={{ opacity: 1, y: 0 }}
                     className={cn(
                       'flex items-center justify-between p-2 rounded-md border text-[11px] transition-all',
-                      isRunning && 'bg-brand-500/10 border-brand-500/40 shadow-sm',
+                      isRunning && 'relative overflow-hidden border-ember-500/45 bg-ember-500/[0.07] weight',
                       isSuccess && 'bg-secondary/40 border-border/60',
                       isFailed && 'bg-destructive/10 border-destructive/30',
                       step.status === 'skipped' && 'opacity-50 border-border/20 bg-secondary/10',
@@ -184,7 +189,7 @@ export default function PipelineVisualizer({
                         <div className="w-3.5 h-3.5 rounded-full border border-border shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <div className="font-mono font-bold text-foreground truncate flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 truncate font-mono font-bold text-foreground">
                           {step.tool}
                           {step.durationMs != null && (
                             <span className="text-[9px] font-normal text-muted-foreground/80">

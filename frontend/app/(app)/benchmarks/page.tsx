@@ -1,11 +1,15 @@
 'use client';
 
-import { FlaskConical, Play, Award, BarChart2, CheckCircle2 } from 'lucide-react';
+import { FlaskConical, Play, Award, BarChart2 } from 'lucide-react';
 import TopNav from '@/components/layout/TopNav';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ParticleButton from '@/components/kokonutui/particle-button';
+import { AreaChart } from '@/components/charts/area-chart';
+import { Area } from '@/components/charts/area';
+import { Grid } from '@/components/charts/grid';
+import { Eyebrow, Panel } from '@/components/ui/spectra';
 
 const benchmarkDatasets = [
   { name: 'RSVQA-LR', task: 'Single-Image VQA', metric: 'Accuracy (91.4%)', status: 'Ready' },
@@ -22,27 +26,34 @@ const pastRuns = [
   { runId: 'run_v0.2.9_02', dataset: 'RSVQA-LR', split: 'test', agentic: 'Disabled (Direct)', score: '0.891', status: 'COMPLETED', date: '2026-08-15' },
 ];
 
+/** Composite score over the recorded runs — reads oldest → newest. */
+const scoreTrend = [...pastRuns]
+  .sort((a, b) => a.date.localeCompare(b.date))
+  .map((r) => ({ date: new Date(r.date), score: Number(r.score) }));
+
 export default function BenchmarksPage() {
   return (
     <div className="flex flex-col h-full">
       <TopNav breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Benchmarks' }]} />
 
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <div className="grid-bg flex-1 space-y-7 overflow-y-auto p-6 lg:p-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <FlaskConical className="w-5 h-5 text-brand-500" />
-              Evaluation Harness & Benchmarks
+            <Eyebrow>PRD §11 · Evaluation harness</Eyebrow>
+            <h1 className="font-display mt-2 flex items-center gap-2.5 text-[clamp(1.6rem,2.6vw,2.1rem)] font-semibold tracking-[-0.03em]">
+              <FlaskConical className="size-6 text-ember-500" />
+              Benchmarks
             </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Offline-capable evaluation suite for RSVQA, VRSBench, CDVQA, and ISRO/SAC test splits (PRD §11)
+            <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
+              Offline-capable evaluation across RSVQA, VRSBench, CDVQA and the
+              ISRO/SAC test splits.
             </p>
           </div>
 
-          <Button className="bg-brand-500 hover:bg-brand-600 text-white gap-2">
-            <Play className="w-4 h-4" />
-            Run Evaluation Suite
-          </Button>
+          <ParticleButton variant="ember" size="lg" className="gap-2" successDuration={900}>
+            <Play className="size-4" />
+            Run evaluation suite
+          </ParticleButton>
         </div>
 
         {/* Benchmark Datasets Grid */}
@@ -67,6 +78,41 @@ export default function BenchmarksPage() {
             </Card>
           ))}
         </div>
+
+        {/* Composite score trend — bklit AreaChart with its reveal animation. */}
+        <Panel className="overflow-hidden">
+          <div className="flex items-end justify-between px-5 pt-5">
+            <div>
+              <h2 className="font-display text-base font-semibold tracking-[-0.02em]">
+                Composite score
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Across {scoreTrend.length} recorded evaluation runs
+              </p>
+            </div>
+            <span className="font-display text-2xl font-semibold tabular-nums text-ember-500">
+              {scoreTrend.length
+                ? scoreTrend[scoreTrend.length - 1].score.toFixed(3)
+                : '--'}
+            </span>
+          </div>
+          <div className="px-2 pb-2">
+            <AreaChart
+              data={scoreTrend}
+              xDataKey="date"
+              aspectRatio="4 / 1"
+              loadingLabel="Loading evaluation history"
+            >
+              <Grid />
+              <Area
+                dataKey="score"
+                fill="var(--color-ember-500)"
+                stroke="var(--color-ember-500)"
+                fillOpacity={0.22}
+              />
+            </AreaChart>
+          </div>
+        </Panel>
 
         {/* Evaluation Run History */}
         <Card className="bg-card border-border">

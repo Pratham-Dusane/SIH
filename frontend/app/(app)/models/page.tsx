@@ -25,6 +25,7 @@ import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
 import { fetchBackendHealth, fetchBackends } from '@/lib/api';
+import { Eyebrow, Panel, Pill } from '@/components/ui/spectra';
 import { useStore } from '@/lib/store';
 import type { BackendCard, BackendHealth, BackendRegistry } from '@/lib/types';
 
@@ -62,7 +63,7 @@ export default function BackendRegistryPage() {
         ]}
       />
 
-      <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+      <div className="grid-bg flex-1 space-y-7 overflow-y-auto p-6 lg:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -211,26 +212,18 @@ function StatusTile({ label, ok, headline, reason }: {
   label: string; ok: boolean; headline: string; reason: string;
 }) {
   return (
-    <Card className="bg-card border-border">
-      <CardContent className="py-4 space-y-1">
+    <Panel interactive className="p-4">
+      <div className="space-y-1">
         <div className="flex items-center justify-between">
           <p className="text-[10px] uppercase font-bold text-muted-foreground">{label}</p>
-          <Badge
-            className={
-              ok
-                ? 'bg-confidence-high/15 text-confidence-high text-[10px]'
-                : 'bg-amber-500/15 text-amber-500 text-[10px]'
-            }
-          >
-            {ok ? 'READY' : 'UNAVAILABLE'}
-          </Badge>
+          <Pill tone={ok ? 'good' : 'ember'}>{ok ? 'READY' : 'UNAVAILABLE'}</Pill>
         </div>
         <p className="text-sm font-mono text-foreground truncate" title={headline}>
           {headline}
         </p>
         <p className="text-[11px] text-muted-foreground leading-snug">{reason}</p>
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }
 
@@ -238,11 +231,11 @@ function BackendCardView({ card }: { card: BackendCard }) {
   const isDeterministic = card.backend_id === null;
 
   return (
-    <Card className="bg-card border-border hover:border-brand-500/30 transition-colors">
+    <Panel interactive className="overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="flex items-center justify-center w-8 h-7 rounded bg-brand-500/20 text-brand-500 font-mono text-xs font-bold shrink-0">
+            <span className="grid h-7 w-9 shrink-0 place-items-center rounded-pill bg-brand-500/15 font-mono text-[11px] font-bold text-brand-500">
               {card.backend_id ?? 'DET'}
             </span>
             <div className="min-w-0">
@@ -253,15 +246,9 @@ function BackendCardView({ card }: { card: BackendCard }) {
               </CardDescription>
             </div>
           </div>
-          <Badge
-            className={
-              card.active
-                ? 'bg-confidence-high/15 text-confidence-high text-[10px] shrink-0'
-                : 'bg-amber-500/15 text-amber-500 text-[10px] shrink-0'
-            }
-          >
+          <Pill tone={card.active ? 'good' : 'ember'} className="shrink-0">
             {card.active ? 'ACTIVE' : 'INACTIVE'}
-          </Badge>
+          </Pill>
         </div>
       </CardHeader>
 
@@ -315,6 +302,6 @@ function BackendCardView({ card }: { card: BackendCard }) {
           {card.notes}
         </p>
       </CardContent>
-    </Card>
+    </Panel>
   );
 }

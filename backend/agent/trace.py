@@ -28,6 +28,7 @@ class TraceStep(BaseModel):
     confidence: float = 0.0
     output_summary: Optional[str] = None
     artifacts: List[str] = Field(default_factory=list)
+    facts: Dict[str, Any] = Field(default_factory=dict)
     note: Optional[str] = None
     warnings: List[str] = Field(default_factory=list)
 
@@ -86,6 +87,7 @@ class ExecutionTrace(BaseModel):
             confidence=getattr(result, "confidence", 0.0) if result else 0.0,
             output_summary=_one_line_summary(result) if result else note,
             artifacts=list(result.artifacts.keys()) if result and result.artifacts else [],
+            facts=dict(getattr(result, "facts", {})) if result and getattr(result, "facts", None) else {},
             note=note,
             warnings=list(result.warnings) if result and result.warnings else [],
         )

@@ -115,6 +115,7 @@ def _registry_card(model_id: Optional[str]) -> Optional[Dict[str, Any]]:
         "change_detect":      {"name": "Change Detect",       "provider": "GEE / deterministic",   "type": "Tool",     "offline_capable": False},
         "geo_stats":          {"name": "Geo Stats",           "provider": "Deterministic/rasterio", "type": "Tool",    "offline_capable": True},
         "coreg_check":        {"name": "Co-registration Check","provider": "Deterministic/skimage","type": "Tool",     "offline_capable": True},
+        "sar_optical_fuse":   {"name": "SAR-Optical Cross-Modal Fusion", "provider": "Deterministic/NumPy", "type": "Cross-Modal Dual-Sensor Engine", "offline_capable": True},
     }
     card = cards.get(model_id, {"name": model_id, "provider": "Unknown", "type": "Unknown", "offline_capable": None})
     return {"model_id": model_id, **card}
@@ -195,15 +196,26 @@ def build_report(
     template = _get_template("report.html")
 
     trace = getattr(query_result, "trace", None)
+    trace_dict = trace.model_dump() if trace and hasattr(trace, "model_dump") else {}
     confidence = getattr(query_result, "confidence", None)
     evidence = getattr(query_result, "evidence", {}) or {}
 
-    # Collect model cards for every model that ran
+    # Extract fusion details if sar_optical_fuse ran
+    fusion_details = None
+    if trace_dict and "steps" in trace_dict:
+        for step in trace_dict["steps"]:
+            if step.get("tool") == "sar_optical_fuse" and step.get("facts"):
+                fusion_details = step["facts"]
+                break
+
+    # Collect model cards for every model/tool that ran
     model_ids_seen: set = set()
     if trace and getattr(trace, "steps", None):
         for step in trace.steps:
             if step.model:
                 model_ids_seen.add(step.model)
+            elif step.tool:
+                model_ids_seen.add(step.tool)
     model_cards = [c for c in (_registry_card(m) for m in model_ids_seen) if c]
 
     # Build evidence items
@@ -242,9 +254,10 @@ def build_report(
         result=query_result,
         query_id=query_id,
         trace=trace,
-        trace_dict=trace.model_dump() if trace and hasattr(trace, "model_dump") else {},
+        trace_dict=trace_dict,
         confidence=confidence,
         evidence_items=evidence_items,
+        fusion_details=fusion_details,
         model_cards=model_cards,
         image_previews=image_previews,
         compat_checks=compat_checks,

@@ -406,6 +406,72 @@
 <p style="color:#64748b; font-size:8.5pt;">No secondary raster masks generated for this query.</p>
 {% endif %}
 
+{% if fusion_details %}
+<div class="evidence-box" style="border-left: 4pt solid #0284c7; background-color: #f8fafc; margin-top: 10pt;">
+  <div class="evidence-box-title" style="color: #0369a1;">
+    📡 Cross-Modal Sensor Cross-Validation &amp; Fusion Breakdown
+  </div>
+  
+  <table class="data-table" style="margin-top: 6pt; font-size: 8pt;">
+    <thead>
+      <tr>
+        <th style="width:20%;">Thematic Target</th>
+        <th style="width:16%;">Optical Detected</th>
+        <th style="width:16%;">SAR Detected</th>
+        <th style="width:16%;">Agreed Overlap</th>
+        <th style="width:16%;">Sensor Conflict</th>
+        <th style="width:16%;">Cross-Sensor IoU</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Water Extent</strong></td>
+        <td>{{ "%.2f"|format((fusion_details.water_fraction_optical or 0.0) * 100) }}%</td>
+        <td>{{ "%.2f"|format((fusion_details.water_fraction_sar or 0.0) * 100) }}%</td>
+        <td><strong style="color:#0284c7;">{{ "%.2f"|format((fusion_details.water_fraction_agreed or 0.0) * 100) }}%</strong></td>
+        <td><span style="color:#e11d48;">{{ "%.2f"|format((fusion_details.water_conflict_fraction or 0.0) * 100) }}%</span></td>
+        <td>{{ "%.1f"|format(((fusion_details.cross_sensor_agreement.water_iou if fusion_details.cross_sensor_agreement else 0.0) or 0.0) * 100) }}%</td>
+      </tr>
+      <tr>
+        <td><strong>Built-Up Area</strong></td>
+        <td>{{ "%.2f"|format((fusion_details.built_fraction_optical or 0.0) * 100) }}%</td>
+        <td>{{ "%.2f"|format((fusion_details.built_fraction_sar or 0.0) * 100) }}%</td>
+        <td><strong style="color:#0284c7;">{{ "%.2f"|format((fusion_details.built_fraction_agreed or 0.0) * 100) }}%</strong></td>
+        <td><span style="color:#e11d48;">{{ "%.2f"|format((fusion_details.built_conflict_fraction or 0.0) * 100) }}%</span></td>
+        <td>{{ "%.1f"|format(((fusion_details.cross_sensor_agreement.built_iou if fusion_details.cross_sensor_agreement else 0.0) or 0.0) * 100) }}%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {% if fusion_details.confidence_breakdown %}
+  <table style="width: 100%; border-collapse: collapse; margin-top: 6pt; font-size: 8pt; background: #ffffff; border: 1px solid #e2e8f0;">
+    <tr style="background: #f1f5f9;">
+      <td colspan="4" style="padding: 4pt 6pt; font-weight: bold; color: #1e293b;">
+        Confidence Architecture &amp; Stability Diagnostics (3-Pillar Model)
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 4pt 6pt; width: 25%;"><strong>Overall Confidence:</strong> {{ "%.1f"|format((fusion_details.confidence or 0.0) * 100) }}% ({{ fusion_details.confidence_band }})</td>
+      <td style="padding: 4pt 6pt; width: 25%;"><strong>Evidence Coverage:</strong> {{ "%.1f"|format((fusion_details.evidence_coverage or 0.0) * 100) }}% ({{ fusion_details.evidence_level }})</td>
+      <td style="padding: 4pt 6pt; width: 25%;"><strong>Threshold Stability:</strong> {{ fusion_details.internal_stability.stability if fusion_details.internal_stability else "—" }}</td>
+      <td style="padding: 4pt 6pt; width: 25%;"><strong>Bimodal Separation:</strong> {{ fusion_details.internal_stability.separation if fusion_details.internal_stability else "—" }}</td>
+    </tr>
+  </table>
+  {% endif %}
+
+  {% if fusion_details.limitations %}
+  <div style="margin-top: 6pt; font-size: 7.5pt; color: #475569;">
+    <strong>Identified Technical &amp; Input Limitations:</strong>
+    <ul style="margin: 2pt 0 0 12pt; padding: 0;">
+      {% for lim in fusion_details.limitations %}
+      <li>{{ lim }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- ===================================================================== -->
 <!-- SECTION 5: EXECUTION AUDIT TRACE (R11 Graded)                         -->
 <!-- ===================================================================== -->

@@ -77,6 +77,7 @@ async def execute_plan(
     for step in plan.steps:
         tool = REGISTRY.get(step.tool)
         if tool is None:
+            print(f"   [SKIPPED] Step {step.id}: Unknown tool '{step.tool}'")
             trace.add_step(step, status="SKIPPED", note=f"Unknown tool '{step.tool}'")
             await emit({"type": "step", "id": step.id, "tool": step.tool,
                         "status": "skipped", "note": f"Unknown tool '{step.tool}'"})
@@ -85,6 +86,7 @@ async def execute_plan(
         # Check if tool can run on this scene
         ok, why = tool.can_run(scene)
         if not ok:
+            print(f"   [SKIPPED] Step {step.id}: Tool '{step.tool}' cannot run on scene ({why})")
             trace.add_step(step, status="SKIPPED", note=why)
             await emit({"type": "step", "id": step.id, "tool": step.tool,
                         "status": "skipped", "note": why})
@@ -95,6 +97,7 @@ async def execute_plan(
         try:
             params, warns = bind_params(tool, resolved_params)
         except Exception as e:
+            print(f"   [FAILED] Step {step.id}: Param binding error for '{tool.name}': {e}")
             result = ToolResult(
                 tool=tool.name, confidence=0.0,
                 confidence_basis=f"parameter binding failed: {e}",
@@ -109,6 +112,9 @@ async def execute_plan(
             continue
 
         # Emit running status
+        print(f"\n   ┌─── [EXECUTING STEP {step.id}] Tool: '{tool.name}' ──────────────────────")
+        print(f"   │ Params Applied: {params.model_dump()}")
+        print(f"   │ Reason: {step.reason}")
         await emit({"type": "step", "id": step.id, "tool": step.tool,
                     "status": "running", "params": params.model_dump(),
                     "reason": step.reason})
@@ -146,6 +152,19 @@ async def execute_plan(
             params_applied=params.model_dump(),
             result=result,
         )
+
+        print(f"   │ Status        : {'OK' if result.confidence > 0 else 'FAILED'} (Duration: {result.duration_ms}ms)")
+        print(f"   │ Confidence    : {result.confidence} (Basis: {result.confidence_basis})")
+        if result.facts:
+            print(f"   │ Facts         : {result.facts}")
+        if result.text:
+            text_preview = result.text.strip().replace('\n', ' ')
+            print(f"   │ Text Output   : {text_preview[:160]}{'...' if len(text_preview) > 160 else ''}")
+        if result.artifacts:
+            print(f"   │ Artifacts     : {list(result.artifacts.keys())}")
+        if result.warnings:
+            print(f"   │ Warnings      : {result.warnings}")
+        print(f"   └──────────────────────────────────────────────────────────")
 
         # Emit completion
         await emit({

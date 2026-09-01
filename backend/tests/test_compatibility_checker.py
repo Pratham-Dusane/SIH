@@ -182,7 +182,7 @@ def test_c6_co_registration_shift_synthetic_roll():
 # ---------------------------------------------------------------------------
 # C6 regression: optical/SAR co-registration.
 #
-# Phase correlation between optical and SAR intensities is noise — they measure
+# Phase correlation between optical and SAR intensities is noise - they measure
 # different physics. Letting that noise drive the verdict rejected genuinely
 # well-aligned Sentinel-2 + Sentinel-1 pairs with ~65 px of imaginary shift.
 # ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ def test_c6_cross_modal_uses_geotransform_not_intensity_correlation():
     from services.ingest.compatibility_checker import co_registration_estimate
 
     np.random.seed(7)
-    # Same footprint, but radiometrically unrelated content — as optical and
+    # Same footprint, but radiometrically unrelated content - as optical and
     # SAR always are, even over the identical patch of ground.
     optical = _make_dummy_image(
         "opt", modality="OPTICAL", width=256, height=256,
@@ -233,7 +233,7 @@ def test_c6_cross_modal_detects_a_real_grid_offset():
 def test_c6_same_modality_still_catches_content_offset():
     """
     Identical geotransforms but shifted pixels means the product's own
-    georeferencing is wrong — still a real misregistration, still detected.
+    georeferencing is wrong - still a real misregistration, still detected.
     """
     from services.ingest.compatibility_checker import co_registration_estimate
 

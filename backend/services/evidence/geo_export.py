@@ -1,9 +1,9 @@
 """
-Geo Export — PRD §10.2 (Phase 7).
+Geo Export - PRD §10.2 (Phase 7).
 
 Two deterministic, offline-safe functions:
-  1. write_mask_geotiff  — mask → GeoTIFF with embedded trace provenance tags
-  2. mask_to_geojson     — mask → GeoJSON polygon (EPSG:4326)
+  1. write_mask_geotiff  - mask → GeoTIFF with embedded trace provenance tags
+  2. mask_to_geojson     - mask → GeoJSON polygon (EPSG:4326)
 
 Both functions are pure computation.  No network calls, no LLM.
 The trace ID is written into the GeoTIFF tags so a mask opened in QGIS
@@ -36,7 +36,7 @@ def write_mask_geotiff(
     model_version: Optional[str] = None,
 ) -> str:
     """
-    Write a binary mask as a Cloud-Optimised-friendly GeoTIFF — PRD §10.2.
+    Write a binary mask as a Cloud-Optimised-friendly GeoTIFF - PRD §10.2.
 
     The file is deflate-compressed and tiled 256×256 so QGIS and rasterio
     can stream partial reads efficiently.
@@ -48,7 +48,7 @@ def write_mask_geotiff(
     ----------
     mask:          H×W boolean/uint8 array
     transform:     rasterio Affine transform (source CRS)
-    crs:           rasterio CRS object (source CRS — NOT reprojected here)
+    crs:           rasterio CRS object (source CRS - NOT reprojected here)
     out_path:      absolute path to write to (created if missing)
     nodata:        nodata value (default 0 = background)
     trace_id:      ExecutionTrace.trace_id for provenance
@@ -108,7 +108,7 @@ def mask_to_geojson(
     tool_name: Optional[str] = None,
 ) -> str:
     """
-    Vectorise a binary mask to a simplified GeoJSON — PRD §10.2.
+    Vectorise a binary mask to a simplified GeoJSON - PRD §10.2.
 
     Pipeline:
       rasterio.features.shapes → shapely.simplify(gsd/2) → reproject EPSG:4326
@@ -220,7 +220,7 @@ def mask_area_stats(
     crs=None,
 ) -> dict:
     """
-    Compute area_ha and fraction for a binary mask — used in the report
+    Compute area_ha and fraction for a binary mask - used in the report
     evidence stats table.
 
     Area is computed from the actual pixel size (transform), never assumed

@@ -66,7 +66,7 @@ def shift_from_geotransform(a: Dict[str, Any], b: Dict[str, Any]) -> Optional[fl
     Misregistration in pixels, read straight off the two geotransforms.
 
     For georeferenced products this is the *exact* answer and it is completely
-    modality-independent — the grid origins either line up or they do not.
+    modality-independent - the grid origins either line up or they do not.
     Returns None when either image lacks a usable footprint.
     """
     ba, bb = a.get("bounds_wgs84"), b.get("bounds_wgs84")
@@ -93,7 +93,7 @@ def estimate_shift(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[float, float]:
     Returns (shift_in_original_pixels, normalized_error).
 
     **Only valid for same-modality pairs.**  Optical and SAR measure different
-    physics, so correlating their raw intensities produces noise — see
+    physics, so correlating their raw intensities produces noise - see
     `co_registration_estimate` for how that case is handled.
     """
     ga = _gray_512(a)
@@ -115,7 +115,7 @@ def estimate_shift(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[float, float]:
 
 
 def _gradient_magnitude(g: np.ndarray) -> np.ndarray:
-    """Normalised Sobel gradient magnitude — a modality-invariant structure map."""
+    """Normalised Sobel gradient magnitude - a modality-invariant structure map."""
     gy, gx = np.gradient(g.astype("float64"))
     mag = np.hypot(gx, gy)
     peak = np.percentile(mag, 99) if mag.size else 0.0
@@ -130,16 +130,16 @@ def co_registration_estimate(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[Opti
 
     Two independent things can be misaligned, and they are not the same:
 
-    * **grid offset** — the geotransforms disagree.  Exact, and completely
+    * **grid offset** - the geotransforms disagree.  Exact, and completely
       modality-independent.
-    * **content offset** — the geotransforms agree but the imagery does not,
+    * **content offset** - the geotransforms agree but the imagery does not,
       i.e. the product's own georeferencing is wrong.  Only detectable by
       correlating pixels, which is meaningful *within* a modality.
 
     Same-modality pairs are checked both ways and the worse number wins, since
     either kind of offset breaks change detection.  For a cross-modal pair,
     optical and SAR measure different physics, so intensity correlation between
-    them is noise — the geotransform is the only trustworthy signal, and noise
+    them is noise - the geotransform is the only trustworthy signal, and noise
     must never be allowed to FAIL a well-georeferenced scene.
 
     `shift_px` is None when no trustworthy estimate exists; the caller reports
@@ -166,11 +166,11 @@ def co_registration_estimate(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[Opti
         corr_note = f"correlation failed: {e}"
 
     if geo_shift is not None and corr_shift is not None:
-        # Both available and comparable — the larger offset is the real problem.
+        # Both available and comparable - the larger offset is the real problem.
         if corr_shift >= geo_shift:
             return corr_shift, "phase_correlation", (
                 f"image content offset by {corr_shift:.2f} px while the geotransforms "
-                f"differ by only {geo_shift:.2f} px — the georeferencing may be wrong")
+                f"differ by only {geo_shift:.2f} px - the georeferencing may be wrong")
         return geo_shift, "geotransform", (
             f"grid origins differ by {geo_shift:.2f} px; image content agrees "
             f"to {corr_shift:.2f} px")
@@ -184,7 +184,7 @@ def co_registration_estimate(a: Dict[str, Any], b: Dict[str, Any]) -> Tuple[Opti
     # No usable georeferencing (benchmark PNGs, unreferenced products).
     if not same_modality:
         return corr_shift, "gradient_correlation", (
-            "cross-modal pair with no georeferencing — estimated from edge "
+            "cross-modal pair with no georeferencing - estimated from edge "
             "structure, treat as indicative only")
     return corr_shift, "phase_correlation", corr_note
 
@@ -321,11 +321,11 @@ def check_compatibility(
             # on: indicative only, so it may warn but must never fail a scene.
             status = PASS if shift <= 2.0 else WARN
             checks.append(_mk("co_registration", status,
-                              f"Estimated misregistration {shift:.2f} px — {note}"))
+                              f"Estimated misregistration {shift:.2f} px - {note}"))
         else:
             status = PASS if shift <= 2.0 else (WARN if shift <= 8.0 else FAIL)
             checks.append(_mk("co_registration", status,
-                              f"Misregistration {shift:.2f} px — {note}"))
+                              f"Misregistration {shift:.2f} px - {note}"))
 
     # Determine overall verdict
     verdict = PASS

@@ -1,5 +1,5 @@
 # =============================================================================
-# SatQuery AI — M1: RS-CLIP Dual Encoder Training
+# SatQuery AI - M1: RS-CLIP Dual Encoder Training
 # Run this entire file as a Kaggle notebook (T4 x2)
 #
 # HOW THIS WORKS AROUND DATA RESTRICTIONS:
@@ -239,7 +239,7 @@ out = Path("/kaggle/working")
 started = datetime.utcnow().isoformat()
 
 print("\n" + "="*60)
-print(f"  RS-CLIP Training — SatQuery AI M1 (SYNTHETIC DATA: {N_SAMPLES} patches)")
+print(f"  RS-CLIP Training - SatQuery AI M1 (SYNTHETIC DATA: {N_SAMPLES} patches)")
 print("="*60)
 
 for epoch in range(1, EPOCHS+1):

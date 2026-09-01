@@ -17,7 +17,7 @@ def run(coro):
 
 
 # ---------------------------------------------------------------------------
-# §8.1/§8.2 — every registered tool honours the Tool contract
+# §8.1/§8.2 - every registered tool honours the Tool contract
 # ---------------------------------------------------------------------------
 def test_every_tool_declares_the_full_spec():
     from tools.base import Tool, ToolParams
@@ -58,7 +58,7 @@ def test_registry_manifest_is_json_serialisable_for_the_planner():
 
 
 # ---------------------------------------------------------------------------
-# §8.4 — parameter whitelisting actually rejects
+# §8.4 - parameter whitelisting actually rejects
 # ---------------------------------------------------------------------------
 def test_bind_params_drops_non_permitted_keys_and_warns():
     from tools.bind_params import bind_params
@@ -71,7 +71,7 @@ def test_bind_params_drops_non_permitted_keys_and_warns():
 
 
 # ---------------------------------------------------------------------------
-# §9.4 — the planner only ever emits registered tools
+# §9.4 - the planner only ever emits registered tools
 # ---------------------------------------------------------------------------
 def test_planner_only_emits_registered_tools_for_every_task(all_backends_available):
     from agent.planner import make_plan
@@ -112,7 +112,7 @@ def test_planner_only_emits_registered_tools_for_every_task(all_backends_availab
 
 
 # ---------------------------------------------------------------------------
-# §9.6 — the numeric grounding check and its provenance reporting
+# §9.6 - the numeric grounding check and its provenance reporting
 # ---------------------------------------------------------------------------
 def _cd(fraction):
     return ToolResult(tool="change_detect", model_id="G2", confidence=0.6,
@@ -186,7 +186,7 @@ def test_unverified_numbers_ignores_deterministic_tool_text():
 
 
 # ---------------------------------------------------------------------------
-# §9.7 — confidence aggregation and abstention
+# §9.7 - confidence aggregation and abstention
 # ---------------------------------------------------------------------------
 def test_confidence_is_zero_when_no_tool_succeeded():
     from agent.confidence import aggregate_confidence, should_abstain
@@ -217,7 +217,7 @@ def test_misregistration_warning_caps_confidence():
 
 
 # ---------------------------------------------------------------------------
-# §9.8 — the trace records what actually ran
+# §9.8 - the trace records what actually ran
 # ---------------------------------------------------------------------------
 def test_trace_records_steps_and_finishes():
     from agent.plan_schema import PlanStep
@@ -349,7 +349,7 @@ def test_change_vqa_reports_honestly_when_nothing_ran():
 
 
 # ---------------------------------------------------------------------------
-# §9.8 / R11 — the trace must reach the client and survive the request.
+# §9.8 / R11 - the trace must reach the client and survive the request.
 #
 # The SSE result previously carried only `trace_id`, and no endpoint served the
 # trace, so the execution drawer had nothing to render. Nothing was persisted

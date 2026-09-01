@@ -140,7 +140,7 @@ export default function DashboardPage() {
                     </p>
                     <h1
                       className="text-2xl sm:text-3xl lg:text-[2.05rem] xl:text-[2.35rem] font-bold tracking-tight text-foreground leading-[1.15] whitespace-normal lg:whitespace-nowrap"
-                      style={{ fontFamily: 'var(--font-heading)' }}
+                      style={{ fontFamily: 'var(--font-bodoni-moda), "Bodoni Moda", "Times New Roman", serif' }}
                     >
                       Ask the satellite what matters most.
                     </h1>

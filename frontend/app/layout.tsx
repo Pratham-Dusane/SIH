@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, DM_Sans, JetBrains_Mono, Bodoni_Moda } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -21,6 +21,13 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500"],
 });
 
+const bodoniModa = Bodoni_Moda({
+  variable: "--font-bodoni-moda",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
   title: "SatQuery AI - Agentic Remote Sensing Assistant",
   description:
@@ -31,7 +38,7 @@ import { AuthProvider } from "@/lib/auth-context";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${dmSans.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${dmSans.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} ${bodoniModa.variable} h-full antialiased`}>
       <head>
         <meta name="darkreader-lock" content="darkreader-lock" />
       </head>

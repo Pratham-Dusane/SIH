@@ -1390,7 +1390,7 @@ def test_scene_dates_endpoint_rejects_bad_input(monkeypatch):
 
 # ---------------------------------------------------------------------------
 # Acquisition dates are an input to every Earth Engine result, so they are
-# locked once a scene has been queried — otherwise stored answers and traces
+# locked once a scene has been queried - otherwise stored answers and traces
 # would describe a date window that no longer matches their own scene.
 # ---------------------------------------------------------------------------
 def _dates_app(queries=None):
@@ -1482,7 +1482,7 @@ def test_query_history_is_scoped_to_its_own_scene():
 #
 # Reducing an empty ImageCollection yields an image with no bands, and the
 # failure only surfaced far downstream as "No band named 'B11'. Available band
-# names: []" — which says nothing about the real problem: no imagery exists for
+# names: []" - which says nothing about the real problem: no imagery exists for
 # that AOI and date window (a future date, or a cloudy monsoon month).
 # ---------------------------------------------------------------------------
 def test_change_detect_reports_no_coverage_clearly(monkeypatch):
@@ -1543,7 +1543,7 @@ def test_change_detect_reports_which_date_had_no_imagery(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# T1 must precede T2 — the slots are labelled earlier/later and every change
+# T1 must precede T2 - the slots are labelled earlier/later and every change
 # result is signed accordingly, so a reversed pair inverts the direction.
 # ---------------------------------------------------------------------------
 def test_dates_endpoint_rejects_reversed_bitemporal_pair():

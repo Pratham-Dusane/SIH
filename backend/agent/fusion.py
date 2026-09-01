@@ -91,7 +91,7 @@ def unverified_numbers(answer: str, results: Dict[str, Any]) -> List[str]:
     Numbers whose only support is prose from an unadapted hosted VLM.
 
     `verify_grounded` treats any tool's `text` as a source, which is what §9.6
-    specifies — but it means a figure the VLM invents whitelists itself, and the
+    specifies - but it means a figure the VLM invents whitelists itself, and the
     VLM is precisely the component with no measurement behind it.  These numbers
     are not errors and must not be suppressed; they are reported in the trace so
     a reader can see which figures were measured and which were merely stated.
@@ -156,7 +156,7 @@ def _render_change_vqa(results: Dict[str, Any], query: str) -> str:
     `change_vqa` carries the narrative and `change_detect` the measurement, the
     same pairing `_render_change_answer` uses for change descriptions.  This
     renderer exists because CHANGE_VQA previously routed to `_render_vqa`, which
-    looks for `rs_vqa` — a tool that task never plans.  The lookup always missed
+    looks for `rs_vqa` - a tool that task never plans.  The lookup always missed
     and a perfectly good `change_vqa` answer was replaced by the fallback string.
     """
     cvqa = _find_result(results, "change_vqa")
@@ -294,7 +294,7 @@ class FusionResult(BaseModel):
     grounding_check: str                       # "PASS" | "FAIL"
     unsupported_numbers: List[str] = []
     # Figures stated only by the hosted VLM, with no measurement behind them.
-    # Not a failure — but a reader of the trace should know which is which.
+    # Not a failure - but a reader of the trace should know which is which.
     unverified_numbers: List[str] = []
 
 
@@ -314,7 +314,7 @@ async def fuse(
     else:
         answer = _render_vqa(results, query)
 
-    # Numeric grounding check — every number in the answer must be traceable to
+    # Numeric grounding check - every number in the answer must be traceable to
     # a tool output (§9.6).  This catches a fluent, plausible, invented statistic.
     ok, unsupported = verify_grounded(answer, results)
     if ok:
@@ -322,7 +322,7 @@ async def fuse(
             answer=answer, mode="template", grounding_check="PASS",
             unverified_numbers=unverified_numbers(answer, results))
 
-    # Fall back to a safer rendering — just concatenate what the tools actually
+    # Fall back to a safer rendering - just concatenate what the tools actually
     # said, so no synthesised number can survive.
     safe_parts = [r.text for r in results.values()
                   if getattr(r, "text", None)]

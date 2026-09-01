@@ -4,7 +4,7 @@ Regression tests for SAR dB conversion (tools/_sar_db.py).
 The bug these exist to prevent: a fixed calibrated clip range applied to an
 uncalibrated DN product collapses the raster to a single value, after which
 every threshold silently returns False. The tool then reports "0% water, 0%
-built-up, 100% sensor conflict" from imagery that was perfectly usable — a
+built-up, 100% sensor conflict" from imagery that was perfectly usable - a
 wrong answer delivered with no error anywhere.
 """
 
@@ -47,7 +47,7 @@ def test_calibrated_backscatter_is_recognised_and_clipped():
 def test_thresholds_survive_on_uncalibrated_data():
     """
     Otsu and percentile thresholds are relative, so they must still partition
-    an uncalibrated raster — this is what actually broke.
+    an uncalibrated raster - this is what actually broke.
     """
     rng = np.random.default_rng(2)
     dn = rng.integers(54, 5891, size=(192, 192)).astype("uint16")
@@ -123,8 +123,8 @@ def test_fusion_produces_live_sar_fractions_on_uncalibrated_input(tmp_path):
     res = run(SAROpticalFuseTool().run(ctx, FuseParams()))
 
     f = res.facts
-    assert f["water_fraction_sar"] > 0.0, "SAR water mask is empty — dB was flattened"
-    assert f["built_fraction_sar"] > 0.0, "SAR built mask is empty — dB was flattened"
+    assert f["water_fraction_sar"] > 0.0, "SAR water mask is empty - dB was flattened"
+    assert f["built_fraction_sar"] > 0.0, "SAR built mask is empty - dB was flattened"
     # 90th-percentile threshold selects ~10% by construction.
     assert 0.05 < f["built_fraction_sar"] < 0.15
 
@@ -153,7 +153,7 @@ def test_sar_water_mask_is_not_empty_on_uncalibrated_input(tmp_path):
 # The same fixed-calibrated-range assumption lived in the preview stretch:
 # clip(db, -25, 5) then (db + 25) / 30. An uncalibrated uint16 product sits
 # entirely above that ceiling, so every pixel became 1.0 and the SAR preview
-# rendered as a pure white rectangle — which is what the blend view showed.
+# rendered as a pure white rectangle - which is what the blend view showed.
 # ---------------------------------------------------------------------------
 def test_sar_preview_is_not_a_white_rectangle():
     from services.ingest.preprocessor import prepare

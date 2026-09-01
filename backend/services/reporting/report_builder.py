@@ -1,20 +1,20 @@
 """
-Report Builder — PRD §10.4 (Phase 7).
+Report Builder - PRD §10.4 (Phase 7).
 
 Generates a 7-section PDF report using Jinja2 templating + WeasyPrint.
 Falls back to xhtml2pdf if WeasyPrint is not installed (avoids GTK
 native-library dependency on Windows dev machines).
 
-Report sections (all mandatory — §10.4, R11/R13):
-  1. Cover                — scene name, date, input config, thumbnails
-  2. Query & Answer       — verbatim query, final answer, confidence band
-  3. Input Validation     — full compatibility checklist (pass/warn/fail)
-  4. Evidence             — each layer rendered over preview + stats table
-  5. Execution Summary    — trace table (step, tool, model, params, duration, confidence)
-  6. Model Provenance     — model card for every model that ran
-  7. Appendix             — full metadata for each input image
+Report sections (all mandatory - §10.4, R11/R13):
+  1. Cover                - scene name, date, input config, thumbnails
+  2. Query & Answer       - verbatim query, final answer, confidence band
+  3. Input Validation     - full compatibility checklist (pass/warn/fail)
+  4. Evidence             - each layer rendered over preview + stats table
+  5. Execution Summary    - trace table (step, tool, model, params, duration, confidence)
+  6. Model Provenance     - model card for every model that ran
+  7. Appendix             - full metadata for each input image
 
-Sections 3, 5 and 6 are R11-graded — do not remove for aesthetics.
+Sections 3, 5 and 6 are R11-graded - do not remove for aesthetics.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 
 
 # ---------------------------------------------------------------------------
-# PDF rendering backend — try WeasyPrint, fall back to xhtml2pdf
+# PDF rendering backend - try WeasyPrint, fall back to xhtml2pdf
 # ---------------------------------------------------------------------------
 
 def _render_pdf(html_string: str, base_url: Optional[str] = None) -> bytes:
@@ -104,7 +104,7 @@ def _registry_card(model_id: Optional[str]) -> Optional[Dict[str, Any]]:
     """
     if not model_id:
         return None
-    # Minimal card — extend when a proper model registry exists
+    # Minimal card - extend when a proper model registry exists
     cards = {
         "gemini-3.6-flash":   {"name": "Gemini 3.6 Flash",   "provider": "Google Vertex AI",  "type": "VLM",          "offline_capable": False},
         "gemini-3.5-flash":   {"name": "Gemini 3.5 Flash",   "provider": "Google Vertex AI",  "type": "VLM",          "offline_capable": False},
@@ -179,7 +179,7 @@ def build_report(
     base_url: str = "",
 ) -> bytes:
     """
-    Build the 7-section PDF report — PRD §10.4.
+    Build the 7-section PDF report - PRD §10.4.
 
     Parameters
     ----------
@@ -279,7 +279,7 @@ def build_report(
 
 def build_answer_markdown(query_result: Any, scene: Any) -> str:
     """
-    Generate the answer.md artifact — PRD §10.5.
+    Generate the answer.md artifact - PRD §10.5.
 
     A lightweight markdown file with the verbatim query, final answer,
     and confidence band.  Useful for CI diff and documentation.
@@ -289,7 +289,7 @@ def build_answer_markdown(query_result: Any, scene: Any) -> str:
     scene_name = getattr(scene, "name", getattr(scene, "id", "unknown"))
 
     lines = [
-        "# SatQuery AI — Query Answer",
+        "# SatQuery AI - Query Answer",
         "",
         f"**Scene:** {scene_name}",
         f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",

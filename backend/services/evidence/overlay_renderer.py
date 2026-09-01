@@ -1,5 +1,5 @@
 """
-Overlay Renderer — PRD §10.1 (Phase 7).
+Overlay Renderer - PRD §10.1 (Phase 7).
 
 Converts binary numpy masks into display-ready RGBA PNGs aligned to the
 scene's preview.png thumbnail.  Every visual artifact is produced in two
@@ -7,7 +7,7 @@ forms:
   - a display PNG  (RGBA, transparent background, aligned to preview.png)
   - a geo artifact (GeoTIFF or GeoJSON, handled by geo_export.py)
 
-Layer colour palette — must match frontend evidence.* CSS tokens:
+Layer colour palette - must match frontend evidence.* CSS tokens:
   boxes          #22d3ee
   generic mask   #a3e635
   change map     #ef4444
@@ -25,7 +25,7 @@ import numpy as np
 from PIL import Image
 
 # ---------------------------------------------------------------------------
-# PRD §10.1 colour palette — (R, G, B) tuples
+# PRD §10.1 colour palette - (R, G, B) tuples
 # ---------------------------------------------------------------------------
 PALETTE: dict[str, Tuple[int, int, int]] = {
     "boxes":    (34,  211, 238),   # #22d3ee - cyan
@@ -61,7 +61,7 @@ def _dilate_edge(mask: np.ndarray, iterations: int = 1) -> np.ndarray:
 def _hatch_pattern(mask: np.ndarray, spacing: int = 6) -> np.ndarray:
     """
     Create a diagonal hatch visibility mask for the conflict layer.
-    Returns a boolean array — True where the hatch line falls.
+    Returns a boolean array - True where the hatch line falls.
     """
     h, w = mask.shape
     hatch = np.zeros((h, w), dtype=bool)
@@ -103,7 +103,7 @@ def render_mask_overlay(
     hatch: bool = False,
 ) -> bytes:
     """
-    Convert a binary 2-D mask to an RGBA PNG overlay — PRD §10.1.
+    Convert a binary 2-D mask to an RGBA PNG overlay - PRD §10.1.
 
     Parameters
     ----------
@@ -146,7 +146,7 @@ def render_boxes_overlay(
     line_width: int = 3,
 ) -> bytes:
     """
-    Draw bounding boxes on a transparent RGBA canvas — PRD §10.1.
+    Draw bounding boxes on a transparent RGBA canvas - PRD §10.1.
 
     Parameters
     ----------

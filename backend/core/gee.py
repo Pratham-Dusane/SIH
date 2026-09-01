@@ -275,7 +275,7 @@ def s2_composite(ee, aoi, date: str, window_days: int = 30):
 
     # The image count must come back with the composite.  Reducing an empty
     # collection yields an image with *no bands*, and the failure only surfaces
-    # much later as "No band named 'B11'. Available band names: []" — which
+    # much later as "No band named 'B11'. Available band names: []" - which
     # tells the user nothing about the actual problem: there is no Sentinel-2
     # imagery for that AOI and date window.
     count = int(col.size().getInfo())

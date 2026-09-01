@@ -357,7 +357,7 @@ async def set_scene_dates(
                 img["acquired_at"] = date
 
     # T1 must precede T2.  The slots are labelled "earlier" and "later" and every
-    # change result is signed accordingly — a reversed pair silently inverts the
+    # change result is signed accordingly - a reversed pair silently inverts the
     # direction of change rather than failing.
     dates_by_role = {img["role"]: img.get("acquired_at") for img in scene_data["images"]}
     t1, t2 = dates_by_role.get("t1"), dates_by_role.get("t2")

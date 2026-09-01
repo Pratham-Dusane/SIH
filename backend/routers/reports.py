@@ -1,5 +1,5 @@
 """
-Reports / Export Router — PRD §10.5, §14 (Phase 7).
+Reports / Export Router - PRD §10.5, §14 (Phase 7).
 
 Endpoints:
   GET /api/queries/{id}/export/bundle         → ZIP (all artifacts)
@@ -145,7 +145,7 @@ def export_trace(
     db: Database = Depends(get_db),
 ):
     """
-    Download the ExecutionTrace JSON for a completed query — PRD §10.5.
+    Download the ExecutionTrace JSON for a completed query - PRD §10.5.
 
     This is the R11-graded artifact: a machine-readable audit of which tool
     ran with which parameters.
@@ -160,7 +160,7 @@ def export_trace(
             "query_id": query_id,
             "answer": record.get("answer"),
             "confidence": record.get("confidence"),
-            "note": "Full trace not available — trace_id was not persisted.",
+            "note": "Full trace not available - trace_id was not persisted.",
         }
 
     return Response(
@@ -178,7 +178,7 @@ def export_answer(
     _user: dict = Depends(current_user),
     db: Database = Depends(get_db),
 ):
-    """Download the answer.md artifact — PRD §10.5."""
+    """Download the answer.md artifact - PRD §10.5."""
     record = _load_query(query_id, db)
     scene = _load_scene(record.get("scene_id", ""), db)
     trace_dict = _load_trace(query_id, record.get("trace_id"), db)
@@ -202,7 +202,7 @@ def export_report(
     _user: dict = Depends(current_user),
     db: Database = Depends(get_db),
 ):
-    """Download the 7-section PDF analysis report — PRD §10.4."""
+    """Download the 7-section PDF analysis report - PRD §10.4."""
     record = _load_query(query_id, db)
     scene = _load_scene(record.get("scene_id", ""), db)
     trace_dict = _load_trace(query_id, record.get("trace_id"), db)
@@ -239,7 +239,7 @@ def export_evidence_geotiff(
     storage: Storage = Depends(get_storage),
 ):
     """
-    Download a single GeoTIFF for a specific evidence layer — PRD §10.5.
+    Download a single GeoTIFF for a specific evidence layer - PRD §10.5.
 
     Supports QGIS pull without downloading the full bundle.
     The GeoTIFF has provenance tags (SATQUERY_TRACE, SATQUERY_TOOL) so
@@ -296,7 +296,7 @@ def export_evidence_geojson(
     db: Database = Depends(get_db),
     storage: Storage = Depends(get_storage),
 ):
-    """Download a GeoJSON polygon for a specific evidence layer — PRD §10.5."""
+    """Download a GeoJSON polygon for a specific evidence layer - PRD §10.5."""
     record = _load_query(query_id, db)
     workspace_id = record.get("workspace_id", "ws_demo")
     scene_id = record.get("scene_id", "")
@@ -343,7 +343,7 @@ def export_evidence_png(
     db: Database = Depends(get_db),
     storage: Storage = Depends(get_storage),
 ):
-    """Download the RGBA PNG overlay for a specific evidence layer — PRD §10.1."""
+    """Download the RGBA PNG overlay for a specific evidence layer - PRD §10.1."""
     record = _load_query(query_id, db)
     workspace_id = record.get("workspace_id", "ws_demo")
     scene_id = record.get("scene_id", "")
@@ -375,7 +375,7 @@ def export_evidence_png(
 
 
 # ---------------------------------------------------------------------------
-# ZIP bundle — all artifacts in one download
+# ZIP bundle - all artifacts in one download
 # ---------------------------------------------------------------------------
 
 @router.get("/{query_id}/export/bundle")
@@ -386,7 +386,7 @@ def export_bundle(
     storage: Storage = Depends(get_storage),
 ):
     """
-    Download all artifacts as a ZIP bundle — PRD §10.5.
+    Download all artifacts as a ZIP bundle - PRD §10.5.
 
     Bundle structure:
       satquery_{queryId}/

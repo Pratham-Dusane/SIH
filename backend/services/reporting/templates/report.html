@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>SatQuery AI — Intelligence Analysis Report</title>
+  <title>SatQuery AI - Intelligence Analysis Report</title>
   <style>
     /* ===================================================================== */
     /* Base Reset & Document Typography                                      */
@@ -267,13 +267,13 @@
     </tr>
     <tr>
       <td class="meta-label">Scene ID:</td>
-      <td class="meta-val">{{ scene.id if scene else "—" }}</td>
+      <td class="meta-val">{{ scene.id if scene else "-" }}</td>
       <td class="meta-label">Input Config:</td>
-      <td class="meta-val">{{ scene.input_config if scene else "—" }}</td>
+      <td class="meta-val">{{ scene.input_config if scene else "-" }}</td>
     </tr>
     <tr>
       <td class="meta-label">Trace Audit ID:</td>
-      <td class="meta-val">{{ trace.trace_id if trace else "—" }}</td>
+      <td class="meta-val">{{ trace.trace_id if trace else "-" }}</td>
       <td class="meta-label">Execution Status:</td>
       <td class="meta-val"><strong>{{ trace.status if trace else "COMPLETED" }}</strong></td>
     </tr>
@@ -302,7 +302,7 @@
 
 <p><strong>Primary User Query:</strong></p>
 <div class="query-callout">
-  <em>"{{ trace.query if trace else "—" }}"</em>
+  <em>"{{ trace.query if trace else "-" }}"</em>
 </div>
 
 <p><strong>Generated Intelligence Finding:</strong></p>
@@ -327,7 +327,7 @@
       {% endif %}
     </td>
     <td style="color:#0f172a; font-weight:bold;">
-      {% if confidence %}{{ "%.0f"|format(confidence.value * 100) }}%{% else %}—{% endif %}
+      {% if confidence %}{{ "%.0f"|format(confidence.value * 100) }}%{% else %}-{% endif %}
     </td>
     <td style="color:#475569; font-size:8.5pt;">
       {% if confidence %}({{ confidence.basis }}){% endif %}
@@ -360,7 +360,7 @@
         {% elif check.status == "FAIL" %}
           <span class="status-fail">✗ FAILED</span>
         {% else %}
-          <span class="status-na">— N/A</span>
+          <span class="status-na">- N/A</span>
         {% endif %}
       </td>
       <td>{{ check.detail or "Validated successfully against schema." }}</td>
@@ -584,7 +584,7 @@
     </tr>
     <tr>
       <td><strong>Raster Dimensions</strong></td>
-      <td>{{ img.metadata.width if img.metadata else "—" }} × {{ img.metadata.height if img.metadata else "—" }} pixels ({{ img.metadata.bands if img.metadata else "1" }} bands)</td>
+      <td>{{ img.metadata.width if img.metadata else "-" }} × {{ img.metadata.height if img.metadata else "-" }} pixels ({{ img.metadata.bands if img.metadata else "1" }} bands)</td>
     </tr>
     <tr>
       <td><strong>Ground Sample Distance (GSD)</strong></td>

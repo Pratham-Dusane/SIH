@@ -5,8 +5,8 @@ Why this is not a one-liner:
 
 A calibrated Sentinel-1 product carries backscatter coefficients (sigma0 /
 gamma0) as linear power around 0-1, which lands roughly in -35..+10 dB.  Many
-real products — RISAT scenes, GeoTIFF subsets cut by a portal, anything
-exported without applying the calibration LUT — instead carry raw digital
+real products - RISAT scenes, GeoTIFF subsets cut by a portal, anything
+exported without applying the calibration LUT - instead carry raw digital
 numbers.  A uint16 DN scene of 54..5891 converts to +17..+38 dB.
 
 Clipping that to a fixed calibrated envelope collapses the whole raster to a
@@ -16,7 +16,7 @@ usable.  That is the failure this module exists to prevent.
 
 Otsu and percentile thresholds are both *relative* to the distribution, so they
 work fine on uncalibrated DN.  What is not safe is presenting the resulting dB
-numbers as absolute backscatter — so the caller is told which case it got and
+numbers as absolute backscatter - so the caller is told which case it got and
 must say so in its output.
 """
 
@@ -30,7 +30,7 @@ import numpy as np
 CALIBRATED_DB_MIN = -40.0
 CALIBRATED_DB_MAX = 12.0
 
-# Clip applied to calibrated data — trims the extreme tails without flattening.
+# Clip applied to calibrated data - trims the extreme tails without flattening.
 CLIP_DB_MIN = -35.0
 CLIP_DB_MAX = 10.0
 
@@ -40,7 +40,7 @@ def to_db(arr: np.ndarray) -> Tuple[np.ndarray, bool]:
     Convert SAR amplitude/intensity to dB.
 
     Returns `(db, calibrated)`.  When `calibrated` is False the values are
-    relative — correct for thresholding, but not absolute backscatter, and the
+    relative - correct for thresholding, but not absolute backscatter, and the
     caller must label them accordingly.
     """
     data = np.asarray(arr, dtype="float64")

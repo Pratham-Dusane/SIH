@@ -89,7 +89,7 @@ export default function SoftgateLanding() {
           {/* Headline */}
           <h1
             className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.08] text-white mb-6 drop-shadow-sm"
-            style={{ fontFamily: 'var(--font-heading)' }}
+            style={{ fontFamily: 'var(--font-bodoni-moda), "Bodoni Moda", "Times New Roman", serif' }}
           >
             SatQuery AI:
             <br />

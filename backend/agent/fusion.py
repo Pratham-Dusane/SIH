@@ -43,10 +43,16 @@ def _walk_numbers(obj: Any) -> List[float]:
 
 
 def _is_year_or_ordinal(n: str) -> bool:
-    """Don't flag years (2020) or ordinals (1st, 2nd) as unsupported numbers."""
+    """Don't flag years (2020), ordinals (1st, 2nd), or small list integers (1..9) as unsupported numbers."""
     try:
-        val = int(float(n))
-        return 1900 <= val <= 2100  # likely a year
+        val = float(n)
+        if val.is_integer():
+            int_val = int(val)
+            if 1900 <= int_val <= 2100:  # likely a year
+                return True
+            if 1 <= int_val <= 9 and "." not in n:  # list / section numbers 1-9
+                return True
+        return False
     except ValueError:
         return False
 
@@ -144,8 +150,8 @@ def _render_vqa(results: Dict[str, Any], query: str) -> str:
         # Append deterministic measurements if available
         gs = _find_result(results, "geo_stats")
         if gs and gs.text:
-            parts.append(gs.text)
-        return " ".join(parts)
+            parts.append(f"**Measurement:** {gs.text}")
+        return "\n\n".join(parts)
     return _no_output(["rs_vqa"], results)
 
 
@@ -176,12 +182,12 @@ def _render_change_vqa(results: Dict[str, Any], query: str) -> str:
         if f.get("changed_area_ha") is not None:
             measured.append(f"{float(f['changed_area_ha']):,.1f} ha")
         if measured:
-            parts.append("Measured: " + ", ".join(measured) + ".")
+            parts.append("**Measured Change:** " + ", ".join(measured) + ".")
     if gs and gs.text:
         parts.append(gs.text)
 
     if parts:
-        return " ".join(parts)
+        return "\n\n".join(parts)
     return _no_output(["change_vqa", "change_detect"], results)
 
 
@@ -189,11 +195,11 @@ def _render_caption(results: Dict[str, Any]) -> str:
     caption = _find_result(results, "rs_caption")
     classify = _find_result(results, "rs_classify")
     parts = []
-    if classify and classify.text:
-        parts.append(classify.text)
     if caption and caption.text:
         parts.append(caption.text)
-    return " ".join(parts) if parts else _no_output(["rs_caption", "rs_classify"], results)
+    if classify and classify.text:
+        parts.append(classify.text)
+    return "\n\n".join(parts) if parts else _no_output(["rs_caption", "rs_classify"], results)
 
 
 def _render_grounding(results: Dict[str, Any]) -> str:
@@ -203,8 +209,8 @@ def _render_grounding(results: Dict[str, Any]) -> str:
     if ground and ground.text:
         parts.append(ground.text)
     if gs and gs.text:
-        parts.append(gs.text)
-    return " ".join(parts) if parts else _no_output(["rs_ground"], results)
+        parts.append(f"**Area Measurement:** {gs.text}")
+    return "\n\n".join(parts) if parts else _no_output(["rs_ground"], results)
 
 
 def _render_change_answer(results: Dict[str, Any], scene=None) -> str:
@@ -214,29 +220,33 @@ def _render_change_answer(results: Dict[str, Any], scene=None) -> str:
     cdesc = _find_result(results, "change_describe")
     parts = []
 
-    if cd:
-        f = cd.facts
-        changed_pct = f.get("changed_fraction", 0) * 100 if "changed_fraction" in f else None
-        text = f"About {changed_pct:.1f}% of the overlapping area changed between the two acquisitions" if changed_pct else ""
-        if gs and gs.facts.get("area_ha"):
-            text += f" ({gs.facts['area_ha']:.1f} ha)."
-        elif text:
-            text += "."
-        if text:
-            parts.append(text)
-
-        n_comp = f.get("n_components")
-        if n_comp:
-            parts.append(f"The change is distributed across {n_comp} distinct regions.")
-
-        direction = f.get("direction_hint")
-        if direction:
-            parts.append(f"Built-up signal indicates an overall {direction}.")
-
     if cdesc and cdesc.text:
         parts.append(cdesc.text)
 
-    return " ".join(parts) if parts else _no_output(
+    stats_parts = []
+    if cd:
+        f = cd.facts
+        changed_pct = f.get("changed_fraction", 0) * 100 if "changed_fraction" in f else None
+        if changed_pct:
+            text = f"• **Changed Extent:** About {changed_pct:.1f}% of the overlapping area changed"
+            if gs and gs.facts.get("area_ha"):
+                text += f" ({gs.facts['area_ha']:.1f} ha)."
+            else:
+                text += "."
+            stats_parts.append(text)
+
+        n_comp = f.get("n_components")
+        if n_comp:
+            stats_parts.append(f"• **Spatial Distribution:** The change is distributed across {n_comp} distinct regions.")
+
+        direction = f.get("direction_hint")
+        if direction:
+            stats_parts.append(f"• **Trend:** Built-up signal indicates an overall {direction}.")
+
+    if stats_parts:
+        parts.append("**Quantitative Change Analysis:**\n" + "\n".join(stats_parts))
+
+    return "\n\n".join(parts) if parts else _no_output(
         ["change_detect", "change_describe"], results)
 
 
@@ -246,14 +256,14 @@ def _render_cross_modal(results: Dict[str, Any]) -> str:
     vqa = _find_result(results, "rs_vqa")
     parts = []
 
+    if vqa and vqa.text:
+        parts.append(vqa.text)
     if fuse and fuse.text:
         parts.append(fuse.text)
     if gs and gs.text:
-        parts.append(gs.text)
-    if vqa and vqa.text:
-        parts.append(vqa.text)
+        parts.append(f"**Measurement:** {gs.text}")
 
-    return " ".join(parts) if parts else _no_output(
+    return "\n\n".join(parts) if parts else _no_output(
         ["sar_optical_fuse", "rs_vqa"], results)
 
 

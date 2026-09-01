@@ -164,14 +164,19 @@ def normalise_histogram(hist: Dict[str, float],
 
 
 def render_landcover_summary(fractions: Dict[str, float], product: str) -> str:
-    """Human-readable land-cover sentence for the ToolResult text field."""
+    """Human-readable land-cover summary for the ToolResult text field formatted cleanly."""
     if not fractions:
-        return (f"{product} returned no land-cover pixels for this AOI and date range.")
-    parts = [f"{label.replace('_', ' ')} {frac * 100:.1f}%"
-             for label, frac in list(fractions.items())[:5]]
-    return (f"{product} land cover over the scene AOI: " + ", ".join(parts) + ". "
-            "These are fractions of a global reference product for the same footprint, "
-            "not a classification of the uploaded raster.")
+        return f"{product} returned no land-cover pixels for this AOI and date range."
+
+    top_classes = list(fractions.items())[:5]
+    items_bullet = "\n".join(f"- **{label.replace('_', ' ').title()}:** {frac * 100:.1f}%" for label, frac in top_classes)
+
+    return (
+        f"**Regional Land Cover Baseline ({product}):**\n"
+        f"{items_bullet}\n\n"
+        f"*(Note: These percentages represent a global reference product ({product}) for the scene AOI, "
+        f"not a classification of the uploaded raster.)*"
+    )
 
 
 def land_cover(bounds: Sequence[float], start: str, end: str,

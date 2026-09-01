@@ -59,11 +59,11 @@ def _asks_direction(query: str) -> bool:
 
 def _extract_phrase(query: str) -> str:
     """Extract the target phrase for grounding from the query."""
-    # Remove common grounding cue words and return what's left
+    from agent.task_classifier import GROUNDING_CUES
     q = query.strip()
-    for cue in ["highlight", "locate", "where is", "mark the", "show me the",
-                "point out", "outline", "find the", "which region"]:
-        q = re.sub(rf"\b{cue}\b", "", q, flags=re.IGNORECASE)
+    # Sort cues by length descending so longer matches take precedence
+    for cue in sorted(GROUNDING_CUES, key=len, reverse=True):
+        q = re.sub(rf"\b{re.escape(cue)}\b", "", q, flags=re.IGNORECASE)
     q = re.sub(r"[?.,!]", "", q).strip()
     return q or query.strip()
 

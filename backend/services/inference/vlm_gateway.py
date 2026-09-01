@@ -30,42 +30,55 @@ log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # System prompt.
-# Reused near-verbatim from the original §7.3 training-template SYSTEM string,
-# since the RS-analyst framing is still the right prompt even unfine-tuned.
+# Expert remote-sensing analyst framing with clear chatbot formatting guidelines.
 # ---------------------------------------------------------------------------
-SYSTEM = """You are a remote-sensing imagery analyst. You are shown satellite or aerial
-imagery (optical, multispectral, or SAR) and must answer strictly from what is visible.
-State uncertainty explicitly. Never invent counts, areas, or coordinates you cannot
-verify from the image. When asked to locate something, respond with a normalised
-bounding box in the form (x1,y1),(x2,y2) with values in [0,1]."""
+SYSTEM = """You are an expert remote-sensing imagery analyst and geospatial AI assistant. You are shown satellite or aerial imagery (optical, multispectral, or SAR).
+Your role is to provide clear, insightful, well-structured, and helpful analysis strictly grounded in what is visible.
+
+Formatting and style guidelines:
+- Use clean Markdown with bold headings or bullet points where appropriate to make your response easy to read and scan.
+- Structure observations logically (e.g., scene type, infrastructure/built environment, natural features & vegetation, spatial layout).
+- State uncertainty explicitly and honestly.
+- Never invent counts, exact areas, or coordinates you cannot verify from the image.
+- When asked to locate something, respond with a normalised bounding box in the form (x1,y1),(x2,y2) with values in [0,1]."""
 
 
 # ---------------------------------------------------------------------------
-# Task-specific instruction templates - carried over unchanged from the old
-# §7.3 TEMPLATES dict.  The user's own question/phrase is always passed as
-# *data* into a template slot, never concatenated into the system prompt (§8.4).
+# Task-specific instruction templates - structured for high-quality,
+# informative, and conversational chatbot answers.
+# The user's own question/phrase is always passed as data into a template slot.
 # ---------------------------------------------------------------------------
 TEMPLATES: Dict[str, str] = {
     "vqa": (
-        "Question about this remote-sensing image: {question}\n"
-        "Answer strictly from what is visible. If the image does not contain "
-        "enough information to answer, say so explicitly rather than guessing."
+        "Question about this remote-sensing image: {question}\n\n"
+        "Please provide a direct, helpful, and well-structured answer strictly grounded in what is visible in the imagery.\n"
+        "• Begin with a clear, direct answer to the question.\n"
+        "• Highlight key visual evidence (e.g. location, orientation, spatial context, structural patterns).\n"
+        "• If the image does not contain enough information or resolution to answer with certainty, state that clearly rather than guessing."
     ),
     "caption_brief": (
-        "Describe this remote-sensing image in one sentence. "
-        "Name only land-cover types and structures you can actually see."
+        "Provide a concise, 1-2 sentence executive overview of this remote-sensing image. "
+        "Highlight the primary land-use/environment type and notable visible landmarks or features."
     ),
     "caption_standard": (
-        "Describe this remote-sensing image in 2-4 sentences. Cover the dominant "
-        "land-cover types, notable structures, and the overall spatial layout. "
-        "Do not state areas, counts or coordinates you cannot verify from the image."
+        "Analyze and describe this remote-sensing image with clear structure and helpful detail (2-4 concise paragraphs or structured bullet points):\n\n"
+        "1. **Scene Overview:** Primary classification (e.g. dense urban, suburban, agricultural, coastal, forested) and overall character.\n"
+        "2. **Built Environment & Infrastructure:** Notable buildings, road/transportation networks (highways, arterial roads, railways), or industrial facilities.\n"
+        "3. **Natural Features & Land Cover:** Vegetation, open ground, water bodies, or terrain characteristics.\n"
+        "4. **Spatial Layout:** How these features are arranged across the scene (e.g. center, quadrants, corridors).\n\n"
+        "Do not invent unverified statistics or coordinates."
     ),
     "caption_detailed": (
-        "Describe this remote-sensing image in detail. Cover: dominant land-cover "
-        "classes and their approximate spatial arrangement; water bodies; built-up "
-        "areas and infrastructure; vegetation; any visible terrain or texture cues. "
-        "Flag anything ambiguous rather than resolving it by guessing. "
-        "Do not state areas, counts or coordinates you cannot verify from the image."
+        "Provide a comprehensive, professional remote-sensing assessment of this image formatted cleanly with Markdown sections:\n\n"
+        "### 1. Scene Classification & Overview\n"
+        "Dominant environment type, development density, and landscape setting.\n\n"
+        "### 2. Infrastructure & Built-Up Features\n"
+        "Transportation corridors (highways, major roadways, intersections), residential/commercial/industrial zones, and structural patterns.\n\n"
+        "### 3. Natural & Environmental Features\n"
+        "Vegetation cover, agricultural plots, bare soil, water bodies/drainage channels, and topography/texture cues.\n\n"
+        "### 4. Spatial Organization & Notable Observations\n"
+        "Orientation, layout across sectors, and any distinctive landmarks or anomalies.\n\n"
+        "Flag any ambiguous features clearly. Do not invent exact counts or measurements."
     ),
     "ground": (
         "Locate the region matching this description: {phrase}\n"
@@ -76,21 +89,22 @@ TEMPLATES: Dict[str, str] = {
         "NOT_FOUND"
     ),
     "change_describe": (
-        "You are shown two co-registered images of the same area at two different "
-        "times: image 1 is the earlier date (T1), image 2 is the later date (T2).\n"
+        "You are shown two co-registered satellite images of the same area at two different times: "
+        "image 1 is the earlier date (T1), image 2 is the later date (T2).\n"
         "{facts_block}"
-        "Describe what has changed between T1 and T2. State the direction of change "
-        "(increase, decrease, or no change) for each land-cover type you discuss. "
-        "Do not invent quantities; if measured statistics are given above, use them "
-        "verbatim rather than estimating your own."
+        "Provide a structured change assessment describing what has changed between T1 and T2:\n"
+        "• **Overview of Changes:** High-level summary of the primary landscape transition.\n"
+        "• **Specific Transformations:** Detail the direction of change (increase, decrease, or stability) for each land-cover type (built-up, vegetation, water, bare land).\n"
+        "• **Spatial Focus:** Where the changes are concentrated.\n"
+        "If measured statistics are given above, incorporate them accurately rather than estimating your own."
     ),
     "change_vqa": (
-        "You are shown two co-registered images of the same area at two different "
-        "times: image 1 is the earlier date (T1), image 2 is the later date (T2).\n"
+        "You are shown two co-registered images of the same area at two different times: "
+        "image 1 is the earlier date (T1), image 2 is the later date (T2).\n"
         "{facts_block}"
-        "Question about the change between T1 and T2: {question}\n"
-        "Answer strictly from what is visible in the two images. If measured "
-        "statistics are given above, use them verbatim rather than estimating."
+        "Question about the change between T1 and T2: {question}\n\n"
+        "Answer the question directly and thoroughly based strictly on visual differences between T1 and T2. "
+        "If measured statistics are provided above, incorporate them accurately."
     ),
 }
 

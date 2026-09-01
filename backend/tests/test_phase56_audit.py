@@ -455,3 +455,86 @@ def test_stats_counts_persisted_queries():
         assert s["abstention_rate"] == 0.5
     finally:
         app.dependency_overrides.clear()
+
+
+def test_single_vqa_question_starters_without_question_mark():
+    from agent.task_classifier import classify_task, TaskType
+
+    class MockScene:
+        input_config = "SINGLE"
+
+    res1 = classify_task("is there a highway in the image", MockScene())
+    assert res1.task == TaskType.SINGLE_VQA
+
+    res2 = classify_task("are there buildings in the east", MockScene())
+    assert res2.task == TaskType.SINGLE_VQA
+
+    res3 = classify_task("describe this scene", MockScene())
+    assert res3.task == TaskType.SINGLE_CAPTION
+
+
+def test_caption_and_landcover_fusion_formatting():
+    from agent.fusion import fuse
+    from agent.task_classifier import TaskClassification, TaskType
+    from tools.base import ToolResult
+
+    tc = TaskClassification(task=TaskType.SINGLE_CAPTION, confidence=0.85, evidence=[])
+    results = {
+        "s1": ToolResult(
+            tool="rs_classify",
+            model_id="G1",
+            confidence=0.7,
+            confidence_basis="Dynamic World V1",
+            text="**Regional Land Cover Baseline (Dynamic World V1):**\n- **Built:** 95.2%\n- **Trees:** 4.0%",
+            facts={"class_fractions": {"built": 0.952, "trees": 0.04}},
+        ),
+        "s2": ToolResult(
+            tool="rs_caption",
+            model_id="V1",
+            confidence=0.75,
+            confidence_basis="heuristic",
+            text="### 1. Scene Classification & Overview\nThis scene depicts a dense urban area.",
+            facts={"caption": "This scene depicts a dense urban area."},
+        ),
+    }
+
+    res = run(fuse("describe the scene", tc, results, None))
+    assert res.grounding_check == "PASS"
+    assert res.answer.startswith("### 1. Scene Classification & Overview")
+    assert "**Regional Land Cover Baseline (Dynamic World V1):**" in res.answer
+
+
+def test_rich_domain_cues_classification():
+    from agent.task_classifier import classify_task, TaskType
+
+    class SingleScene:
+        input_config = "SINGLE"
+
+    class BiTemporalScene:
+        input_config = "BI_TEMPORAL"
+
+    class CrossModalScene:
+        input_config = "CROSS_MODAL"
+
+    # Grounding domain cues
+    assert classify_task("pinpoint the location of the reservoir", SingleScene()).task == TaskType.SINGLE_GROUNDING
+    assert classify_task("delineate the runway boundary", SingleScene()).task == TaskType.SINGLE_GROUNDING
+    assert classify_task("draw a box around the stadium", SingleScene()).task == TaskType.SINGLE_GROUNDING
+
+    # Land cover domain cues
+    assert classify_task("what is the lulc distribution", SingleScene()).task == TaskType.LAND_COVER_ANALYSIS
+    assert classify_task("show dynamic world fractions for this area", SingleScene()).task == TaskType.LAND_COVER_ANALYSIS
+    assert classify_task("proportions of ground classes", SingleScene()).task == TaskType.LAND_COVER_ANALYSIS
+
+    # Captioning domain cues
+    assert classify_task("give a detailed report of this scene", SingleScene()).task == TaskType.SINGLE_CAPTION
+    assert classify_task("remote sensing interpretation of the landscape", SingleScene()).task == TaskType.SINGLE_CAPTION
+
+    # Change domain cues
+    assert classify_task("assess urban sprawl between these two dates", BiTemporalScene()).task == TaskType.CHANGE_DESCRIPTION
+    assert classify_task("what changed in the flood extent", BiTemporalScene()).task == TaskType.CHANGE_VQA
+
+    # Cross-modal cues
+    assert classify_task("analyze joint optical-sar agreement", CrossModalScene()).task == TaskType.CROSS_MODAL_ANALYSIS
+
+

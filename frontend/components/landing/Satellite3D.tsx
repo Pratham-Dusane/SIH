@@ -34,73 +34,83 @@ export default function Satellite3D() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
 
-      // Lighting
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+      // Lighting - Optimized for White Satellite
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
       scene.add(ambientLight);
 
-      const sunLight = new THREE.DirectionalLight(0x38bdf8, 2.5);
-      sunLight.position.set(10, 10, 10);
-      scene.add(sunLight);
+      const mainLight = new THREE.DirectionalLight(0xffffff, 2.8);
+      mainLight.position.set(12, 12, 12);
+      scene.add(mainLight);
 
-      const goldLight = new THREE.PointLight(0xf59e0b, 2, 30);
-      goldLight.position.set(-10, -5, 5);
-      scene.add(goldLight);
+      const blueRimLight = new THREE.DirectionalLight(0x0284c7, 1.6);
+      blueRimLight.position.set(-12, -8, 8);
+      scene.add(blueRimLight);
 
-      const blueLight = new THREE.PointLight(0x818cf8, 1.8, 30);
-      blueLight.position.set(5, -10, 5);
-      scene.add(blueLight);
+      const softFillLight = new THREE.PointLight(0xe2e8f0, 1.5, 35);
+      softFillLight.position.set(0, -10, 8);
+      scene.add(softFillLight);
 
-      // ─── SATELLITE GROUP ──────────────────────────────
+      // ─── SATELLITE GROUP (Crisp White Aerospace Finish) ────────
       const satelliteGroup = new THREE.Group();
 
       // Materials
-      const goldFoilMaterial = new THREE.MeshStandardMaterial({
-        color: 0xd97706,
-        metalness: 0.9,
+      const whiteAerospaceMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        metalness: 0.15,
         roughness: 0.25,
       });
 
-      const titaniumMaterial = new THREE.MeshStandardMaterial({
-        color: 0x94a3b8,
+      const darkTitaniumMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
         metalness: 0.85,
         roughness: 0.2,
       });
 
-      const solarPanelMaterial = new THREE.MeshStandardMaterial({
-        color: 0x1e3a8a,
-        metalness: 0.6,
+      const silverMaterial = new THREE.MeshStandardMaterial({
+        color: 0x94a3b8,
+        metalness: 0.9,
         roughness: 0.15,
-        wireframe: false,
+      });
+
+      const solarPanelMaterial = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        metalness: 0.7,
+        roughness: 0.12,
       });
 
       const lensMaterial = new THREE.MeshPhysicalMaterial({
         color: 0x0284c7,
-        metalness: 0.2,
+        metalness: 0.3,
         roughness: 0.05,
-        transmission: 0.8,
-        thickness: 0.8,
+        transmission: 0.85,
+        thickness: 0.9,
       });
 
       const glowLineMaterial = new THREE.LineBasicMaterial({
-        color: 0x38bdf8,
+        color: 0x0284c7,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.45,
       });
 
-      // 1. Central Bus (Main Body)
+      // 1. Central Bus (Crisp White Main Body)
       const bodyGeometry = new THREE.BoxGeometry(2.2, 3.0, 2.0);
-      const mainBody = new THREE.Mesh(bodyGeometry, goldFoilMaterial);
+      const mainBody = new THREE.Mesh(bodyGeometry, whiteAerospaceMaterial);
       satelliteGroup.add(mainBody);
 
-      // Bus detail rings
-      const busBandGeo = new THREE.BoxGeometry(2.3, 0.4, 2.1);
-      const busBand = new THREE.Mesh(busBandGeo, titaniumMaterial);
-      busBand.position.y = 0.5;
+      // Bus detail rings & panels
+      const busBandGeo = new THREE.BoxGeometry(2.26, 0.4, 2.06);
+      const busBand = new THREE.Mesh(busBandGeo, darkTitaniumMaterial);
+      busBand.position.y = 0.4;
       satelliteGroup.add(busBand);
+
+      const lowerBandGeo = new THREE.BoxGeometry(2.26, 0.2, 2.06);
+      const lowerBand = new THREE.Mesh(lowerBandGeo, silverMaterial);
+      lowerBand.position.y = -0.8;
+      satelliteGroup.add(lowerBand);
 
       // 2. Optical Sensor Turret & Aperture Lens (bottom)
       const turretGeo = new THREE.CylinderGeometry(0.7, 0.9, 1.2, 32);
-      const turret = new THREE.Mesh(turretGeo, titaniumMaterial);
+      const turret = new THREE.Mesh(turretGeo, darkTitaniumMaterial);
       turret.position.y = -2.0;
       satelliteGroup.add(turret);
 
@@ -110,28 +120,28 @@ export default function Satellite3D() {
       lens.rotation.x = Math.PI / 2;
       satelliteGroup.add(lens);
 
-      // 3. SAR Radar Dish Antenna
-      const dishGeo = new THREE.SphereGeometry(1.2, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
-      const dish = new THREE.Mesh(dishGeo, titaniumMaterial);
+      // 3. SAR Radar Dish Antenna (White Dish)
+      const dishGeo = new THREE.SphereGeometry(1.25, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
+      const dish = new THREE.Mesh(dishGeo, whiteAerospaceMaterial);
       dish.position.set(0, 1.9, 0.3);
       dish.rotation.x = -Math.PI / 3;
       dish.scale.set(1, 1, 0.4);
       satelliteGroup.add(dish);
 
       const dishFeedGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.0, 8);
-      const dishFeed = new THREE.Mesh(dishFeedGeo, goldFoilMaterial);
+      const dishFeed = new THREE.Mesh(dishFeedGeo, silverMaterial);
       dishFeed.position.set(0, 2.3, 0.8);
       dishFeed.rotation.x = Math.PI / 4;
       satelliteGroup.add(dishFeed);
 
-      // 4. Solar Panel Arrays (Left & Right Wings)
+      // 4. Solar Panel Arrays (Left & Right Wings with White Frames)
       const createSolarWing = (isLeft: boolean) => {
         const wingGroup = new THREE.Group();
         const side = isLeft ? -1 : 1;
 
         // Connecting Boom
         const boomGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 16);
-        const boom = new THREE.Mesh(boomGeo, titaniumMaterial);
+        const boom = new THREE.Mesh(boomGeo, silverMaterial);
         boom.rotation.z = Math.PI / 2;
         boom.position.x = side * 1.5;
         wingGroup.add(boom);
@@ -139,20 +149,20 @@ export default function Satellite3D() {
         // 3-Segment Solar Panels
         for (let i = 0; i < 3; i++) {
           const panelFrameGeo = new THREE.BoxGeometry(1.6, 2.4, 0.08);
-          const panelFrame = new THREE.Mesh(panelFrameGeo, titaniumMaterial);
+          const panelFrame = new THREE.Mesh(panelFrameGeo, whiteAerospaceMaterial);
           panelFrame.position.x = side * (2.6 + i * 1.7);
 
           const cellGeo = new THREE.BoxGeometry(1.48, 2.26, 0.1);
           const cell = new THREE.Mesh(cellGeo, solarPanelMaterial);
           panelFrame.add(cell);
 
-          // Solar Grid Lines
+          // Solar Photovoltaic Grid Lines
           const gridGeo = new THREE.PlaneGeometry(1.46, 2.24, 4, 6);
           const gridMat = new THREE.MeshBasicMaterial({
-            color: 0x60a5fa,
+            color: 0x38bdf8,
             wireframe: true,
             transparent: true,
-            opacity: 0.4,
+            opacity: 0.45,
           });
           const grid = new THREE.Mesh(gridGeo, gridMat);
           grid.position.z = 0.06;
@@ -172,7 +182,7 @@ export default function Satellite3D() {
       // 5. Thruster Nozzles
       const thrusterGeo = new THREE.ConeGeometry(0.2, 0.4, 16);
       for (const [x, z] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) {
-        const thruster = new THREE.Mesh(thrusterGeo, titaniumMaterial);
+        const thruster = new THREE.Mesh(thrusterGeo, darkTitaniumMaterial);
         thruster.position.set(x, 1.6, z);
         thruster.rotation.x = Math.PI;
         satelliteGroup.add(thruster);
@@ -184,7 +194,6 @@ export default function Satellite3D() {
       scene.add(satelliteGroup);
 
       // ─── ORBITAL RINGS & SENSOR CONE ──────────────────
-      const orbitRingGeo = new THREE.RingGeometry(7.5, 7.55, 64);
       const orbitRing = new THREE.LineLoop(
         new THREE.BufferGeometry().setFromPoints(
           new THREE.EllipseCurve(0, 0, 8, 4, 0, 2 * Math.PI, false, 0).getPoints(64).map(p => new THREE.Vector3(p.x, p.y, 0))
@@ -198,7 +207,7 @@ export default function Satellite3D() {
       // Sensor Footprint Cone on Ground
       const coneGeo = new THREE.ConeGeometry(3.5, 5.0, 32, 1, true);
       const coneMat = new THREE.MeshBasicMaterial({
-        color: 0x38bdf8,
+        color: 0x0284c7,
         wireframe: true,
         transparent: true,
         opacity: 0.12,
@@ -207,25 +216,6 @@ export default function Satellite3D() {
       sensorCone.position.set(0, -5.2, 0);
       sensorCone.rotation.x = Math.PI;
       scene.add(sensorCone);
-
-      // ─── STARFIELD PARTICLES ──────────────────────────
-      const starsCount = 180;
-      const starGeometry = new THREE.BufferGeometry();
-      const starPositions = new Float32Array(starsCount * 3);
-      for (let i = 0; i < starsCount * 3; i += 3) {
-        starPositions[i] = (Math.random() - 0.5) * 35;
-        starPositions[i + 1] = (Math.random() - 0.5) * 35;
-        starPositions[i + 2] = (Math.random() - 0.5) * 20 - 5;
-      }
-      starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-      const starMaterial = new THREE.PointsMaterial({
-        color: 0x93c5fd,
-        size: 0.08,
-        transparent: true,
-        opacity: 0.7,
-      });
-      const starField = new THREE.Points(starGeometry, starMaterial);
-      scene.add(starField);
 
       // ─── MOUSE INTERACTION & ANIMATION ────────────────
       let mouseX = 0;
@@ -298,14 +288,14 @@ export default function Satellite3D() {
 
   if (hasError) {
     return (
-      <div className="w-full h-full min-h-[380px] rounded-3xl bg-slate-900/40 border border-sky-500/20 flex flex-col items-center justify-center p-6 text-center space-y-3">
-        <div className="w-16 h-16 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="w-full h-full min-h-[360px] flex flex-col items-center justify-center p-6 text-center space-y-3">
+        <div className="w-14 h-14 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-600">
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
-        <p className="text-sm font-semibold text-foreground">Interactive 3D Satellite Stream</p>
-        <p className="text-xs text-muted-foreground">Orbital telemetry nominal | WebGL 2.0</p>
+        <p className="text-sm font-semibold text-slate-800">Cartosat-2S & RISAT Satellite Platform</p>
+        <p className="text-xs text-slate-500 font-mono">Orbital Telemetry Nominal | WebGL 2.0</p>
       </div>
     );
   }
@@ -313,16 +303,16 @@ export default function Satellite3D() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-[400px] sm:h-[480px] lg:h-[540px] relative rounded-3xl overflow-hidden cursor-grab active:cursor-grabbing"
+      className="w-full h-[380px] sm:h-[440px] lg:h-[480px] relative overflow-hidden cursor-grab active:cursor-grabbing select-none"
     >
-      {/* Floating Telemetry Badges */}
-      <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-full border border-sky-500/30 bg-slate-950/60 backdrop-blur-md text-[10px] font-mono text-sky-300 flex items-center gap-2 shadow-lg">
-        <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
+      {/* Floating Telemetry Badge */}
+      <div className="absolute top-2 left-2 z-10 px-3 py-1 rounded-full border border-slate-300 bg-white/80 backdrop-blur-md text-[10px] font-mono text-slate-700 flex items-center gap-2 shadow-sm">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
         CARTOSAT-2S / RISAT ORBITAL NODE
       </div>
-      <div className="absolute bottom-4 right-4 z-10 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-slate-950/60 backdrop-blur-md text-[10px] font-mono text-emerald-300 flex items-center gap-2 shadow-lg">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-        INTERACTIVE 3D · DRAG TO ROTATE
+      <div className="absolute bottom-2 right-2 z-10 px-3 py-1 rounded-full border border-slate-300 bg-white/80 backdrop-blur-md text-[10px] font-mono text-slate-600 flex items-center gap-2 shadow-sm">
+        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+        DRAG TO ROTATE 3D SATELLITE
       </div>
     </div>
   );

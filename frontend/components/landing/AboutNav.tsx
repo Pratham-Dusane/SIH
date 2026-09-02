@@ -3,25 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Satellite, Sun, Moon } from 'lucide-react';
-import { useStore } from '@/lib/store';
+import { Satellite, ArrowRight, Crosshair } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function AboutNav() {
   const pathname = usePathname();
-  const { theme, toggleTheme, setTheme } = useStore();
-  const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem('satquery-theme') as 'light' | 'dark' | null;
-    if (saved) {
-      setTheme(saved);
-    } else {
-      setTheme('light');
-    }
-  }, [setTheme]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -30,47 +17,56 @@ export default function AboutNav() {
   }, []);
 
   const navLinks = [
-    { label: 'Home', href: '/' },
-    { label: 'About', href: '/about' },
-    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Overview', href: '/about' },
+    { label: 'Capabilities', href: '#capabilities' },
+    { label: 'Applications', href: '#applications' },
+    { label: 'Satellite Platform', href: '#satellite' },
   ];
 
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
+        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
         scrolled
-          ? 'glass-panel py-3'
-          : 'py-5 bg-transparent border-b border-transparent'
+          ? 'bg-slate-950/80 backdrop-blur-xl border-b border-white/10 py-3 shadow-2xl'
+          : 'bg-transparent border-b border-white/10 py-4.5'
       )}
     >
       <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="relative flex items-center justify-center w-9 h-9">
-            {/* Orbit ring */}
-            <div className="absolute inset-0 rounded-full border border-brand-500/30 orbit-ring" />
-            <Satellite className="w-5 h-5 text-brand-500 transition-transform group-hover:scale-110" />
-          </div>
-          <span className="text-lg font-bold tracking-tight font-[var(--font-heading)]">
-            <span className="gradient-text-subtle">Sat</span>
-            <span className="text-foreground">Query</span>
-          </span>
-        </Link>
+        {/* Technical Logo matching Image 1 */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/15 group-hover:border-sky-400/50 transition-colors">
+              <Satellite className="w-4 h-4 text-sky-400 transition-transform group-hover:scale-110" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="text-base font-bold tracking-[0.12em] text-white uppercase font-mono"
+                style={{ fontFamily: 'var(--font-heading)' }}
+              >
+                SATQUERY
+              </span>
+              <Crosshair className="w-3.5 h-3.5 text-sky-400/80 shrink-0" strokeWidth={1.5} />
+            </div>
+          </Link>
 
-        {/* Navigation */}
-        <nav className="hidden sm:flex items-center gap-1">
+          <span className="hidden md:inline-block h-4 w-px bg-white/15" />
+          <span className="hidden md:inline-block text-[10px] font-mono tracking-widest text-slate-400 uppercase">
+            ISRO / SAC · SIH 2026
+          </span>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="hidden lg:flex items-center gap-6 text-xs font-mono tracking-wider text-slate-300">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
               <Link
-                key={link.href}
+                key={link.label}
                 href={link.href}
                 className={cn(
-                  'px-4 py-2 rounded-full text-sm font-medium transition-all duration-200',
-                  isActive
-                    ? 'bg-brand-500/15 text-brand-500'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/10 dark:hover:bg-white/5'
+                  'hover:text-white transition-colors uppercase',
+                  isActive && 'text-sky-400 font-semibold'
                 )}
               >
                 {link.label}
@@ -79,18 +75,16 @@ export default function AboutNav() {
           })}
         </nav>
 
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className="flex items-center justify-center w-9 h-9 rounded-full glass-panel text-foreground transition-all hover:scale-105 cursor-pointer"
-          aria-label="Toggle theme"
-        >
-          {mounted && theme === 'dark' ? (
-            <Sun className="w-4 h-4 text-amber-400" />
-          ) : (
-            <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-          )}
-        </button>
+        {/* Right Action Button */}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-xs transition-all shadow-md shadow-sky-500/20 active:scale-95"
+          >
+            <span>Launch Workspace</span>
+            <ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />
+          </Link>
+        </div>
       </div>
     </header>
   );

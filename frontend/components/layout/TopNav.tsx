@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Activity, Sun, Moon } from 'lucide-react';
+import { ChevronRight, Activity } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -109,23 +109,7 @@ export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
           </TooltipContent>
         </Tooltip>
 
-        {/* Theme Toggle */}
-        <Tooltip>
-          <TooltipTrigger
-            id="btn-theme-toggle"
-            onClick={toggleTheme}
-            className="flex items-center justify-center w-9 h-9 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 text-foreground transition-all cursor-pointer"
-          >
-            {mounted && theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-400 transition-transform" strokeWidth={1.5} />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-700 dark:text-slate-300 transition-transform" strokeWidth={1.5} />
-            )}
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-xs">{mounted && theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</p>
-          </TooltipContent>
-        </Tooltip>
+
 
         {/* User avatar */}
         <Avatar className="h-8 w-8 border border-primary/30">

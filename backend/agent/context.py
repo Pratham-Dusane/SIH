@@ -24,14 +24,166 @@ class ExecutionContext:
     - prior tool results (for chaining)
     """
 
-    def __init__(self, scene: Scene, storage, vlm_backend: str = "gemini"):
+    def __init__(
+        self,
+        scene: Scene,
+        storage,
+        vlm_backend: str = "gemini",
+        user_annotations: Optional[Dict[str, Any]] = None,
+    ):
         self.scene = scene
         self._storage = storage
         self.vlm_backend = vlm_backend
+        self.user_annotations = user_annotations or {}
         self.results: Dict[str, Any] = {}        # step_id -> ToolResult
         self._artifacts: Dict[str, Any] = {}     # key -> numpy array or other data
         self._artifact_gsd: Dict[str, float] = {}  # key -> GSD (m) when not the scene grid
         self._array_cache: Dict[str, np.ndarray] = {}
+
+    # ------------------------------------------------------------------
+    # User Annotation spatial context helpers
+    # ------------------------------------------------------------------
+    def get_user_annotation_bbox(self) -> Optional[List[float]]:
+        """
+        Returns normalized [ymin, xmin, ymax, xmax] in [0, 1] of user-drawn annotations, or None.
+        """
+        if not self.user_annotations:
+            return None
+
+        if "focus_box" in self.user_annotations and self.user_annotations["focus_box"]:
+            return self.user_annotations["focus_box"]
+
+        # Parse GeoJSON or shape list
+        features = self.user_annotations.get("geojson", {}).get("features", [])
+        if not features and "shapes" in self.user_annotations:
+            shapes = self.user_annotations["shapes"]
+            all_pts = []
+            for s in shapes:
+                if isinstance(s, dict):
+                    pts = s.get("points", [])
+                    all_pts.extend(pts)
+            if all_pts:
+                xs = [float(p[0]) for p in all_pts if len(p) >= 2]
+                ys = [float(p[1]) for p in all_pts if len(p) >= 2]
+                if xs and ys:
+                    return [max(0.0, min(ys)), max(0.0, min(xs)), min(1.0, max(ys)), min(1.0, max(xs))]
+        elif features:
+            all_pts = []
+            for f in features:
+                geom = f.get("geometry", {})
+                coords = geom.get("coordinates", [])
+
+                def extract(c):
+                    if isinstance(c, (list, tuple)) and len(c) == 2 and isinstance(c[0], (int, float)):
+                        all_pts.append(c)
+                    elif isinstance(c, (list, tuple)):
+                        for sub in c:
+                            extract(sub)
+
+                extract(coords)
+            if all_pts:
+                xs = [float(p[0]) for p in all_pts]
+                ys = [float(p[1]) for p in all_pts]
+                if xs and ys:
+                    return [max(0.0, min(ys)), max(0.0, min(xs)), min(1.0, max(ys)), min(1.0, max(xs))]
+        return None
+
+    def user_annotation_bounds_wgs84(self) -> Optional[List[float]]:
+        """
+        Returns [west, south, east, north] in EPSG:4326 for the user's annotation footprint.
+        """
+        scene_bounds = self.scene_bounds_wgs84()
+        user_norm_bbox = self.get_user_annotation_bbox()
+        if not scene_bounds or not user_norm_bbox:
+            return scene_bounds
+
+        w_scene, s_scene, e_scene, n_scene = scene_bounds
+        ymin, xmin, ymax, xmax = user_norm_bbox
+
+        w_user = w_scene + xmin * (e_scene - w_scene)
+        e_user = w_scene + xmax * (e_scene - w_scene)
+        n_user = n_scene - ymin * (n_scene - s_scene)
+        s_user = n_scene - ymax * (n_scene - s_scene)
+
+        return [min(w_user, e_user), min(s_user, n_user), max(w_user, e_user), max(s_user, n_user)]
+
+    def user_annotation_centroid_wgs84(self) -> Optional[tuple[float, float]]:
+        """
+        Returns (lon, lat) of user annotation centroid.
+        """
+        bounds = self.user_annotation_bounds_wgs84()
+        if not bounds:
+            return None
+        w, s, e, n = bounds
+        return ((w + e) / 2.0, (s + n) / 2.0)
+
+    def get_user_annotation_mask(self, shape: Optional[tuple[int, int]] = None) -> Optional[np.ndarray]:
+        """
+        Rasterize user-drawn shapes (rectangles, polygons, circles) into a 2D boolean mask.
+        """
+        bbox = self.get_user_annotation_bbox()
+        if not bbox:
+            return None
+
+        # Determine target grid dimensions
+        if shape:
+            H, W = shape
+        else:
+            H, W = 512, 512
+            for img in self.scene.images:
+                if getattr(img, "metadata", None) and img.metadata.height and img.metadata.width:
+                    H, W = img.metadata.height, img.metadata.width
+                    break
+
+        grid = np.zeros((H, W), dtype=bool)
+
+        # 1. Direct rasterization of shapes if points are available
+        shapes = self.user_annotations.get("shapes", [])
+        if shapes:
+            for s in shapes:
+                if not isinstance(s, dict):
+                    continue
+                kind = s.get("kind", "rectangle")
+                pts = s.get("points", [])
+                if not pts:
+                    continue
+
+                if kind in ("rectangle", "box") and len(pts) >= 2:
+                    xs = [float(p[0]) for p in pts]
+                    ys = [float(p[1]) for p in pts]
+                    r1 = max(0, min(H, int(min(ys) * H)))
+                    r2 = max(0, min(H, int(max(ys) * H)))
+                    c1 = max(0, min(W, int(min(xs) * W)))
+                    c2 = max(0, min(W, int(max(xs) * W)))
+                    grid[r1:r2, c1:c2] = True
+                elif kind in ("circle", "ellipse") and len(pts) >= 2:
+                    xs = [float(p[0]) for p in pts]
+                    ys = [float(p[1]) for p in pts]
+                    cy, cx = (min(ys) + max(ys)) / 2.0 * H, (min(xs) + max(xs)) / 2.0 * W
+                    ry, rx = max(1.0, (max(ys) - min(ys)) / 2.0 * H), max(1.0, (max(xs) - min(xs)) / 2.0 * W)
+                    y_idx, x_idx = np.ogrid[:H, :W]
+                    dist_sq = ((y_idx - cy) / ry) ** 2 + ((x_idx - cx) / rx) ** 2
+                    grid[dist_sq <= 1.0] = True
+                else:
+                    # Polygon or point set
+                    xs = [float(p[0]) for p in pts]
+                    ys = [float(p[1]) for p in pts]
+                    r1 = max(0, min(H, int(min(ys) * H)))
+                    r2 = max(0, min(H, int(max(ys) * H)))
+                    c1 = max(0, min(W, int(min(xs) * W)))
+                    c2 = max(0, min(W, int(max(xs) * W)))
+                    grid[r1:r2, c1:c2] = True
+            if grid.any():
+                return grid
+
+        # 2. Fallback to bounding box rasterization
+        ymin, xmin, ymax, xmax = bbox
+        r1 = max(0, min(H, int(ymin * H)))
+        r2 = max(0, min(H, int(ymax * H)))
+        c1 = max(0, min(W, int(xmin * W)))
+        c2 = max(0, min(W, int(max(xs) * W))) if 'xs' in locals() and xs else max(0, min(W, int(xmax * W)))
+        grid[r1:r2, c1:c2] = True
+        return grid
 
     # ------------------------------------------------------------------
     # Scene metadata helpers
@@ -257,12 +409,16 @@ class ExecutionContext:
                     return self._artifact_gsd.get(resolved)
         return None
 
-    def get_artifact(self, ref: str) -> Optional[Any]:
+    def get_artifact(self, ref: Any) -> Optional[Any]:
         """
         Resolve an artifact reference.  Supports:
         - plain key: "ndvi_mask"
         - step reference: "s2.artifacts.mask" -> looks up results[s2].artifacts["mask"]
+        - direct objects: list, dict, numpy array
         """
+        if not isinstance(ref, str):
+            return ref
+
         # Direct key lookup
         if ref in self._artifacts:
             return self._artifacts[ref]
@@ -274,10 +430,13 @@ class ExecutionContext:
             art_key = parts[2]
             if step_id in self.results:
                 result = self.results[step_id]
-                if hasattr(result, "artifacts") and art_key in result.artifacts:
-                    resolved_key = result.artifacts[art_key]
-                    if resolved_key in self._artifacts:
-                        return self._artifacts[resolved_key]
+                if hasattr(result, "artifacts") and isinstance(result.artifacts, dict) and art_key in result.artifacts:
+                    val = result.artifacts[art_key]
+                    if not isinstance(val, str):
+                        return val
+                    if val in self._artifacts:
+                        return self._artifacts[val]
+                    return val
         return None
 
     def prior(self, tool_name: str):

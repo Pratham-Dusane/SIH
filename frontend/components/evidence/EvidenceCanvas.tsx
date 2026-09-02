@@ -6,6 +6,9 @@ import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { ZoomIn, ZoomOut, Maximize2, Layers, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AnnotationCanvas from '@/features/annotation/AnnotationCanvas';
+import { useAnnotationStore } from '@/features/annotation/annotation-store';
+import { useFeaturesStore } from '@/lib/features-store';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
@@ -254,7 +257,12 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
 
+  const { activeTool } = useAnnotationStore();
+  const { isEnabled } = useFeaturesStore();
+  const annotationEnabled = isEnabled('annotation');
+
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (activeTool !== 'select' && annotationEnabled) return;
     setDragging(true);
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
@@ -272,7 +280,12 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden bg-[#060b19] cursor-grab active:cursor-grabbing rounded-2xl border border-border/70 shadow-inner"
+      className={cn(
+        'relative w-full h-full overflow-hidden bg-[#060b19] rounded-2xl border border-border/70 shadow-inner',
+        activeTool === 'select' || !annotationEnabled
+          ? 'cursor-grab active:cursor-grabbing'
+          : 'cursor-crosshair'
+      )}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -284,14 +297,25 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
           transformOrigin: 'center',
           transition: dragging ? 'none' : 'transform 0.2s ease',
         }}
-        className="w-full h-full flex items-center justify-center"
+        className="w-full h-full flex items-center justify-center relative select-none"
       >
-        <canvas
-          ref={canvasRef}
-          width={960}
-          height={720}
-          className="rounded-xl shadow-lg"
-        />
+        <div className="relative w-[960px] h-[720px] rounded-xl overflow-hidden shadow-lg shrink-0">
+          <canvas
+            ref={canvasRef}
+            width={960}
+            height={720}
+            className="w-full h-full block"
+          />
+
+          {/* Vector Annotation Overlay (Extensions PRD §5) */}
+          {annotationEnabled && (
+            <AnnotationCanvas
+              width={960}
+              height={720}
+              sceneId={scene.id}
+            />
+          )}
+        </div>
       </div>
 
       {/* Zoom controls */}

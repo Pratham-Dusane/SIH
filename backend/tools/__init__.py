@@ -24,3 +24,10 @@ from tools import change_detect   # noqa: F401
 
 # Cross-modal fusion (deterministic, offline-capable) - PRD §8.3.7
 from tools import sar_optical_fuse  # noqa: F401
+
+# Layered Annotation Protocol tools (Extensions PRD §5)
+from tools import annotation_stats  # noqa: F401
+from tools import annotate          # noqa: F401
+
+# Location History & Context Research (F12)
+from tools import location_history  # noqa: F401

@@ -8,11 +8,14 @@ The input configuration already eliminates most of the space.
 from __future__ import annotations
 
 from enum import Enum
+import logging
 from typing import List
 
 from pydantic import BaseModel
 
 from core.config import settings
+
+log = logging.getLogger(__name__)
 
 
 class TaskType(str, Enum):
@@ -38,14 +41,14 @@ class TaskClassification(BaseModel):
 # Domain-specific keyword and phrase cues for Remote Sensing & Earth Observation.
 # ---------------------------------------------------------------------------
 GROUNDING_CUES = (
-    "highlight", "locate", "where is", "where are", "mark the", "show me the",
-    "point out", "outline", "find the", "which region", "pinpoint",
-    "detect the location", "draw a box", "bounding box", "identify the area",
-    "spot the", "demarcate", "isolate the", "find all", "track down",
-    "where can i find", "circle the", "bound the", "delineate", "geolocate",
-    "localize", "find the position of", "indicate where", "trace the boundary",
-    "box the", "find the coordinates of", "show region of", "mark region",
-    "spot where", "detect where", "where does", "display the location",
+    "map out", "map the", "map out the", "mark out", "highlight", "locate",
+    "where is", "where are", "mark the", "show me the", "point out", "outline",
+    "find the", "which region", "pinpoint", "detect the location", "draw a box",
+    "bounding box", "identify the area", "spot the", "demarcate", "isolate the",
+    "find all", "track down", "where can i find", "circle the", "bound the",
+    "delineate", "geolocate", "localize", "find the position of", "indicate where",
+    "trace the boundary", "box the", "find the coordinates of", "show region of",
+    "mark region", "spot where", "detect where", "where does", "display the location",
     "find target", "detect target", "segment the", "identify location of",
     "target location", "where in the image", "show the boundary of",
     "delineate the", "find the extent of", "locate the region",
@@ -188,7 +191,10 @@ def classify_task(query: str, scene) -> TaskClassification:
         evidence.append("cross-modal pair supplied")
 
     else:  # SINGLE
-        if any(c in q for c in GROUNDING_CUES):
+        # Questions inquiring about specific drawn shapes / annotations / visual content
+        if (q.endswith("?") or any(q.startswith(w) for w in QUESTION_STARTERS)) and any(c in q for c in ("inside", "what is this", "what is in", "what does", "point to", "pointed", "in this box", "in this circle", "in this shape", "in the marked", "in the drawn", "what is here")):
+            t = TaskType.SINGLE_VQA
+        elif any(c in q for c in GROUNDING_CUES):
             t = TaskType.SINGLE_GROUNDING
         elif any(c in q for c in LANDCOVER_CUES):
             t = TaskType.LAND_COVER_ANALYSIS
@@ -201,10 +207,58 @@ def classify_task(query: str, scene) -> TaskClassification:
 
     conf = _rule_confidence(q, t)
 
-    # PRD: if confidence < 0.6 and PLANNER_BACKEND != "local", use LLM classifier
-    # (skipped here - LLM classifier is a Phase 7 enhancement; rule-based is the
-    # primary and offline-safe path)
-    if conf < 0.6 and settings.PLANNER_BACKEND != "local":
-        evidence.append(f"rule confidence {conf:.2f} below threshold; LLM fallback not yet wired")
-
     return TaskClassification(task=t, confidence=conf, evidence=evidence)
+
+
+async def classify_task_async(query: str, scene) -> TaskClassification:
+    """
+    Asynchronous Task Classifier:
+    1. Evaluates fast deterministic rules (<1ms).
+    2. If confidence >= 0.85, returns immediate rule result.
+    3. If confidence < 0.85 (novel/ambiguous query), delegates to lightweight LLM classifier (Phi-3 Mini / Vertex).
+    """
+    rule_res = classify_task(query, scene)
+    if rule_res.confidence >= 0.85:
+        return rule_res
+
+    # Try LLM classification fallback for ambiguous queries
+    try:
+        from services.inference.llm_gateway import call_llm_json
+
+        system_prompt = (
+            "You are an expert geospatial task classifier. Given a user query and scene configuration, "
+            "classify the query into exactly ONE of the following valid TaskType enum values:\n"
+            "- SINGLE_VQA: Answering questions about features/objects in a single satellite image\n"
+            "- SINGLE_CAPTION: General description or overview of a single image\n"
+            "- SINGLE_GROUNDING: Locating, detecting, mapping, or drawing boxes/arrows around specific objects\n"
+            "- LAND_COVER_ANALYSIS: Analyzing vegetation, water, crops, urban land-use or spectral indices\n"
+            "- CHANGE_DESCRIPTION: Describing changes between two temporal images\n"
+            "- CHANGE_MAP: Generating change detection maps between two temporal dates\n"
+            "- CHANGE_VQA: Answering questions about temporal changes\n"
+            "- CROSS_MODAL_ANALYSIS: Joint optical and SAR radar feature analysis\n"
+            "- UNSUPPORTED: Irrelevant or out-of-scope queries\n\n"
+            "Return JSON: {\"task\": \"<TASK_TYPE>\", \"reason\": \"<brief reason>\"}"
+        )
+
+        user_prompt = f"Query: \"{query}\"\nScene Modality: {scene.input_config}"
+        parsed, backend = await call_llm_json(
+            prompt=user_prompt,
+            system=system_prompt,
+            prefer_backend="auto",
+            prefer_model=getattr(settings, "OLLAMA_CLASSIFIER_MODEL", "phi3:mini"),
+            timeout=5.0,
+        )
+
+        task_str = parsed.get("task", "")
+        for tt in TaskType:
+            if tt.value == task_str or tt.name == task_str:
+                log.info("LLM Classifier (%s) resolved task: %s", backend, tt.value)
+                return TaskClassification(
+                    task=tt,
+                    confidence=0.88,
+                    evidence=[f"Classified by LLM ({backend}): {parsed.get('reason', '')}"],
+                )
+    except Exception as e:
+        log.info("LLM classification fallback skipped (%s), using rule result", e)
+
+    return rule_res

@@ -53,6 +53,47 @@ class RSVQATool(Tool):
 
         imgs = ctx.model_ready_images()
         instruction = TEMPLATES["vqa"].format(question=p.question)
+
+        user_bbox = ctx.get_user_annotation_bbox() if hasattr(ctx, "get_user_annotation_bbox") else None
+        if user_bbox:
+            ymin, xmin, ymax, xmax = user_bbox
+            instruction += (
+                f"\n\n[SPATIAL FOCUS - USER ANNOTATION]:\n"
+                f"The user has highlighted / drawn an annotation on the image at normalized bounding coordinates:\n"
+                f"• Top: {ymin*100:.1f}%, Left: {xmin*100:.1f}%, Bottom: {ymax*100:.1f}%, Right: {xmax*100:.1f}%\n"
+                f"• Bounding Box: (ymin={ymin:.3f}, xmin={xmin:.3f}, ymax={ymax:.3f}, xmax={xmax:.3f})\n"
+                f"Please focus your analysis directly on the visual features, structures, or objects located within or indicated by this marked region."
+            )
+
+        # Inject spatial resolution & physical GSD metadata
+        gsd_m = ctx.scene_gsd_x_m() if hasattr(ctx, "scene_gsd_x_m") else None
+        if gsd_m:
+            instruction += f"\n• Spatial Resolution (GSD): {gsd_m:.2f} meters per pixel."
+
+        # Inject deterministic measurement facts produced by prior tool steps (geo_stats, spectral_index)
+        prior_facts: list[str] = []
+        if hasattr(ctx, "results") and ctx.results:
+            for step_id, res in ctx.results.items():
+                if getattr(res, "tool", None) == "geo_stats" and getattr(res, "facts", None):
+                    f = res.facts
+                    if "area_ha" in f:
+                        prior_facts.append(
+                            f"• Deterministic Area Measurement: {f['area_ha']:.2f} hectares ({f.get('area_m2', 0):,.1f} m²), "
+                            f"occupying {f.get('positive_pixels', 0):,} pixels ({f.get('percent', 0):.2f}% of the scene footprint)."
+                        )
+                elif getattr(res, "tool", None) == "spectral_index" and getattr(res, "facts", None):
+                    f = res.facts
+                    prior_facts.append(
+                        f"• Spectral Index ({f.get('index')}): Mean = {f.get('mean')}, {f.get('positive_fraction', 0)*100:.1f}% positive pixels."
+                    )
+
+        if prior_facts:
+            instruction += (
+                "\n\n[DETERMINISTIC PHYSICAL MEASUREMENTS PRODUCED BY TOOLS]:\n"
+                + "\n".join(prior_facts)
+                + "\nPlease cite and integrate these exact physical measurements directly in your answer."
+            )
+
         try:
             out = await vlm_call(imgs, instruction, backend=ctx.vlm_backend)
         except VLMUnavailable as e:

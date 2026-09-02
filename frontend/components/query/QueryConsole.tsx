@@ -13,6 +13,8 @@ import PipelineVisualizer, {
 import { Scene, QueryStreamEvent } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { streamQuery } from '@/lib/api';
+import { useAnnotationStore } from '@/features/annotation/annotation-store';
+import { AnnotationLayer } from '@/features/annotation/types';
 
 interface QueryConsoleProps {
   scene: Scene;
@@ -57,6 +59,32 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
     addTurn(q);
 
     try {
+      // Gather active user annotations to provide spatial grounding context to the agent
+      const annotationStore = useAnnotationStore.getState();
+      const activeLayer = annotationStore.layers.find((l) => l.id === annotationStore.activeLayerId);
+      const visibleLayers = annotationStore.layers.filter((l) => l.visible);
+      const userShapes = activeLayer?.shapes || visibleLayers.flatMap((l) => l.shapes);
+
+      let annotationsPayload: any = null;
+      if (userShapes.length > 0) {
+        annotationsPayload = {
+          active_layer_id: activeLayer?.id,
+          active_layer_name: activeLayer?.name,
+          shapes: userShapes,
+          geojson: {
+            type: 'FeatureCollection',
+            features: userShapes.map((s) => ({
+              type: 'Feature',
+              properties: { id: s.id, kind: s.kind, label: s.label },
+              geometry: {
+                type: s.kind === 'point' ? 'Point' : 'Polygon',
+                coordinates: s.points,
+              },
+            })),
+          },
+        };
+      }
+
       const result = await streamQuery(
         scene.id,
         q,
@@ -92,11 +120,52 @@ export default function QueryConsole({ scene }: QueryConsoleProps) {
           }
         },
         verifyEnabled,
+        annotationsPayload,
       );
 
       setPipelineStage('complete');
       setTurnResult(result);
       initLayers(result.evidence);
+
+      // Ingest any agent-created vector annotation layers into the annotation store
+      if (result.evidence) {
+        const annotationStore = useAnnotationStore.getState();
+        const evMap = result.evidence as Record<string, any>;
+        const newLayers: AnnotationLayer[] = [];
+
+        for (const [key, val] of Object.entries(evMap)) {
+          if (key.endsWith('.annotation_layer') && val && typeof val === 'object') {
+            const layer = val as unknown as AnnotationLayer;
+            if (!annotationStore.layers.some((l) => l.id === layer.id)) {
+              newLayers.push(layer);
+            }
+          } else if (key.endsWith('.shapes') && Array.isArray(val) && val.length > 0) {
+            const stepPrefix = key.split('.')[0];
+            const layerId = (evMap[`${stepPrefix}.annotation_layer_id`] as string) || `layer_agent_${Date.now()}`;
+            if (!annotationStore.layers.some((l) => l.id === layerId) && !newLayers.some((l) => l.id === layerId)) {
+              newLayers.push({
+                id: layerId,
+                sceneId: scene.id,
+                name: 'Agent Annotations',
+                author: 'agent',
+                colour: '#06b6d4',
+                visible: true,
+                locked: false,
+                opacity: 1.0,
+                zIndex: annotationStore.layers.length + newLayers.length,
+                shapes: val as any[],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          }
+        }
+
+        if (newLayers.length > 0) {
+          annotationStore.setLayers([...annotationStore.layers, ...newLayers]);
+          annotationStore.setActiveLayerId(newLayers[0].id);
+        }
+      }
     } catch (err) {
       updateLastTurn({
         isStreaming: false,

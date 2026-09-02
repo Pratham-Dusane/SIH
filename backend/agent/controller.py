@@ -51,14 +51,16 @@ async def answer_query(
     query: str,
     emit: Callable[..., Coroutine],
     storage=None,
-    vlm_backend: str = "gemini",
+    vlm_backend: Optional[str] = None,
     verify: Optional[bool] = None,
+    annotations: Optional[Dict[str, Any]] = None,
 ) -> QueryResult:
     """
     Main entry point for the agentic controller.
     Six-stage pipeline: classify -> gate -> plan -> execute -> fuse -> verify.
 
     """
+    effective_vlm = vlm_backend or settings.VLM_BACKEND
     trace = ExecutionTrace.start(scene_id=scene.id, query=query)
 
     print(f"\n{'='*75}")
@@ -69,12 +71,13 @@ async def answer_query(
     # Stage 1: Task Classification
     # ------------------------------------------------------------------
     await emit({"type": "stage", "stage": "classifying"})
-    task = classify_task(query, scene)
+    from agent.task_classifier import classify_task_async
+    task = await classify_task_async(query, scene)
     trace.task = task
     print(f"\n[STAGE 1: TASK CLASSIFICATION]")
-    print(f"  ▸ Task Type  : {task.task.value}")
-    print(f"  ▸ Confidence : {task.confidence}")
-    print(f"  ▸ Evidence   : {task.evidence}")
+    print(f"  * Task Type  : {task.task.value}")
+    print(f"  * Confidence : {task.confidence}")
+    print(f"  * Evidence   : {task.evidence}")
 
     # ------------------------------------------------------------------
     # Stage 2: Input Gate
@@ -83,9 +86,9 @@ async def answer_query(
     gate = input_gate(task, scene)
     trace.gate = gate.model_dump()
     print(f"\n[STAGE 2: INPUT GATE & CAPABILITIES]")
-    print(f"  ▸ Gate OK    : {gate.ok}")
-    print(f"  ▸ Problems   : {[p.detail for p in gate.problems]}")
-    print(f"  ▸ Warnings   : {gate.warnings}")
+    print(f"  * Gate OK    : {gate.ok}")
+    print(f"  * Problems   : {[p.detail for p in gate.problems]}")
+    print(f"  * Warnings   : {gate.warnings}")
     if not gate.ok:
         print(f"  [!] Query Refused at Input Gate: {gate.problems}")
         trace.finish(status="REFUSED")
@@ -99,16 +102,16 @@ async def answer_query(
     trace.plan = {"backend": plan.backend, "step_count": len(plan.steps)}
     await emit({"type": "plan", "plan": plan.model_dump()})
     print(f"\n[STAGE 3: DAG PLANNING]")
-    print(f"  ▸ Backend    : {plan.backend}")
-    print(f"  ▸ Steps ({len(plan.steps)}):")
+    print(f"  * Backend    : {plan.backend}")
+    print(f"  * Steps ({len(plan.steps)}):")
     for s in plan.steps:
-        print(f"    ├─ Step {s.id}: tool='{s.tool}', reason='{s.reason}', inputs={s.inputs}")
+        print(f"    |- Step {s.id}: tool='{s.tool}', reason='{s.reason}', inputs={s.inputs}")
 
     # ------------------------------------------------------------------
     # Stage 4: Execution
     # ------------------------------------------------------------------
     print(f"\n[STAGE 4: EXECUTION PIPELINE]")
-    ctx = ExecutionContext(scene=scene, storage=storage, vlm_backend=vlm_backend)
+    ctx = ExecutionContext(scene=scene, storage=storage, vlm_backend=effective_vlm, user_annotations=annotations)
     results = await execute_plan(plan, scene, trace, emit, ctx)
 
     # ------------------------------------------------------------------
@@ -141,21 +144,22 @@ async def answer_query(
         })
 
     print(f"\n[STAGE 5: FUSION & GROUNDING]")
-    print(f"  ▸ Fusion Mode        : {fusion.mode}")
-    print(f"  ▸ Grounding Check    : {fusion.grounding_check}")
-    print(f"  ▸ Unsupported Numbers: {fusion.unsupported_numbers}")
-    print(f"  ▸ Step-by-Step Confidences:")
+    print(f"  * Fusion Mode        : {fusion.mode}")
+    print(f"  * Grounding Check    : {fusion.grounding_check}")
+    print(f"  * Unsupported Numbers: {fusion.unsupported_numbers}")
+    print(f"  * Step-by-Step Confidences:")
     for step_id, res in results.items():
         if hasattr(res, "confidence"):
-            print(f"    ├─ Step {step_id} ({getattr(res, 'tool', 'unknown')}): confidence = {res.confidence} | basis = {getattr(res, 'confidence_basis', '')}")
-    print(f"  ▸ Overall Aggregated : {confidence.value} ({confidence.band})")
-    print(f"  ▸ Aggregation Basis  : {confidence.basis}")
-    print(f"  ▸ Abstained          : {should_abstain(confidence)}")
+            basis_str = str(getattr(res, 'confidence_basis', '')).encode('ascii', errors='replace').decode('ascii')
+            print(f"    |- Step {step_id} ({getattr(res, 'tool', 'unknown')}): confidence = {res.confidence} | basis = {basis_str}")
+    print(f"  * Overall Aggregated : {confidence.value} ({confidence.band})")
+    print(f"  * Aggregation Basis  : {str(confidence.basis).encode('ascii', errors='replace').decode('ascii')}")
+    print(f"  * Abstained          : {should_abstain(confidence)}")
 
     # ------------------------------------------------------------------
     # Stage 6: Self-Verification (optional, configurable)
     # ------------------------------------------------------------------
-    should_verify = verify if verify is not None else settings.VERIFY_ANSWERS
+    should_verify = verify if verify is not None else getattr(settings, "VERIFY_ANSWERS", False)
     verification: Optional[VerificationResult] = None
 
     if should_verify and not should_abstain(confidence):
@@ -163,7 +167,7 @@ async def answer_query(
         try:
             from agent.verifier import verify_answer
             images = ctx.model_ready_images()
-            verification = await verify_answer(answer, images, vlm_backend=vlm_backend)
+            verification = await verify_answer(answer, images, vlm_backend=effective_vlm)
 
             # Apply confidence adjustment
             if verification.confidence_delta != 0:
@@ -192,13 +196,14 @@ async def answer_query(
 
     print(f"\n[STAGE 6: SELF-VERIFICATION]")
     if verification:
-        print(f"  ▸ Status             : {verification.status}")
-        print(f"  ▸ Confidence Delta   : {verification.confidence_delta}")
-        print(f"  ▸ Reason             : {verification.reason}")
+        print(f"  * Status             : {verification.status}")
+        print(f"  * Confidence Delta   : {verification.confidence_delta}")
+        print(f"  * Reason             : {verification.reason}")
 
     print(f"\n{'='*75}")
-    print(f"  🎯 [FINAL SYNTHESIZED ANSWER]")
-    print(f"  {answer}")
+    ans_clean = str(answer).encode('ascii', errors='replace').decode('ascii')
+    print(f"  [FINAL SYNTHESIZED ANSWER]")
+    print(f"  {ans_clean}")
     print(f"{'='*75}\n")
 
     trace.verification = verification.model_dump() if verification else None

@@ -112,9 +112,9 @@ async def execute_plan(
             continue
 
         # Emit running status
-        print(f"\n   ┌─── [EXECUTING STEP {step.id}] Tool: '{tool.name}' ──────────────────────")
-        print(f"   │ Params Applied: {params.model_dump()}")
-        print(f"   │ Reason: {step.reason}")
+        print(f"\n   +--- [EXECUTING STEP {step.id}] Tool: '{tool.name}' ----------------------")
+        print(f"   | Params Applied: {params.model_dump()}")
+        print(f"   | Reason: {step.reason}")
         await emit({"type": "step", "id": step.id, "tool": step.tool,
                     "status": "running", "params": params.model_dump(),
                     "reason": step.reason})
@@ -153,18 +153,23 @@ async def execute_plan(
             result=result,
         )
 
-        print(f"   │ Status        : {'OK' if result.confidence > 0 else 'FAILED'} (Duration: {result.duration_ms}ms)")
-        print(f"   │ Confidence    : {result.confidence} (Basis: {result.confidence_basis})")
+        def _safe_str(val: Any) -> str:
+            if val is None:
+                return ""
+            return str(val).encode("ascii", errors="replace").decode("ascii")
+
+        print(f"   | Status        : {'OK' if result.confidence > 0 else 'FAILED'} (Duration: {result.duration_ms}ms)")
+        print(f"   | Confidence    : {result.confidence} (Basis: {_safe_str(result.confidence_basis)})")
         if result.facts:
-            print(f"   │ Facts         : {result.facts}")
+            print(f"   | Facts         : {_safe_str(result.facts)}")
         if result.text:
-            text_preview = result.text.strip().replace('\n', ' ')
-            print(f"   │ Text Output   : {text_preview[:160]}{'...' if len(text_preview) > 160 else ''}")
+            text_preview = _safe_str(result.text.strip().replace('\n', ' '))
+            print(f"   | Text Output   : {text_preview[:160]}{'...' if len(text_preview) > 160 else ''}")
         if result.artifacts:
-            print(f"   │ Artifacts     : {list(result.artifacts.keys())}")
+            print(f"   | Artifacts     : {list(result.artifacts.keys())}")
         if result.warnings:
-            print(f"   │ Warnings      : {result.warnings}")
-        print(f"   └──────────────────────────────────────────────────────────")
+            print(f"   | Warnings      : {[_safe_str(w) for w in result.warnings]}")
+        print(f"   +----------------------------------------------------------")
 
         # Emit completion
         await emit({

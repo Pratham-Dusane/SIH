@@ -53,7 +53,8 @@ class LandCoverTool(Tool):
         if not ok:
             return unavailable_result(self.name, self.model_id, reason, BACKEND_LABEL)
 
-        bounds = ctx.scene_bounds_wgs84()
+        user_bounds = ctx.user_annotation_bounds_wgs84() if hasattr(ctx, "user_annotation_bounds_wgs84") else None
+        bounds = user_bounds or ctx.scene_bounds_wgs84()
         if not bounds:
             return ToolResult(
                 tool=self.name, model_id=self.model_id, confidence=0.0,

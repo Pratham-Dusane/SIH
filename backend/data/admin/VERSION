@@ -1,0 +1,7 @@
+Source: GitHub datta07/INDIAN-SHAPEFILES (community-maintained)
+Vintage: 2024
+Districts: ~780
+CRS: EPSG:4326
+Note: Indian district boundaries change — new districts were created in several
+states in recent years. Cross-reference with current administrative orders if
+precision is required for recently reorganised states.

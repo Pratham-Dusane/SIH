@@ -67,13 +67,14 @@ export interface Scene {
 
 export interface EvidenceLayer {
   id: string;
-  type: 'mask' | 'boxes' | 'change_map' | 'heatmap' | 'points';
+  type: 'mask' | 'boxes' | 'change_map' | 'heatmap' | 'points' | 'annotation';
   label: string;
   colour: string;
   sourceStep: string;
   pngUrl?: string;
   geotiffUrl?: string;
   geojsonUrl?: string;
+  annotationLayerId?: string;
   boxes?: { bbox: [number, number, number, number]; score: number; label?: string }[];
   stats?: Record<string, number>;
 }

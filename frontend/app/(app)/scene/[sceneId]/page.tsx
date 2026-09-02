@@ -15,6 +15,14 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, ChevronUp, ChevronDown, CloudOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import RightRail from '@/components/workbench/RightRail';
+import { useFeaturesStore } from '@/lib/features-store';
+
+// Import feature registrations
+import '@/features';
+
+import { useAnnotationStore } from '@/features/annotation/annotation-store';
+
 export default function AnalysisWorkspacePage() {
   const params = useParams();
   const sceneId = params?.sceneId as string;
@@ -26,6 +34,10 @@ export default function AnalysisWorkspacePage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
+  const { fetchFeatures } = useFeaturesStore();
+
+  // Fetch feature flags once
+  useEffect(() => { fetchFeatures(); }, [fetchFeatures]);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +48,8 @@ export default function AnalysisWorkspacePage() {
         const scene = await fetchScene(sceneId);
         if (cancelled) return;
         setActiveScene(scene);
+        // Load annotation layers for this scene
+        useAnnotationStore.getState().loadLayersForScene(sceneId);
       } catch (err) {
         if (cancelled) return;
         setActiveScene(null);
@@ -122,7 +136,7 @@ export default function AnalysisWorkspacePage() {
         />
       </div>
 
-      {/* Main content: Canvas + Console */}
+      {/* Main content: Canvas + Right Rail (Housing Console, Enhancement, Annotation, Location Context) */}
       <div className="flex-1 min-h-0 flex gap-4 overflow-hidden rounded-2xl">
         {/* Evidence Canvas */}
         <div className="relative flex-1 min-w-0 h-full rounded-2xl overflow-hidden">
@@ -132,10 +146,8 @@ export default function AnalysisWorkspacePage() {
           </div>
         </div>
 
-        {/* Query Console */}
-        <div className="w-[390px] shrink-0 rounded-2xl border border-border/80 flex flex-col bg-card/60 backdrop-blur-xl h-full overflow-hidden shadow-sm">
-          <QueryConsole scene={activeScene} />
-        </div>
+        {/* Right Rail with unified panels (Console, Enhancement, Annotation, Location Context) */}
+        <RightRail scene={activeScene} />
       </div>
 
       {/* Execution Trace Drawer */}

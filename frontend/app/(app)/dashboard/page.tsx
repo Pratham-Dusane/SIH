@@ -342,7 +342,7 @@ export default function DashboardPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.04 }}
                   >
-                    <Link href={`/scene/${scene.id}`} className="block group">
+                    <Link href={`/query/${scene.id}`} className="block group">
                       <div className="glass-card rounded-2xl p-4 hover:border-primary/40 transition-all space-y-3 relative overflow-hidden h-full">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">

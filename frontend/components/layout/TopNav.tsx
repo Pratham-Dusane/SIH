@@ -112,19 +112,17 @@ export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
         {/* Theme Toggle */}
         {mounted && (
           <Tooltip>
-            <TooltipTrigger>
-              <button
-                id="btn-theme-toggle"
-                onClick={toggleTheme}
-                className="flex items-center justify-center w-8 h-8 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer"
-                aria-label="Toggle theme"
-              >
-                {theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-amber-400" strokeWidth={1.5} />
-                ) : (
-                  <Moon className="w-4 h-4 text-slate-600" strokeWidth={1.5} />
-                )}
-              </button>
+            <TooltipTrigger
+              id="btn-theme-toggle"
+              onClick={toggleTheme}
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all cursor-pointer"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400" strokeWidth={1.5} />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-600" strokeWidth={1.5} />
+              )}
             </TooltipTrigger>
             <TooltipContent>
               <p className="text-xs">Switch to {theme === 'dark' ? 'light' : 'dark'} mode</p>

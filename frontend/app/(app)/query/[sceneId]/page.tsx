@@ -517,11 +517,11 @@ export default function CinematicQueryPage() {
     const accentBg = isDark ? 'bg-sky-500' : 'bg-blue-600';
     const mutedText = isDark ? 'text-slate-400' : 'text-slate-600';
     const inputBg = isDark
-      ? 'bg-white/[0.04] border-white/15 shadow-2xl'
-      : 'bg-white/95 border-slate-200/90 shadow-2xl shadow-slate-300/40';
+      ? 'bg-slate-950/60 border-white/15 shadow-2xl shadow-sky-500/10 backdrop-blur-2xl'
+      : 'bg-white/80 border-slate-300/60 shadow-2xl shadow-slate-400/20 backdrop-blur-2xl';
     const chipBg = isDark
-      ? 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-sky-400/40 text-slate-300 hover:text-white'
-      : 'border-slate-200 bg-white/90 hover:bg-slate-50 hover:border-blue-400/60 text-slate-700 hover:text-slate-950 shadow-xs';
+      ? 'border-white/10 bg-slate-950/40 backdrop-blur-xl hover:bg-white/[0.08] hover:border-sky-400/40 text-slate-300 hover:text-white'
+      : 'border-slate-300/60 bg-white/70 backdrop-blur-xl hover:bg-white/90 hover:border-blue-500/60 text-slate-700 hover:text-slate-950 shadow-xs';
 
     return (
       <div className={cn('relative min-h-screen w-full overflow-hidden flex flex-col transition-colors duration-500', bgClass)}>
@@ -545,26 +545,66 @@ export default function CinematicQueryPage() {
           }
         `}</style>
 
-        {/* Background: Satellite imagery backdrop */}
-        {previewUrl && (
-          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-            <img
-              src={previewUrl}
-              alt=""
-              className={cn(
-                'w-full h-full object-cover blur-[28px] scale-110 transition-opacity duration-700',
-                isDark ? 'opacity-25 contrast-125 saturate-90' : 'opacity-20 contrast-110 saturate-75'
-              )}
-            />
-            {/* Scrim gradient overlay to preserve black/white purity */}
-            <div className={cn(
-              'absolute inset-0',
+        {/* ── Hero Background Image: blackbg.jpg (dark) / whitebg.png (light) ── */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
+          {/* The actual hero image, animated in */}
+          <motion.img
+            initial={{ scale: 1.15, opacity: 0 }}
+            animate={{ scale: 1.05, opacity: 1 }}
+            transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
+            src={isDark ? '/blackbg.jpg' : '/whitebg.png'}
+            alt=""
+            className={cn(
+              'w-full h-full object-cover transition-all duration-700',
               isDark
-                ? 'bg-gradient-to-b from-[#050811]/80 via-[#050811]/60 to-[#050811]/95'
-                : 'bg-gradient-to-b from-white/85 via-white/70 to-white/95'
-            )} />
-          </div>
-        )}
+                ? 'opacity-70 contrast-[1.15] saturate-[1.1]'
+                : 'opacity-60 contrast-105 saturate-90'
+            )}
+          />
+
+          {/* Cinematic scrim: radial vignette + directional gradient */}
+          <div className={cn(
+            'absolute inset-0',
+            isDark
+              ? 'bg-[radial-gradient(ellipse_at_center,transparent_30%,#050811_85%)]'
+              : 'bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(255,255,255,0.92)_85%)]'
+          )} />
+
+          {/* Top-to-bottom scrim for text readability */}
+          <div className={cn(
+            'absolute inset-0',
+            isDark
+              ? 'bg-gradient-to-b from-[#050811]/60 via-transparent to-[#050811]/90'
+              : 'bg-gradient-to-b from-white/70 via-transparent to-white/85'
+          )} />
+
+          {/* Horizontal sweep for center focus */}
+          <div className={cn(
+            'absolute inset-0',
+            isDark
+              ? 'bg-gradient-to-r from-[#050811]/70 via-transparent to-[#050811]/70'
+              : 'bg-gradient-to-r from-white/60 via-transparent to-white/60'
+          )} />
+
+          {/* Animated scan line — subtle CRT/satellite-telemetry feel */}
+          <motion.div
+            className={cn(
+              'absolute left-0 right-0 h-px pointer-events-none',
+              isDark ? 'bg-sky-400/15' : 'bg-blue-600/10'
+            )}
+            animate={{ top: ['0%', '100%'] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+          />
+
+          {/* Subtle noise / grain texture overlay for premium feel */}
+          <div
+            className="absolute inset-0 opacity-[0.03] mix-blend-overlay"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+              backgroundSize: '128px 128px',
+            }}
+          />
+        </div>
 
         {/* Technical Grid Overlay */}
         <div

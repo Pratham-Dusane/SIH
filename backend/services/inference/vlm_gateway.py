@@ -81,12 +81,13 @@ TEMPLATES: Dict[str, str] = {
         "Flag any ambiguous features clearly. Do not invent exact counts or measurements."
     ),
     "ground": (
-        "Locate the region matching this description: {phrase}\n"
-        "Respond with a single normalised bounding box in exactly the form "
-        "(x1,y1),(x2,y2) with all four values in [0,1], where x is the fraction "
-        "across the image from the left edge and y is the fraction down from the "
-        "top edge. If no such region is present in the image, reply with exactly: "
-        "NOT_FOUND"
+        "Locate all distinct regions, objects, or features matching this description in the satellite image: {phrase}\n\n"
+        "Guidelines:\n"
+        "• If there are multiple disconnected instances (e.g. multiple distinct vegetation patches, separate roads/highways, multiple structures/zones), output a SEPARATE bounding box for EACH individual instance.\n"
+        "• Do NOT combine separate disconnected regions into one giant box that covers the whole image.\n"
+        "• Format each bounding box as: (x1,y1),(x2,y2) with normalised coordinates in [0,1], where x=fraction from left [0..1] and y=fraction from top [0..1].\n"
+        "• Output each box on a new line, or as a JSON array: [{{\"box_2d\": [ymin, xmin, ymax, xmax], \"label\": \"...\"}}, ...]\n"
+        "• If no matching feature is present in the image, reply with exactly: NOT_FOUND"
     ),
     "change_describe": (
         "You are shown two co-registered satellite images of the same area at two different times: "
@@ -572,26 +573,125 @@ _BOX_RE = re.compile(
 )
 
 
+def parse_all_bboxes(text: Optional[str]) -> List[List[float]]:
+    """
+    Parse ALL valid normalised bounding boxes [x1, y1, x2, y2] in [0, 1] from VLM output text.
+    Handles multiple disconnected instances across JSON arrays and coordinate tuple lines.
+    """
+    if not text:
+        return []
+    if "not_found" in text.lower() and len(text.strip().split()) < 4:
+        return []
+
+    import json
+    import re
+
+    found_boxes: List[List[float]] = []
+
+    # 1. Try to extract JSON array of box_2d objects
+    start_idx = text.find("[")
+    end_idx = text.rfind("]")
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        try:
+            data = json.loads(text[start_idx:end_idx + 1])
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and "box_2d" in item:
+                        b = item["box_2d"]
+                        if len(b) == 4:
+                            ymin, xmin, ymax, xmax = (float(v) for v in b)
+                            if ymax > 1.0 or xmax > 1.0:
+                                ymin, xmin, ymax, xmax = ymin / 1000.0, xmin / 1000.0, ymax / 1000.0, xmax / 1000.0
+                            x1, y1 = min(xmin, xmax), min(ymin, ymax)
+                            x2, y2 = max(xmin, xmax), max(ymin, ymax)
+                            x1 = max(0.0, min(1.0, x1))
+                            y1 = max(0.0, min(1.0, y1))
+                            x2 = max(0.0, min(1.0, x2))
+                            y2 = max(0.0, min(1.0, y2))
+                            if (x2 - x1) > 0.005 and (y2 - y1) > 0.005:
+                                box = [round(x1, 5), round(y1, 5), round(x2, 5), round(y2, 5)]
+                                if box not in found_boxes:
+                                    found_boxes.append(box)
+        except Exception:
+            pass
+
+    # 2. Extract all (x1,y1),(x2,y2) tuple occurrences
+    for m in _BOX_RE.finditer(text):
+        try:
+            c1, c2, c3, c4 = (float(g) for g in m.groups())
+            if all(v > 10.0 for v in (c1, c2, c3, c4)):
+                c1, c2, c3, c4 = c1 / 1000.0, c2 / 1000.0, c3 / 1000.0, c4 / 1000.0
+            x1 = min(c1, c3)
+            y1 = min(c2, c4)
+            x2 = max(c1, c3)
+            y2 = max(c2, c4)
+            if any(v < 0.0 or v > 1.0 for v in (x1, y1, x2, y2)):
+                continue
+            if (x2 - x1) > 0.005 and (y2 - y1) > 0.005:
+                box = [round(x1, 5), round(y1, 5), round(x2, 5), round(y2, 5)]
+                if box not in found_boxes:
+                    found_boxes.append(box)
+        except Exception:
+            pass
+
+    # 3. If none found yet, attempt single box fallback
+    if not found_boxes:
+        single = parse_bbox(text)
+        if single:
+            found_boxes.append(single)
+
+    return found_boxes
+
+
 def parse_bbox(text: Optional[str]) -> Optional[List[float]]:
-    """Parse `(x1,y1),(x2,y2)` normalised to [0,1].  Returns None on failure."""
+    """Parse primary normalised bounding box [x1, y1, x2, y2] in [0, 1]. Returns None on failure."""
     if not text:
         return None
-    if "not_found" in text.lower():
+    if "not_found" in text.lower() and len(text.strip().split()) < 4:
         return None
+
+    import json
+    import re
+
+    # 1. Try to extract JSON array or box_2d (Gemini format)
+    json_match = re.search(r"\[\s*\{.*?\}\s*\]", text, re.DOTALL)
+    if json_match:
+        try:
+            data = json.loads(json_match.group(0))
+            if isinstance(data, list) and len(data) > 0:
+                item = data[0]
+                if isinstance(item, dict) and "box_2d" in item:
+                    b = item["box_2d"]
+                    if len(b) == 4:
+                        ymin, xmin, ymax, xmax = (float(v) for v in b)
+                        if all(v > 10.0 for v in (ymin, xmin, ymax, xmax)):
+                            ymin, xmin, ymax, xmax = ymin / 1000.0, xmin / 1000.0, ymax / 1000.0, xmax / 1000.0
+                        x1, y1 = min(xmin, xmax), min(ymin, ymax)
+                        x2, y2 = max(xmin, xmax), max(ymin, ymax)
+                        box = [x1, y1, x2, y2]
+                        if not any(v < 0.0 or v > 1.0 for v in box) and (x2 - x1) > 0 and (y2 - y1) > 0:
+                            return [round(v, 5) for v in box]
+        except Exception:
+            pass
+
+    # 2. Try standard (x1,y1),(x2,y2) pattern - must be strictly within [0, 1]
     m = _BOX_RE.search(text)
-    if not m:
-        return None
-    try:
-        x1, y1, x2, y2 = (float(g) for g in m.groups())
-    except ValueError:
-        return None
-    if x2 < x1:
-        x1, x2 = x2, x1
-    if y2 < y1:
-        y1, y2 = y2, y1
-    box = [x1, y1, x2, y2]
-    if any(v < 0.0 or v > 1.0 for v in box):
-        return None
-    if (x2 - x1) <= 0.0 or (y2 - y1) <= 0.0:
-        return None
-    return [round(v, 5) for v in box]
+    if m:
+        try:
+            x1, y1, x2, y2 = (float(g) for g in m.groups())
+            if all(v > 10.0 for v in (x1, y1, x2, y2)):
+                x1, y1, x2, y2 = x1 / 1000.0, y1 / 1000.0, x2 / 1000.0, y2 / 1000.0
+            if x2 < x1:
+                x1, x2 = x2, x1
+            if y2 < y1:
+                y1, y2 = y2, y1
+            box = [x1, y1, x2, y2]
+            if any(v < 0.0 or v > 1.0 for v in box):
+                return None
+            if (x2 - x1) <= 0.0 or (y2 - y1) <= 0.0:
+                return None
+            return [round(v, 5) for v in box]
+        except ValueError:
+            pass
+
+    return None

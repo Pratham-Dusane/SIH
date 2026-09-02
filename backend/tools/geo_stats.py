@@ -55,14 +55,47 @@ class GeoStatsTool(Tool):
     offline_capable = True
 
     async def run(self, ctx, params: GeoStatsParams) -> ToolResult:
-        # Resolve the mask from a prior step's artifacts
-        mask = ctx.get_artifact(params.mask_ref)
+        # Resolve the mask from user annotations or a prior step's artifacts
+        mask = None
+        is_user_ann = (
+            params.mask_ref in ("user_annotation", "user_annotations", "user_annotation_mask", "annotation", "layer")
+            or "annotation" in params.mask_ref
+            or "layer" in params.mask_ref
+        )
+
+        if is_user_ann and hasattr(ctx, "get_user_annotation_mask"):
+            mask = ctx.get_user_annotation_mask()
+
+        if mask is None:
+            mask = ctx.get_artifact(params.mask_ref)
+
+        if mask is None and hasattr(ctx, "get_user_annotation_mask") and getattr(ctx, "user_annotations", None):
+            # Fallback to user annotation mask if artifact key didn't match prior step
+            mask = ctx.get_user_annotation_mask()
+
         if mask is None:
             return ToolResult(
                 tool=self.name, confidence=0.0,
                 confidence_basis="referenced mask not found",
-                warnings=[f"Artifact '{params.mask_ref}' not found in prior step outputs"],
+                warnings=[f"Artifact '{params.mask_ref}' not found in prior step outputs or annotations"],
             )
+
+        if isinstance(mask, list):
+            # Rasterize normalized bounding boxes to a boolean mask
+            grid = np.zeros((512, 512), dtype=bool)
+            for box in mask:
+                if isinstance(box, (list, tuple)) and len(box) == 4:
+                    c1, c2, c3, c4 = (float(v) for v in box)
+                    ymin = min(c1, c2)
+                    ymax = max(c2, c4)
+                    xmin = min(c1, c3) if c1 > c2 else min(c2, c4)
+                    xmax = max(c1, c3) if c1 > c2 else max(c2, c4)
+                    r1 = max(0, min(512, int(ymin * 512)))
+                    r2 = max(0, min(512, int(ymax * 512)))
+                    c1_px = max(0, min(512, int(xmin * 512)))
+                    c2_px = max(0, min(512, int(xmax * 512)))
+                    grid[r1:r2, c1_px:c2_px] = True
+            mask = grid
 
         if not isinstance(mask, np.ndarray):
             return ToolResult(

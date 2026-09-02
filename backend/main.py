@@ -1,9 +1,11 @@
+import importlib
 import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
+from core import features
 from routers import auth, workspaces, uploads, scenes, query, stats, tools as tools_router, reports
 
 # Import tools package to trigger @register decorators at startup
@@ -39,6 +41,26 @@ app.include_router(stats.router)
 app.include_router(tools_router.router)
 app.include_router(reports.router)  # Phase 7 - evidence & reporting
 
+# ---------------------------------------------------------------------------
+# Feature-gated routers (Extensions PRD §3.2)
+# Each feature's endpoints mount only when enabled, contributing no routes,
+# no imports, and no startup cost when disabled.
+# ---------------------------------------------------------------------------
+OPTIONAL_ROUTERS = {
+    "enhancement":      "features.enhancement.router",
+    "annotation":       "features.annotation.router",
+    "historical":       "features.historical.router",
+    "location_history": "features.location_history.router",
+}
+for fid, module_path in OPTIONAL_ROUTERS.items():
+    if features.enabled(fid):
+        try:
+            mod = importlib.import_module(module_path)
+            app.include_router(mod.router)
+            logging.getLogger(__name__).info("Feature '%s' enabled — router mounted", fid)
+        except Exception as e:
+            logging.getLogger(__name__).warning("Feature '%s' router failed to load: %s", fid, e)
+
 
 @app.on_event("startup")
 async def startup_backends():
@@ -61,6 +83,25 @@ async def startup_backends():
     log.info("VLM gateway: backend=%s configured=%s (%s)",
              vlm["vlm_backend"], vlm["configured"], vlm["reason"])
     log.info("Earth Engine: initialized=%s (%s)", gee["gee_initialized"], gee["reason"])
+
+    # Pre-load admin boundaries (Extensions PRD §3.5)
+    try:
+        from core.geo.admin_lookup import get_admin_lookup
+        lookup = get_admin_lookup()
+        log.info("AdminLookup: %d districts loaded (vintage: %s)",
+                 lookup.count, lookup.version)
+    except Exception as e:
+        log.warning("AdminLookup failed to load: %s", e)
+
+    # Log enabled features
+    enabled = [fid for fid in features.FEATURE_IDS if features.enabled(fid)]
+    log.info("Enabled features: %s", enabled if enabled else "(none)")
+
+
+@app.get("/api/features")
+async def get_features():
+    """Extensions PRD §3.2: capability map consumed once per frontend session."""
+    return features.capability_map()
 
 
 @app.get("/")

@@ -12,7 +12,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -64,10 +64,17 @@ class QueryRequest(BaseModel):
     query: str
     # Defaults to the configured VLM_BACKEND (§15) rather than a hardcoded
     # provider; callers may still override per request.
-    vlm_backend: Optional[Literal["gemini", "gpt4v", "claude"]] = None
+    vlm_backend: Optional[Literal["gemini", "gpt4v", "claude", "vertex"]] = None
     # Per-request override for self-verification.  None = use the global
     # VERIFY_ANSWERS setting; True/False = force on/off for this request.
     verify: Optional[bool] = None
+    # User-drawn vector annotations / GeoJSON context
+    annotations: Optional[Dict[str, Any]] = None
+    focus_box: Optional[List[float]] = None
+    focus_point: Optional[List[float]] = None
+
+
+QueryRequest.model_rebuild()
 
 
 @router.post("/{scene_id}/query")
@@ -117,6 +124,7 @@ async def query_scene(
                     storage=storage,
                     vlm_backend=payload.vlm_backend or settings.VLM_BACKEND,
                     verify=payload.verify,
+                    annotations=payload.annotations,
                 )
                 _persist_query(db, scene, payload.query, result)
                 await queue.put({"type": "result", "data": {

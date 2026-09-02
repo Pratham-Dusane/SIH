@@ -9,7 +9,8 @@ import {
   Satellite, Send, Loader2, Terminal, Sparkles, ArrowRight,
   ChevronLeft, Crosshair, Layers, MapPinned, Eye, GripVertical,
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Activity,
-  Cpu, Search, Sun, Moon, ArrowLeftRight,
+  Cpu, Search, Sun, Moon, ArrowLeftRight, PenTool, BookOpen,
+  Clock, Radio, Download,
 } from 'lucide-react';
 import TopNav from '@/components/layout/TopNav';
 import EvidenceCanvas from '@/components/evidence/EvidenceCanvas';
@@ -25,8 +26,25 @@ import { useStore } from '@/lib/store';
 import { ApiError, fetchScene, streamQuery, fetchSceneSuggestions } from '@/lib/api';
 import { suggestedQueries } from '@/lib/mocks';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+// Import feature registrations & stores from Phase 9
+import '@/features';
+import { useFeaturesStore } from '@/lib/features-store';
+import { useAnnotationStore } from '@/features/annotation/annotation-store';
+import { AnnotationLayer } from '@/features/annotation/types';
+import { panelsFor, type WorkbenchPanel } from '@/lib/registry';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+
+const ICON_MAP: Record<string, any> = {
+  terminal: Terminal,
+  sparkles: Sparkles,
+  pen_tool: PenTool,
+  book_open: BookOpen,
+  clock: Clock,
+  layers: Layers,
+};
 
 function toPipelineStage(stage: string): PipelineStage | null {
   const map: Record<string, PipelineStage> = {
@@ -326,6 +344,7 @@ export default function CinematicQueryPage() {
 
   // Phase state: 'input' = Phase 1, 'analysis' = Phase 2
   const [phase, setPhase] = useState<'input' | 'analysis'>('input');
+  const [activeToolTab, setActiveToolTab] = useState<string>('console');
 
   // Query state
   const [query, setQuery] = useState('');
@@ -344,7 +363,14 @@ export default function CinematicQueryPage() {
     theme, toggleTheme,
   } = useStore();
 
+  const { fetchFeatures, enabledSet, loaded: featuresLoaded } = useFeaturesStore();
+
   const isDark = theme === 'dark';
+
+  // Load features and scene
+  useEffect(() => {
+    fetchFeatures();
+  }, [fetchFeatures]);
 
   // Preview image URL
   const previewUrl = scene?.images?.[0]?.previewUrl
@@ -360,6 +386,8 @@ export default function CinematicQueryPage() {
         if (cancelled) return;
         setScene(s);
         setActiveScene(s);
+        // Load vector annotations for this scene
+        useAnnotationStore.getState().loadLayersForScene(sceneId);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -388,6 +416,25 @@ export default function CinematicQueryPage() {
     }
   }, [turns, pipelineStage, toolSteps]);
 
+  // Registered tools list for Phase 2
+  const registeredPanels = scene && featuresLoaded ? panelsFor(scene, enabledSet) : [];
+
+  // Keyboard shortcut Alt+1..4 for tool switching
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (phase !== 'analysis') return;
+      if (e.altKey && e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key) - 1;
+        if (idx < registeredPanels.length) {
+          e.preventDefault();
+          setActiveToolTab(registeredPanels[idx].id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [phase, registeredPanels]);
+
   const handleSubmit = useCallback(async (q?: string) => {
     const text = (q || query).trim();
     if (!text || isStreaming || !scene) return;
@@ -396,6 +443,7 @@ export default function CinematicQueryPage() {
       setPhase('analysis');
     }
 
+    setActiveToolTab('console');
     setQuery('');
     setIsStreaming(true);
     setPipelineStage(null);
@@ -404,6 +452,32 @@ export default function CinematicQueryPage() {
     addTurn(text);
 
     try {
+      // Gather active user annotations to provide spatial grounding context to the agent (Phase 9 feature)
+      const annotationStore = useAnnotationStore.getState();
+      const activeLayer = annotationStore.layers.find((l) => l.id === annotationStore.activeLayerId);
+      const visibleLayers = annotationStore.layers.filter((l) => l.visible);
+      const userShapes = activeLayer?.shapes || visibleLayers.flatMap((l) => l.shapes);
+
+      let annotationsPayload: any = null;
+      if (userShapes.length > 0) {
+        annotationsPayload = {
+          active_layer_id: activeLayer?.id,
+          active_layer_name: activeLayer?.name,
+          shapes: userShapes,
+          geojson: {
+            type: 'FeatureCollection',
+            features: userShapes.map((s) => ({
+              type: 'Feature',
+              properties: { id: s.id, kind: s.kind, label: s.label },
+              geometry: {
+                type: s.kind === 'point' ? 'Point' : 'Polygon',
+                coordinates: s.points,
+              },
+            })),
+          },
+        };
+      }
+
       const result = await streamQuery(
         scene.id,
         text,
@@ -439,11 +513,51 @@ export default function CinematicQueryPage() {
           }
         },
         verifyEnabled,
+        annotationsPayload,
       );
 
       setPipelineStage('complete');
       setTurnResult(result);
       initLayers(result.evidence);
+
+      // Ingest any agent-created vector annotation layers into the annotation store (Phase 9 feature)
+      if (result.evidence) {
+        const evMap = result.evidence as Record<string, any>;
+        const newLayers: AnnotationLayer[] = [];
+
+        for (const [key, val] of Object.entries(evMap)) {
+          if (key.endsWith('.annotation_layer') && val && typeof val === 'object') {
+            const layer = val as unknown as AnnotationLayer;
+            if (!annotationStore.layers.some((l) => l.id === layer.id)) {
+              newLayers.push(layer);
+            }
+          } else if (key.endsWith('.shapes') && Array.isArray(val) && val.length > 0) {
+            const stepPrefix = key.split('.')[0];
+            const layerId = (evMap[`${stepPrefix}.annotation_layer_id`] as string) || `layer_agent_${Date.now()}`;
+            if (!annotationStore.layers.some((l) => l.id === layerId) && !newLayers.some((l) => l.id === layerId)) {
+              newLayers.push({
+                id: layerId,
+                sceneId: scene.id,
+                name: 'Agent Annotations',
+                author: 'agent',
+                colour: '#06b6d4',
+                visible: true,
+                locked: false,
+                opacity: 1.0,
+                zIndex: annotationStore.layers.length + newLayers.length,
+                shapes: val as any[],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          }
+        }
+
+        if (newLayers.length > 0) {
+          annotationStore.setLayers([...annotationStore.layers, ...newLayers]);
+          annotationStore.setActiveLayerId(newLayers[0].id);
+        }
+      }
     } catch (err) {
       updateLastTurn({
         isStreaming: false,
@@ -509,7 +623,6 @@ export default function CinematicQueryPage() {
   // PHASE 1: Atmospheric Full-Screen Query Input
   // ═══════════════════════════════════════════════════════════
   if (phase === 'input') {
-    // Exact requested: Black bg for dark mode, White bg for light mode
     const bgClass = isDark ? 'bg-[#050811] text-white' : 'bg-white text-slate-900';
     const gridOpacity = isDark ? 'opacity-20' : 'opacity-25';
     const gridLineColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)';
@@ -525,7 +638,6 @@ export default function CinematicQueryPage() {
 
     return (
       <div className={cn('relative min-h-screen w-full overflow-hidden flex flex-col transition-colors duration-500', bgClass)}>
-        {/* CSS for animations */}
         <style jsx global>{`
           @keyframes drift {
             0% { transform: translateX(0); }
@@ -547,7 +659,6 @@ export default function CinematicQueryPage() {
 
         {/* ── Hero Background Image: blackbg.jpg (dark) / whitebg.png (light) ── */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
-          {/* The actual hero image, animated in */}
           <motion.img
             initial={{ scale: 1.15, opacity: 0 }}
             animate={{ scale: 1.05, opacity: 1 }}
@@ -562,7 +673,7 @@ export default function CinematicQueryPage() {
             )}
           />
 
-          {/* Cinematic scrim: radial vignette + directional gradient */}
+          {/* Scrims for readability */}
           <div className={cn(
             'absolute inset-0',
             isDark
@@ -570,7 +681,6 @@ export default function CinematicQueryPage() {
               : 'bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(255,255,255,0.92)_85%)]'
           )} />
 
-          {/* Top-to-bottom scrim for text readability */}
           <div className={cn(
             'absolute inset-0',
             isDark
@@ -578,7 +688,6 @@ export default function CinematicQueryPage() {
               : 'bg-gradient-to-b from-white/70 via-transparent to-white/85'
           )} />
 
-          {/* Horizontal sweep for center focus */}
           <div className={cn(
             'absolute inset-0',
             isDark
@@ -586,7 +695,7 @@ export default function CinematicQueryPage() {
               : 'bg-gradient-to-r from-white/60 via-transparent to-white/60'
           )} />
 
-          {/* Animated scan line — subtle CRT/satellite-telemetry feel */}
+          {/* Animated scan line */}
           <motion.div
             className={cn(
               'absolute left-0 right-0 h-px pointer-events-none',
@@ -594,15 +703,6 @@ export default function CinematicQueryPage() {
             )}
             animate={{ top: ['0%', '100%'] }}
             transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-          />
-
-          {/* Subtle noise / grain texture overlay for premium feel */}
-          <div
-            className="absolute inset-0 opacity-[0.03] mix-blend-overlay"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-              backgroundSize: '128px 128px',
-            }}
           />
         </div>
 
@@ -643,10 +743,6 @@ export default function CinematicQueryPage() {
           'absolute top-0 left-1/4 w-[650px] h-[400px] z-[2] pointer-events-none rounded-full blur-[130px]',
           isDark ? 'bg-sky-500/[0.05]' : 'bg-blue-600/[0.08]'
         )} style={{ animation: 'shimmer 8s ease-in-out infinite' }} />
-        <div className={cn(
-          'absolute bottom-0 right-1/4 w-[550px] h-[350px] z-[2] pointer-events-none rounded-full blur-[110px]',
-          isDark ? 'bg-purple-500/[0.04]' : 'bg-indigo-500/[0.06]'
-        )} style={{ animation: 'shimmer 10s ease-in-out 3s infinite' }} />
 
         {/* Top Navigation Bar */}
         <motion.div
@@ -834,8 +930,11 @@ export default function CinematicQueryPage() {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PHASE 2: Resizable Split-Screen Analysis Workspace
+  // PHASE 2: Resizable Split-Screen Workspace with Left Vertical Tool Dock
   // ═══════════════════════════════════════════════════════════
+  const activePanelDef = registeredPanels.find((p) => p.id === activeToolTab);
+  const ActiveToolComponent = activePanelDef?.Component || null;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -881,134 +980,184 @@ export default function CinematicQueryPage() {
         </div>
       </motion.div>
 
-      {/* Resizable Split Panels using Group, Panel, Separator */}
-      <div className="flex-1 min-h-0 w-full">
-        <Group orientation="horizontal" className="h-full w-full">
-          {/* ── LEFT PANEL: Pipeline + Conversation ──────────── */}
-          <Panel defaultSize="38%" minSize="26%" maxSize="58%" className="h-full">
+      {/* Main Workspace Layout with Vertical Tool Dock on Left */}
+      <div className="flex-1 min-h-0 w-full flex overflow-hidden">
+        {/* ── Vertical Capsule Tool Dock (Left Side) ── */}
+        <div className="shrink-0 h-full p-2.5 flex flex-col items-center justify-start bg-background/40 z-10">
+          <div className="w-[52px] py-3.5 px-1.5 rounded-3xl border border-border/80 bg-card/85 backdrop-blur-xl flex flex-col items-center gap-3 shadow-lg">
+            {registeredPanels.map((panel, idx) => {
+              const Icon = ICON_MAP[panel.icon] || Terminal;
+              const isActive = activeToolTab === panel.id;
+              const shortcutNumber = idx + 1;
+
+              return (
+                <Tooltip key={panel.id}>
+                  <TooltipTrigger
+                    onClick={() => setActiveToolTab(panel.id)}
+                    className={cn(
+                      'relative w-9 h-9 rounded-2xl flex items-center justify-center transition-all cursor-pointer group',
+                      isActive
+                        ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/40 scale-105 ring-2 ring-sky-400/30'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:scale-105'
+                    )}
+                    aria-label={panel.label}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={1.75} />
+                    <span
+                      className={cn(
+                        'absolute -bottom-0.5 right-1 text-[8px] font-mono leading-none',
+                        isActive ? 'text-white/90 font-bold' : 'text-muted-foreground/60'
+                      )}
+                    >
+                      {shortcutNumber}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="text-xs font-medium">
+                    <p>{panel.label} <span className="opacity-60 text-[10px] font-mono">(Alt+{shortcutNumber})</span></p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Resizable Split Panels using Group, Panel, Separator ── */}
+        <Group orientation="horizontal" className="flex-1 h-full min-w-0">
+          {/* ── LEFT PANEL: Active Tool (Console / Enhancement / Annotation / Location) ── */}
+          <Panel defaultSize="40%" minSize="28%" maxSize="60%" className="h-full">
             <motion.div
               initial={{ x: -25, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col h-full bg-card/70 border-r border-border"
+              className="flex flex-col h-full bg-card/70 border-r border-border overflow-hidden"
             >
-              {/* Panel Header */}
-              <div className="px-4 py-2.5 border-b border-border shrink-0 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  <h2 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono">Query Console</h2>
+              {activeToolTab !== 'console' && ActiveToolComponent ? (
+                /* Feature Tool View (Annotation, Enhancement, Location History) */
+                <div className="flex-1 h-full overflow-y-auto p-2">
+                  <ActiveToolComponent scene={scene} />
                 </div>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {scene.modalities.join(' + ')} · {scene.inputConfig.replace('_', '-')}
-                </span>
-              </div>
-
-              {/* Conversation Scroll Area */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-                {turns.map((turn, i) => (
-                  <div key={i} className="space-y-3">
-                    {/* User query bubble */}
-                    <div className="flex justify-end">
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                        className="bg-primary/15 border border-primary/30 text-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[88%] shadow-xs"
-                      >
-                        <p className="text-xs leading-relaxed">{turn.query}</p>
-                      </motion.div>
+              ) : (
+                /* Main Query Console View */
+                <>
+                  {/* Panel Header */}
+                  <div className="px-4 py-2.5 border-b border-border shrink-0 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      <h2 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono">Query Console</h2>
                     </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {scene.modalities.join(' + ')} · {scene.inputConfig.replace('_', '-')}
+                    </span>
+                  </div>
 
-                    {/* Response */}
-                    {turn.isStreaming ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-2"
-                      >
-                        <MiniPipeline
-                          currentStage={pipelineStage}
-                          toolSteps={toolSteps}
-                          verification={verificationState}
-                        />
-                      </motion.div>
-                    ) : turn.error ? (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="rounded-xl border border-destructive/40 bg-destructive/5 p-3"
-                      >
-                        <p className="text-xs font-semibold text-destructive">Query failed</p>
-                        <p className="mt-1 text-[11px] font-mono text-muted-foreground break-all">{turn.error}</p>
-                      </motion.div>
-                    ) : turn.result ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                      >
-                        {turn.result.abstained ? (
-                          <AbstentionNotice result={turn.result} />
-                        ) : (
-                          <AnswerCard result={turn.result} />
-                        )}
-                      </motion.div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
+                  {/* Conversation Scroll Area */}
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                    {turns.map((turn, i) => (
+                      <div key={i} className="space-y-3">
+                        {/* User query bubble */}
+                        <div className="flex justify-end">
+                          <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                            className="bg-primary/15 border border-primary/30 text-foreground rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[88%] shadow-xs"
+                          >
+                            <p className="text-xs leading-relaxed">{turn.query}</p>
+                          </motion.div>
+                        </div>
 
-              {/* Multi-Turn Input at Bottom */}
-              <div className="p-3 border-t border-border shrink-0">
-                <div className="rounded-xl border border-border bg-background/80 backdrop-blur-md p-2 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-transparent transition-all shadow-xs">
-                  <div className="flex items-center gap-1.5 px-2 pb-1 text-[10px] text-muted-foreground font-mono">
-                    <Terminal className="w-3 h-3 text-primary" strokeWidth={1.5} />
-                    <span>follow-up query</span>
+                        {/* Response */}
+                        {turn.isStreaming ? (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-2"
+                          >
+                            <MiniPipeline
+                              currentStage={pipelineStage}
+                              toolSteps={toolSteps}
+                              verification={verificationState}
+                            />
+                          </motion.div>
+                        ) : turn.error ? (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="rounded-xl border border-destructive/40 bg-destructive/5 p-3"
+                          >
+                            <p className="text-xs font-semibold text-destructive">Query failed</p>
+                            <p className="mt-1 text-[11px] font-mono text-muted-foreground break-all">{turn.error}</p>
+                          </motion.div>
+                        ) : turn.result ? (
+                          <motion.div
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                          >
+                            {turn.result.abstained ? (
+                              <AbstentionNotice result={turn.result} />
+                            ) : (
+                              <AnswerCard result={turn.result} />
+                            )}
+                          </motion.div>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
-                  <textarea
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSubmit();
-                      }
-                    }}
-                    placeholder="Ask a follow-up question..."
-                    disabled={isStreaming}
-                    rows={2}
-                    className="w-full bg-transparent px-2 text-xs text-foreground placeholder:text-muted-foreground/70 resize-none focus:outline-none disabled:opacity-50"
-                  />
-                  <div className="flex items-center justify-between pt-1 px-1">
-                    <span className="text-[10px] text-muted-foreground/60 font-mono">Ctrl+Enter to send</span>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleSubmit()}
-                      disabled={!query.trim() || isStreaming}
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer',
-                        query.trim() && !isStreaming
-                          ? 'bg-primary text-primary-foreground shadow-md'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed'
-                      )}
-                    >
-                      {isStreaming ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <>
-                          <span>Send</span>
-                          <Send className="w-3 h-3" strokeWidth={2} />
-                        </>
-                      )}
-                    </motion.button>
+
+                  {/* Multi-Turn Input at Bottom */}
+                  <div className="p-3 border-t border-border shrink-0">
+                    <div className="rounded-xl border border-border bg-background/80 backdrop-blur-md p-2 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-transparent transition-all shadow-xs">
+                      <div className="flex items-center gap-1.5 px-2 pb-1 text-[10px] text-muted-foreground font-mono">
+                        <Terminal className="w-3 h-3 text-primary" strokeWidth={1.5} />
+                        <span>follow-up query</span>
+                      </div>
+                      <textarea
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSubmit();
+                          }
+                        }}
+                        placeholder="Ask a follow-up question..."
+                        disabled={isStreaming}
+                        rows={2}
+                        className="w-full bg-transparent px-2 text-xs text-foreground placeholder:text-muted-foreground/70 resize-none focus:outline-none disabled:opacity-50"
+                      />
+                      <div className="flex items-center justify-between pt-1 px-1">
+                        <span className="text-[10px] text-muted-foreground/60 font-mono">Ctrl+Enter to send</span>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleSubmit()}
+                          disabled={!query.trim() || isStreaming}
+                          className={cn(
+                            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer',
+                            query.trim() && !isStreaming
+                              ? 'bg-primary text-primary-foreground shadow-md'
+                              : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          )}
+                        >
+                          {isStreaming ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <>
+                              <span>Send</span>
+                              <Send className="w-3 h-3" strokeWidth={2} />
+                            </>
+                          )}
+                        </motion.button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </motion.div>
           </Panel>
 
-          {/* ── Resizable Separator Handle with arrows/grip ── */}
+          {/* ── Resizable Separator Handle ── */}
           <Separator className="group relative flex items-center justify-center w-2.5 hover:w-3.5 transition-all cursor-col-resize bg-border/40 hover:bg-primary/20 select-none">
             <div className="absolute inset-y-0 w-px bg-border group-hover:bg-primary/60 transition-colors" />
             <div className="relative z-10 flex flex-col items-center gap-0.5 p-1 rounded bg-card/90 border border-border/80 shadow-xs opacity-50 group-hover:opacity-100 transition-opacity">
@@ -1016,8 +1165,8 @@ export default function CinematicQueryPage() {
             </div>
           </Separator>
 
-          {/* ── RIGHT PANEL: Evidence Canvas ─────────────────── */}
-          <Panel defaultSize="62%" minSize="42%" className="h-full">
+          {/* ── RIGHT PANEL: Evidence Canvas + Vector Annotations ──── */}
+          <Panel defaultSize="60%" minSize="40%" className="h-full">
             <motion.div
               initial={{ x: 25, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}

@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Satellite,
+  Clock,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -22,6 +23,7 @@ import { useAuth } from '@/lib/auth-context';
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'New Scene', href: '/scene/new', icon: UploadCloud },
+  { label: 'Historical Scenes', href: '/historical', icon: Clock },
   { label: 'Benchmarks', href: '/benchmarks', icon: FlaskConical },
   { label: 'Backend Registry', href: '/models', icon: Boxes },
   { label: 'Settings', href: '/settings', icon: Settings },

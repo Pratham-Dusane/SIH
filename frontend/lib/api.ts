@@ -192,6 +192,7 @@ export async function streamQuery(
   query: string,
   onEvent: (e: QueryStreamEvent) => void,
   verify?: boolean,
+  annotations?: Record<string, any> | null,
 ): Promise<QueryResult> {
   if (USE_MOCKS) {
     // Generate query-specific dynamic mock result
@@ -240,7 +241,7 @@ export async function streamQuery(
     const res = await fetch(`${API_BASE}/api/scenes/${sceneId}/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
-      body: JSON.stringify({ query, verify }),
+      body: JSON.stringify({ query, verify, annotations }),
     });
 
     if (!res.ok) {

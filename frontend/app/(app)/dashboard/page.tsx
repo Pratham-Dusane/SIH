@@ -400,7 +400,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Right: Mission Brief & Safety */}
+            {/* Right: Mission Brief */}
             <div className="space-y-4">
               <div className="glass-card rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
@@ -425,29 +425,6 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between rounded-xl bg-black/5 dark:bg-white/5 border border-border/60 px-3.5 py-2.5">
                     <span>Optical + SAR fusion</span>
                     <span className="font-semibold text-foreground font-mono">Ready</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" strokeWidth={1.5} />
-                    Safety & Verification
-                  </h3>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Evidence grounding</span>
-                    <span className="font-semibold text-emerald-500 font-mono">92%</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full w-[92%] rounded-full bg-gradient-to-r from-purple-500 via-sky-500 to-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
-                    <span className="text-muted-foreground">Abstain on weak signal</span>
-                    <span className="font-semibold text-amber-500 font-mono">Enabled</span>
                   </div>
                 </div>
               </div>

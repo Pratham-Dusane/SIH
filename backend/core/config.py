@@ -117,6 +117,33 @@ class Settings(BaseSettings):
     GCP_REGION: str = os.getenv("GCP_REGION", "asia-south1")
     GCS_BUCKET_NAME: str = os.getenv("GCS_BUCKET_NAME", "satquery-scenes")
 
+    # ------------------------------------------------------------------
+    # Feature flags (Extensions PRD §3.2) — all off by default
+    # ------------------------------------------------------------------
+    FEATURE_ENHANCEMENT_ENABLED: bool = os.getenv("FEATURE_ENHANCEMENT_ENABLED", "true").lower() == "true"
+    FEATURE_ANNOTATION_ENABLED: bool = os.getenv("FEATURE_ANNOTATION_ENABLED", "true").lower() == "true"
+    FEATURE_TEMPORAL_FETCH_ENABLED: bool = os.getenv("FEATURE_TEMPORAL_FETCH_ENABLED", "false").lower() == "true"
+    FEATURE_STACK_ENABLED: bool = os.getenv("FEATURE_STACK_ENABLED", "false").lower() == "true"
+    FEATURE_HISTORICAL_ENABLED: bool = os.getenv("FEATURE_HISTORICAL_ENABLED", "true").lower() == "true"
+    FEATURE_CAUSAL_ENABLED: bool = os.getenv("FEATURE_CAUSAL_ENABLED", "false").lower() == "true"
+    FEATURE_GEO3D_ENABLED: bool = os.getenv("FEATURE_GEO3D_ENABLED", "false").lower() == "true"
+    FEATURE_VOICE_ENABLED: bool = os.getenv("FEATURE_VOICE_ENABLED", "false").lower() == "true"
+    FEATURE_REPORTS_ENABLED: bool = os.getenv("FEATURE_REPORTS_ENABLED", "false").lower() == "true"
+    FEATURE_MONITOR_ENABLED: bool = os.getenv("FEATURE_MONITOR_ENABLED", "false").lower() == "true"
+    FEATURE_LIVE_ENABLED: bool = os.getenv("FEATURE_LIVE_ENABLED", "false").lower() == "true"
+    FEATURE_LOCATION_HISTORY_ENABLED: bool = os.getenv("FEATURE_LOCATION_HISTORY_ENABLED", "true").lower() == "true"
+
+    # ------------------------------------------------------------------
+    # Enhancement (F1)
+    # ------------------------------------------------------------------
+    ENHANCEMENT_MAX_PIXELS: int = int(os.getenv("ENHANCEMENT_MAX_PIXELS", str(8192 * 8192)))
+    SR_WEIGHTS_PATH: str = os.getenv("SR_WEIGHTS_PATH", "./data/sr_weights")
+
+    # ------------------------------------------------------------------
+    # Imagery source (F0)
+    # ------------------------------------------------------------------
+    IMAGERY_SOURCE: str = os.getenv("IMAGERY_SOURCE", "gee")
+
     class Config:
         env_file = ".env"
         extra = "ignore"

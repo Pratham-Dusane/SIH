@@ -258,6 +258,38 @@ async def revalidate_scene(
     return scene
 
 
+class SceneRenameRequest(BaseModel):
+    """Inline rename from the workbench title."""
+    name: str = Field(..., min_length=1, max_length=120)
+
+
+@router.patch("/{scene_id}", response_model=Scene)
+async def rename_scene(
+    scene_id: str,
+    payload: SceneRenameRequest,
+    user: dict = Depends(current_user),
+    db: Database = Depends(get_db),
+):
+    """
+    Rename a scene.
+
+    The upload wizard no longer asks for a name — a scene is named after its
+    file and renamed here once the user can actually see what it contains.
+    Only the label changes; nothing downstream keys off it.
+    """
+    scene_data = db.get_document("scenes", scene_id)
+    if not scene_data:
+        raise HTTPException(status_code=404, detail="Scene not found")
+
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Scene name cannot be blank")
+
+    scene_data["name"] = name
+    db.set_document("scenes", scene_id, scene_data)
+    return Scene(**scene_data)
+
+
 @router.post("/{scene_id}/roi", response_model=Scene)
 async def set_scene_roi(
     scene_id: str,

@@ -5,7 +5,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 
 from core.features import require
-from features.historical.models import AnalyticsOverview
+from features.historical.models import (
+    AnalyticsOverview, AssistantRequest, AssistantResponse,
+)
 from features.historical.analytics import compute_analytics_overview
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -52,3 +54,25 @@ async def reindex_districts():
                     updated += 1
 
     return {"status": "ok", "scenes_reindexed": updated, "total_scenes": len(scenes)}
+
+
+@router.post(
+    "/assistant",
+    dependencies=[Depends(require("historical"))],
+    response_model=AssistantResponse,
+)
+async def ask_assistant(req: AssistantRequest):
+    """
+    Cross-scene retrieval assistant (Extensions PRD §8, F5).
+
+    Read-only over `scenes` / `queries` / `traces`.  Workspace totals are
+    computed in Python and returned alongside the prose, so the UI can render
+    figures without trusting the model's arithmetic, and every answer carries
+    the scene ids it was retrieved from.
+    """
+    from core.db import get_db
+    from features.historical.rag import answer_question
+
+    return AssistantResponse(**await answer_question(
+        get_db(), req.question, vlm_backend=req.vlm_backend, k=req.k,
+    ))

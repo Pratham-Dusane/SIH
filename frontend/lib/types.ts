@@ -35,6 +35,8 @@ export interface ImageMeta {
   bandStats: BandStat[];
   previewUrl: string;
   thumbUrl: string;
+  /** Enhanced preview, present only after an accepted enhancement run. */
+  enhancedUrl?: string | null;
 }
 
 export interface CompatibilityCheck {
@@ -231,4 +233,52 @@ export interface ToolManifestEntry {
   produces: string[];
   params_schema: Record<string, unknown>;
   offline_capable: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Cross-scene assistant — Extensions PRD §8 (F5)
+// ---------------------------------------------------------------------------
+
+/** Workspace totals, computed from stored rows — never model-generated. */
+export interface AssistantAggregates {
+  sceneCount: number;
+  queryCount: number;
+  georeferencedScenes: number;
+  byInputConfig: Record<string, number>;
+  meanConfidence: number | null;
+}
+
+export interface AssistantResponse {
+  answer: string;
+  /** Scene ids the answer was retrieved from. */
+  citations: string[];
+  aggregates: AssistantAggregates;
+  grounded: boolean;
+  /** True when the model was unreachable and `answer` is the record dump. */
+  degraded?: boolean;
+  reason?: string | null;
+  model?: string | null;
+}
+
+/** One scene row from the analytics overview (snake_case, as the API returns it). */
+export interface AnalyticsSceneSummary {
+  id: string;
+  name: string;
+  input_config: string;
+  modalities: string[];
+  created_at: string;
+  district?: string | null;
+  state?: string | null;
+  unit_id?: string | null;
+  query_count: number;
+  mean_confidence: number;
+  bounds_wgs84?: number[] | null;
+  thumbnail_url?: string | null;
+}
+
+export interface AnalyticsOverview {
+  kpis: Record<string, unknown>;
+  scenes: AnalyticsSceneSummary[];
+  districts: string[];
+  [key: string]: unknown;
 }

@@ -24,6 +24,7 @@ export default function KPIRow({ data }: KPIRowProps) {
   const kpis = [
     {
       label: 'Scenes Analysed',
+      tint: 'tint-brand',
       value: totalScenes.toLocaleString(),
       sub: 'Multi-sensor archive',
       icon: Database,
@@ -32,6 +33,7 @@ export default function KPIRow({ data }: KPIRowProps) {
     },
     {
       label: 'Queries Answered',
+      tint: 'tint-violet',
       value: totalQueries.toLocaleString(),
       sub: 'Grounded findings',
       icon: HelpCircle,
@@ -40,6 +42,7 @@ export default function KPIRow({ data }: KPIRowProps) {
     },
     {
       label: 'Mean Confidence',
+      tint: 'tint-emerald',
       value: `${(meanConf * 100).toFixed(1)}%`,
       sub: 'Ensemble verified',
       icon: ShieldCheck,
@@ -48,6 +51,7 @@ export default function KPIRow({ data }: KPIRowProps) {
     },
     {
       label: 'Districts Monitored',
+      tint: 'tint-ember',
       value: activeDistricts.toString(),
       sub: 'Admin-2 boundary lookup',
       icon: MapPin,
@@ -63,7 +67,7 @@ export default function KPIRow({ data }: KPIRowProps) {
         return (
           <Card
             key={idx}
-            className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden"
+            className={`border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden ${kpi.tint}`}
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div>

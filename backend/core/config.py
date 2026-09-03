@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     # text (400-800 tokens even on a one-line answer), so this ceiling covers
     # thinking + answer.  Too low and the response comes back empty.
     VLM_MAX_TOKENS: int = int(os.getenv("VLM_MAX_TOKENS", "2048"))
+
+    # Contact string for the outbound User-Agent used by location-context web
+    # retrieval.  Wikipedia's API returns 403 without a contact in the UA.  It
+    # is deliberately a project URL, not a person: this header is sent to third
+    # parties on every search, and an operator email does not belong there
+    # unless the operator puts it there themselves.
+    WEB_RESEARCH_CONTACT: str = os.getenv(
+        "WEB_RESEARCH_CONTACT", "https://github.com/satquery-ai")
     # "low" | "high" - low cuts thinking roughly in half at no measured cost on
     # these extraction tasks.  Ignored by providers that do not support it.
     GEMINI_THINKING_LEVEL: str = os.getenv("GEMINI_THINKING_LEVEL", "low")

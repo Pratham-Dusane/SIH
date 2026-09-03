@@ -1,7 +1,8 @@
 // SatQuery AI - API Client (PRD §4.7)
 import {
   QueryStreamEvent, QueryResult, Scene, DashboardStats,
-  BackendRegistry, BackendHealth, ToolManifestEntry,
+  BackendRegistry, BackendHealth, ToolManifestEntry, AssistantResponse,
+  AnalyticsOverview,
 } from './types';
 // Mocks are used ONLY when NEXT_PUBLIC_USE_MOCKS is not 'false' - an explicit
 // opt-in for UI work without a backend. They are never a fallback for a failed
@@ -76,6 +77,8 @@ export function normalizeScene(raw: any): Scene {
       modalityEvidence: typeof mod === 'string' ? [] : (mod.evidence ?? []),
       bandStats: m.bandStats ?? [],
       previewUrl: img.previewUrl ?? '',
+      // Set once an enhancement run is accepted; the canvas prefers it.
+      enhancedUrl: img.enhancedUrl ?? null,
       thumbUrl: img.thumbUrl ?? '',
     };
   });
@@ -495,6 +498,21 @@ export async function fetchSceneQueries(sceneId: string): Promise<SceneQueryHist
   return transformKeys(data) as SceneQueryHistory;
 }
 
+/** Rename a scene from the workbench title. */
+export async function renameScene(sceneId: string, name: string): Promise<Scene> {
+  const res = await fetch(`${API_BASE}/api/scenes/${sceneId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new ApiError(`Rename failed (HTTP ${res.status}) ${body}`.trim(),
+      res.status, `/api/scenes/${sceneId}`);
+  }
+  return normalizeScene(await res.json());
+}
+
 /** Set acquisition dates so the GEE-backed tools have a date range (PRD §7.3/§7.4). */
 export async function setSceneDates(
   sceneId: string,
@@ -528,4 +546,58 @@ export async function fetchSceneSuggestions(sceneId: string): Promise<string[]> 
   } catch {
     return [];
   }
+}
+
+/**
+ * Cross-scene retrieval assistant (Extensions PRD §8, F5).
+ *
+ * `aggregates` are computed server-side from the stored rows, so the UI renders
+ * workspace figures from that object rather than from anything the model wrote;
+ * `citations` are the scene ids the answer was retrieved from.
+ */
+export async function askAssistant(
+  question: string,
+  k = 6,
+): Promise<AssistantResponse> {
+  const res = await fetch(`${API_BASE}/api/analytics/assistant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ question, k }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new ApiError(
+      `Assistant request failed (HTTP ${res.status}) ${body}`.trim(),
+      res.status,
+      '/api/analytics/assistant',
+    );
+  }
+  return transformKeys(await res.json()) as AssistantResponse;
+}
+
+/**
+ * Historical analytics overview (Extensions PRD §8).
+ *
+ * Carries per-scene district labels and query counts, which the raw
+ * `/api/scenes` payload does not — the coverage globe needs both to say what a
+ * marker represents.
+ */
+export async function fetchAnalyticsOverview(
+  params: { district?: string; config?: string } = {},
+): Promise<AnalyticsOverview> {
+  const qs = new URLSearchParams();
+  if (params.district && params.district !== 'all') qs.set('district', params.district);
+  if (params.config && params.config !== 'all') qs.set('config', params.config);
+
+  const res = await fetch(`${API_BASE}/api/analytics/overview?${qs.toString()}`, {
+    headers: { ...(await authHeader()) },
+  });
+  if (!res.ok) {
+    throw new ApiError(
+      `Analytics overview failed (HTTP ${res.status})`, res.status, '/api/analytics/overview',
+    );
+  }
+  // Deliberately NOT key-transformed: the historical dashboard reads this
+  // payload in its original snake_case shape.
+  return res.json() as Promise<AnalyticsOverview>;
 }

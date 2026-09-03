@@ -69,14 +69,17 @@ export default function EvidenceCanvas({ scene }: EvidenceCanvasProps) {
 
     Promise.all(
       images.map((meta) => new Promise<HTMLImageElement | null>((resolve) => {
-        if (!meta.previewUrl) return resolve(null);
-        const targetUrl = resolvePreviewUrl(meta.previewUrl);
+        // Prefer the enhanced render when one exists, so an accepted
+        // enhancement run is visible on the canvas rather than only in metrics.
+        const source = meta.enhancedUrl || meta.previewUrl;
+        if (!source) return resolve(null);
+        const targetUrl = resolvePreviewUrl(source);
 
         const img = new Image();
         img.onload = () => resolve(img);
         img.onerror = () => {
           // Retry with alternative /api/files path
-          const cleanPath = meta.previewUrl.replace(/^\/+/, '');
+          const cleanPath = source.replace(/^\/+/, '');
           const altUrl = cleanPath.startsWith('api/files/')
             ? `${API_BASE}/${cleanPath}`
             : `${API_BASE}/api/files/${cleanPath}`;

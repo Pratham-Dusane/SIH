@@ -8,7 +8,6 @@ import {
   UploadCloud,
   FlaskConical,
   Boxes,
-  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -26,7 +25,7 @@ const navItems = [
   { label: 'Historical Scenes', href: '/historical', icon: Clock },
   { label: 'Benchmarks', href: '/benchmarks', icon: FlaskConical },
   { label: 'Backend Registry', href: '/models', icon: Boxes },
-  { label: 'Settings', href: '/settings', icon: Settings },
+  // Settings lives in the top nav now, beside the theme toggle.
 ];
 
 export default function Sidebar() {

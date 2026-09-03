@@ -4,18 +4,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Satellite, Search, BarChart3, ShieldAlert,
-  UploadCloud, ExternalLink, MessageSquare, Clock,
-  Layers, ArrowRight, Sparkles, Radar, ShieldCheck,
-  Orbit, Flame, FolderOpen, MapPinned,
+  Satellite, UploadCloud, MessageSquare, Clock,
+  Layers, ArrowRight, Sparkles, MapPinned, Globe2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import TopNav from '@/components/layout/TopNav';
-import { fetchScenes, fetchDashboardStats } from '@/lib/api';
-import { Scene, DashboardStats, Modality, InputConfig } from '@/lib/types';
+import CoverageGlobe from '@/components/dashboard/CoverageGlobe';
+import { useStore } from '@/lib/store';
+import { fetchScenes, fetchDashboardStats, fetchAnalyticsOverview } from '@/lib/api';
+import { Scene, DashboardStats, Modality, InputConfig, AnalyticsSceneSummary } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const modalityColor: Record<Modality, string> = {
@@ -31,12 +30,6 @@ const configBadge: Record<InputConfig, { label: string; className: string }> = {
   BI_TEMPORAL: { label: 'BI-TEMPORAL', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200 border-emerald-500/25' },
 };
 
-function confidenceColor(value: number) {
-  if (value >= 0.75) return 'text-emerald-600 dark:text-emerald-400';
-  if (value >= 0.45) return 'text-amber-600 dark:text-amber-400';
-  return 'text-rose-600 dark:text-rose-400';
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
@@ -44,8 +37,13 @@ function formatDate(iso: string) {
 }
 
 export default function DashboardPage() {
+  const { theme } = useStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  // Globe rows come from the analytics endpoint, which is the only payload
+  // carrying the district label and query count a marker needs to describe
+  // itself. A failure there leaves the globe empty rather than the page broken.
+  const [coverage, setCoverage] = useState<AnalyticsSceneSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -64,46 +62,12 @@ export default function DashboardPage() {
         setLoadError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => { if (!cancelled) setLoading(false); });
+    fetchAnalyticsOverview()
+      .then((o) => { if (!cancelled) setCoverage(o.scenes ?? []); })
+      .catch(() => { if (!cancelled) setCoverage([]); });
+
     return () => { cancelled = true; };
   }, []);
-
-  const statCards = stats
-    ? [
-      {
-        label: 'Scenes Ingested',
-        value: stats.scenesIngested,
-        icon: Satellite,
-        color: 'text-sky-600 dark:text-sky-400',
-        bg: 'bg-sky-500/10',
-        badge: 'ACTIVE AOIs',
-      },
-      {
-        label: 'Queries Answered',
-        value: stats.queriesAnswered,
-        icon: Search,
-        color: 'text-blue-600 dark:text-blue-400',
-        bg: 'bg-blue-500/10',
-        badge: 'ORCHESTRATED',
-      },
-      {
-        label: 'Avg. Confidence',
-        value: `${(stats.averageConfidence * 100).toFixed(0)}%`,
-        icon: BarChart3,
-        color: confidenceColor(stats.averageConfidence),
-        bg: 'bg-emerald-500/10',
-        badge: 'CALIBRATED',
-      },
-      {
-        label: 'Abstention Rate',
-        value: `${(stats.abstentionRate * 100).toFixed(0)}%`,
-        icon: ShieldAlert,
-        color: 'text-amber-600 dark:text-amber-400',
-        bg: 'bg-amber-500/10',
-        tooltip: 'Abstention is deliberate: the agent declines when evidence is insufficient rather than guessing.',
-        badge: 'GUARDRAILS ON',
-      },
-    ]
-    : [];
 
   const featuredScene = scenes[0];
 
@@ -117,7 +81,7 @@ export default function DashboardPage() {
           <motion.section
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card rounded-[32px] border border-border/80 overflow-hidden shadow-2xl transition-all"
+            className="tint-brand glass-card rounded-[32px] border border-border/80 overflow-hidden shadow-2xl transition-all"
           >
             <div className="grid lg:grid-cols-[1.45fr_1fr] items-stretch">
               {/* Left Column: Heading & Description */}
@@ -216,103 +180,6 @@ export default function DashboardPage() {
           </motion.section>
         )}
 
-        {/* 4 Metric Telemetry Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {loading
-            ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="glass-card rounded-2xl p-6 space-y-3">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-16" />
-              </div>
-            ))
-            : statCards.map((card, i) => (
-              <motion.div
-                key={card.label}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <div className="glass-card rounded-2xl p-5 sm:p-6 space-y-3 hover:scale-[1.01] transition-all">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      {card.label}
-                    </p>
-                    <div className={cn('p-2 rounded-xl shadow-sm', card.bg)}>
-                      <card.icon className={cn('w-4 h-4', card.color)} strokeWidth={1.5} />
-                    </div>
-                  </div>
-
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      className={cn('text-3xl font-bold tracking-tight', card.color)}
-                      style={{ fontFamily: 'var(--font-heading)' }}
-                    >
-                      {card.value}
-                    </span>
-                    {card.tooltip && (
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <span className="text-[10px] text-muted-foreground cursor-help underline decoration-dotted mb-1">
-                            info
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[240px]">
-                          <p className="text-xs">{card.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-        </div>
-
-        {/* Error State */}
-        {!loading && loadError && (
-          <div className="glass-card rounded-2xl p-5 border-destructive/40 bg-destructive/5">
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-destructive mt-0.5 shrink-0" strokeWidth={1.5} />
-              <div className="text-xs space-y-1">
-                <p className="font-semibold text-destructive">Could not load scenes from backend</p>
-                <p className="text-muted-foreground font-mono break-all">{loadError}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !loadError && scenes.length === 0 && (
-          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
-            <div className="glass-card rounded-3xl p-10 text-center max-w-2xl mx-auto space-y-5 border border-border/80">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary shadow-inner">
-                <UploadCloud className="w-8 h-8" strokeWidth={1.5} />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'var(--font-heading)' }}>
-                Upload your first earth-analysis mission
-              </h2>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Ingest GeoTIFFs, bi-temporal pairs, or benchmark datasets and start asking grounded remote-sensing questions with agentic analysis.
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                {[
-                  { label: 'Sentinel-2 Single Image', config: 'SINGLE' },
-                  { label: 'S2 + S1 Cross-Modal Pair', config: 'CROSS_MODAL' },
-                  { label: 'Bi-Temporal Change Pair', config: 'BI_TEMPORAL' },
-                ].map((preset) => (
-                  <Link key={preset.config} href="/scene/new">
-                    <Button
-                      variant="outline"
-                      className="border-border rounded-xl bg-background/80 hover:bg-primary/5 hover:border-primary/40 text-xs sm:text-sm font-medium"
-                    >
-                      {preset.label}
-                    </Button>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {/* Active Analysis Sessions & Mission Brief */}
         {scenes.length > 0 && (
           <div className="grid xl:grid-cols-[1.5fr_0.85fr] gap-6">
@@ -334,7 +201,9 @@ export default function DashboardPage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Fixed at two card rows; the rest scrolls rather than pushing
+                  the page down as the workspace grows. */}
+              <div className="grid max-h-[27rem] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2">
                 {scenes.map((scene, i) => (
                   <motion.div
                     key={scene.id}
@@ -400,33 +269,25 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Right: Mission Brief */}
-            <div className="space-y-4">
-              <div className="glass-card rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2" style={{ fontFamily: 'var(--font-heading)' }}>
-                    <FolderOpen className="w-4 h-4 text-primary" strokeWidth={1.5} />
-                    Mission Brief
+            {/* Right: where this workspace has actually looked */}
+            <div className="tint-ember glass-card flex flex-col rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3
+                    className="flex items-center gap-2 text-sm font-bold text-foreground"
+                    style={{ fontFamily: 'var(--font-heading)' }}
+                  >
+                    <Globe2 className="h-4 w-4 text-primary" strokeWidth={1.5} />
+                    Coverage
                   </h3>
-                  <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground">
-                    MODES
-                  </Badge>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Footprints of every georeferenced scene, by density.
+                  </p>
                 </div>
+              </div>
 
-                <div className="space-y-2.5 text-xs text-muted-foreground">
-                  <div className="flex items-center justify-between rounded-xl bg-black/5 dark:bg-white/5 border border-border/60 px-3.5 py-2.5">
-                    <span>Single-image VQA</span>
-                    <span className="font-semibold text-foreground font-mono">Ready</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-black/5 dark:bg-white/5 border border-border/60 px-3.5 py-2.5">
-                    <span>Change analysis</span>
-                    <span className="font-semibold text-foreground font-mono">Ready</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-black/5 dark:bg-white/5 border border-border/60 px-3.5 py-2.5">
-                    <span>Optical + SAR fusion</span>
-                    <span className="font-semibold text-foreground font-mono">Ready</span>
-                  </div>
-                </div>
+              <div className="mt-2 min-h-0 flex-1">
+                <CoverageGlobe scenes={coverage} dark={theme === 'dark'} />
               </div>
             </div>
           </div>

@@ -1,25 +1,48 @@
 'use client';
 
 // SatQuery AI - Historical Scenes & Multi-Year Analytics Dashboard (Extensions PRD §8)
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import TopNav from '@/components/layout/TopNav';
 import KPIRow from '@/features/historical/KPIRow';
 import Filters from '@/features/historical/Filters';
 import Charts from '@/features/historical/Charts';
 import CoverageMap from '@/features/historical/CoverageMap';
 import ScenesTable from '@/features/historical/ScenesTable';
+import AssistantDock from '@/features/historical/AssistantDock';
 import { Clock, Loader2, Database, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
 
+/**
+ * `useSearchParams` needs a Suspense boundary in a statically-rendered route,
+ * so the page body lives in its own component.
+ */
 export default function HistoricalScenesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    }>
+      <HistoricalScenesView />
+    </Suspense>
+  );
+}
+
+function HistoricalScenesView() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  // Filters. The district can arrive as ?district=... — the coverage globe
+  // links here when a marker is clicked, so a deep link must land pre-filtered
+  // rather than showing everything.
+  const searchParams = useSearchParams();
+  const [selectedDistrict, setSelectedDistrict] = useState(
+    () => searchParams.get('district') || 'all',
+  );
   const [selectedConfig, setSelectedConfig] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -48,6 +71,11 @@ export default function HistoricalScenesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Follow later navigations to the same route (globe click while already here).
+  useEffect(() => {
+    setSelectedDistrict(searchParams.get('district') || 'all');
+  }, [searchParams]);
 
   const handleResetFilters = () => {
     setSelectedDistrict('all');
@@ -127,6 +155,11 @@ export default function HistoricalScenesPage() {
           </>
         )}
       </div>
+
+      {/* Cross-scene retrieval assistant (Extensions PRD §8, F5).  Reads every
+          scene in the workspace, not just the ones the filters leave visible,
+          so it is given the unfiltered count. */}
+      <AssistantDock sceneCount={data?.scenes?.length} />
     </div>
   );
 }

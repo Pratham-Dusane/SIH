@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import TopNav from '@/components/layout/TopNav';
 import EvidenceCanvas from '@/components/evidence/EvidenceCanvas';
-import LayerControls from '@/components/evidence/LayerControls';
 import AnswerCard from '@/components/query/AnswerCard';
 import AbstentionNotice from '@/components/query/AbstentionNotice';
 import { VerificationToggle } from '@/components/query/VerificationBadge';
@@ -1174,9 +1173,6 @@ export default function CinematicQueryPage() {
               className="relative h-full w-full"
             >
               <EvidenceCanvas scene={scene} />
-              <div className="absolute bottom-4 left-4 z-20">
-                <LayerControls />
-              </div>
 
               {/* Telemetry HUD overlays on right panel */}
               <motion.div

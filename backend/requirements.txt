@@ -28,3 +28,6 @@ weasyprint>=60.0
 xhtml2pdf>=0.2.11           # pure-Python fallback (no native deps)
 shapely>=2.0.0              # mask → polygon vectorisation
 pyproj>=3.6.0               # CRS reprojection for GeoJSON export
+
+# Enhancement (F1) - CLAHE / pansharpen / speckle filtering
+opencv-python-headless>=4.10.0

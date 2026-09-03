@@ -36,7 +36,6 @@ export default function NewScenePage() {
   const [benchmarkMode, setBenchmarkMode] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({});
   const [validatedScene, setValidatedScene] = useState<Scene | null>(null);
-  const [sceneName, setSceneName] = useState('');
   const [benchmarkDataset, setBenchmarkDataset] = useState('');
   const [acquiredDates, setAcquiredDates] = useState<Record<string, string>>({});
 
@@ -74,7 +73,7 @@ export default function NewScenePage() {
         uploaded,
         inputConfig,
         benchmarkMode,
-        sceneName.trim() || undefined,
+        undefined, // named after the file; renamed inline on the scene page
         benchmarkMode ? benchmarkDataset.trim() || undefined : undefined,
       );
 
@@ -169,20 +168,6 @@ export default function NewScenePage() {
 
                 {/* Metadata details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1.5">
-                    <label htmlFor="scene-name" className="block text-xs font-semibold text-foreground">
-                      Scene Name <span className="text-muted-foreground font-normal">(optional)</span>
-                    </label>
-                    <input
-                      id="scene-name"
-                      type="text"
-                      value={sceneName}
-                      onChange={(e) => setSceneName(e.target.value)}
-                      placeholder={firstFileName ? firstFileName.replace(/\.[^.]+$/, '') : 'Default: filename'}
-                      className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-
                   {benchmarkMode && (
                     <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-sm space-y-1.5">
                       <label htmlFor="bench-ds" className="block text-xs font-semibold text-foreground">

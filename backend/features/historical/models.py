@@ -77,3 +77,34 @@ class AnalyticsOverview(BaseModel):
     change_totals: List[ChangeTotalPoint] = Field(default_factory=list)
     scenes: List[SceneSummary] = Field(default_factory=list)
     districts: List[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Cross-scene assistant — Extensions PRD §8 (F5)
+# ---------------------------------------------------------------------------
+class AssistantAggregates(BaseModel):
+    """Workspace totals, computed from stored rows — never model-generated."""
+    scene_count: int
+    query_count: int
+    georeferenced_scenes: int
+    by_input_config: Dict[str, int] = Field(default_factory=dict)
+    mean_confidence: Optional[float] = None
+
+
+class AssistantRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+    vlm_backend: Optional[str] = None
+    k: int = Field(default=6, ge=1, le=20)
+
+
+class AssistantResponse(BaseModel):
+    answer: str
+    citations: List[str] = Field(default_factory=list)
+    aggregates: AssistantAggregates
+    grounded: bool = True
+    # Set when the language model was unreachable and the answer is the
+    # deterministic record dump instead.  The UI says so rather than passing
+    # a fallback off as a generated answer.
+    degraded: bool = False
+    reason: Optional[str] = None
+    model: Optional[str] = None

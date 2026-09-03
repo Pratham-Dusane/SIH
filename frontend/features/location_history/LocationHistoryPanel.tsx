@@ -380,15 +380,33 @@ Caveat: ${report.context_analysis.methodological_caveat}
 
           {/* Tab 1: Chronological Timeline */}
           {activeTab === 'timeline' && (
-            <div className="space-y-3 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border/60">
-              {report.timeline.map((item) => (
-                <div key={item.id} className="relative pl-8 group">
-                  {/* Timeline bullet */}
-                  <div className="absolute left-1.5 top-1.5 -translate-x-1/2 w-4 h-4 rounded-full bg-card border-2 border-primary flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+            /* Two columns: a fixed rail carrying the dots, and the cards.
+               The connector is drawn inside the rail column between dots, so
+               the dot and the line share one axis by construction and the line
+               is never occluded by a card. */
+            <div className="space-y-0">
+              {/* No provenance banner here, by request. The distinction between a
+                  researched timeline and the template fallback still travels on
+                  the API response as `provenance` / `provenance_note` - it is
+                  simply not surfaced in this panel. */}
+
+              {report.timeline.length === 0 && (
+                <p className="rounded-xl border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground">
+                  No events fall inside the selected period window.
+                </p>
+              )}
+
+              {report.timeline.map((item, idx) => (
+                <div key={item.id} className="group grid grid-cols-[1.25rem_1fr] gap-x-3">
+                  {/* Rail */}
+                  <div className="flex flex-col items-center">
+                    <span className="mt-3 h-3 w-3 shrink-0 rounded-full border-2 border-primary bg-card ring-4 ring-background" />
+                    {idx < report.timeline.length - 1 && (
+                      <span className="w-0.5 flex-1 bg-border/70" />
+                    )}
                   </div>
 
-                  <div className="p-3 rounded-xl border border-border/60 bg-card/40 hover:bg-card/80 transition-colors space-y-1.5">
+                  <div className="mb-3 p-3 rounded-xl border border-border/60 bg-card/40 hover:bg-card/80 transition-colors space-y-1.5">
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5">
                         {getCategoryIcon(item.category)}

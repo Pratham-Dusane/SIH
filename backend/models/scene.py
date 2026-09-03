@@ -72,6 +72,10 @@ class SceneImage(BaseModel):
     thumb_path: Optional[str] = None
     preview_url: Optional[str] = None
     thumb_url: Optional[str] = None
+    # Written by the enhancement feature when a run is accepted; the canvas
+    # shows this in place of `preview_url` while enhancement is toggled on.
+    enhanced_path: Optional[str] = None
+    enhanced_url: Optional[str] = None
     # Acquisition date (ISO YYYY-MM-DD).  Read from raster tags at ingest,
     # or set explicitly by the user.  Required by the GEE-backed tools (§7.3,
     # §7.4), which query the catalog by AOI + date range.

@@ -190,6 +190,76 @@
   box-shadow: var(--glass-shadow);
 }
 
+/* ---------------------------------------------------------------------------
+   Surface tints
+   ---------------------------------------------------------------------------
+   Every panel used to sit on the same near-white card, which read as flat and
+   made it hard to tell one region of a page from another.  These wash a card
+   with a soft diagonal of its accent and tint the border to match.
+
+   Two accents only, matching the modality palette already in use:
+     .tint-brand  - blue  (#0284c7) : optical, analysis, the primary path
+     .tint-ember  - orange(#ea580c) : SAR, coverage, activity
+
+   Kept deliberately low-alpha.  They are a wash, not a fill: text contrast is
+   unchanged, and both are re-stated for dark mode rather than inherited, where
+   the same alpha over a dark ground would disappear.
+   --------------------------------------------------------------------------- */
+.tint-brand {
+  background-image:
+    linear-gradient(135deg, rgba(2, 132, 199, 0.07) 0%, rgba(2, 132, 199, 0) 62%);
+  border-color: rgba(2, 132, 199, 0.18);
+}
+
+.tint-ember {
+  background-image:
+    linear-gradient(135deg, rgba(234, 88, 12, 0.07) 0%, rgba(234, 88, 12, 0) 62%);
+  border-color: rgba(234, 88, 12, 0.18);
+}
+
+.tint-emerald {
+  background-image:
+    linear-gradient(135deg, rgba(16, 185, 129, 0.07) 0%, rgba(16, 185, 129, 0) 62%);
+  border-color: rgba(16, 185, 129, 0.18);
+}
+
+.tint-violet {
+  background-image:
+    linear-gradient(135deg, rgba(139, 92, 246, 0.07) 0%, rgba(139, 92, 246, 0) 62%);
+  border-color: rgba(139, 92, 246, 0.18);
+}
+
+.dark .tint-brand {
+  background-image:
+    linear-gradient(135deg, rgba(56, 189, 248, 0.11) 0%, rgba(56, 189, 248, 0) 62%);
+  border-color: rgba(56, 189, 248, 0.22);
+}
+
+.dark .tint-ember {
+  background-image:
+    linear-gradient(135deg, rgba(249, 115, 22, 0.11) 0%, rgba(249, 115, 22, 0) 62%);
+  border-color: rgba(249, 115, 22, 0.22);
+}
+
+.dark .tint-emerald {
+  background-image:
+    linear-gradient(135deg, rgba(52, 211, 153, 0.11) 0%, rgba(52, 211, 153, 0) 62%);
+  border-color: rgba(52, 211, 153, 0.22);
+}
+
+.dark .tint-violet {
+  background-image:
+    linear-gradient(135deg, rgba(167, 139, 250, 0.11) 0%, rgba(167, 139, 250, 0) 62%);
+  border-color: rgba(167, 139, 250, 0.22);
+}
+
+/* A tinted rule under a section heading - enough to separate regions without
+   another boxed border. */
+.tint-rule-brand { border-bottom: 1px solid rgba(2, 132, 199, 0.16); }
+.tint-rule-ember { border-bottom: 1px solid rgba(234, 88, 12, 0.16); }
+.dark .tint-rule-brand { border-bottom-color: rgba(56, 189, 248, 0.2); }
+.dark .tint-rule-ember { border-bottom-color: rgba(249, 115, 22, 0.2); }
+
 .glass-card {
   background: var(--card);
   backdrop-filter: blur(16px) saturate(180%);

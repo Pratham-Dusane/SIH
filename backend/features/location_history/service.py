@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import logging
+import re
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -102,17 +103,50 @@ def resolve_location(
 
 def generate_search_queries(district: str, state: str, date_range: str, topic: str) -> List[str]:
     """
-    Step 2: Construct geographically & temporally bounded search queries.
+    Step 2: Construct geographically bounded search queries.
+
+    Deliberately short and keyword-shaped. An earlier version appended the date
+    range and the full topic string to every query; against a real search index
+    that made them *worse* - "Pune district Maharashtra major flooding and
+    natural disaster history 2000-2026" misses the "2019 Pune flood" article
+    that plain "Pune flood history" returns first. The window is enforced when
+    events are validated, which is where it belongs.
     """
-    return [
-        f"{district} district {state} major flooding and natural disaster history {date_range}",
-        f"{district} {state} urban expansion infrastructure highways land use development {date_range}",
-        f"{district} water bodies lakes reservoirs environmental changes",
-        f"{district} master plan industrial zones development projects {topic}",
+    queries = [
+        f"{district} flood history",
+        f"{district} {state} urban development",
+        f"{district} infrastructure highway metro expressway",
+        f"{district} district rivers dams reservoirs",
     ]
+    # One query per requested topic, so changing the topics changes what is
+    # actually searched rather than only what is echoed back.
+    for t in [t.strip() for t in topic.split(",") if t.strip()][:3]:
+        queries.append(f"{district} {t}")
+    return queries
 
 
-def synthesize_historical_records(
+_YEAR_RE = re.compile(r"(1[89]\d{2}|20\d{2}|21\d{2})")
+
+
+def _parse_period(period: str) -> Tuple[Optional[int], Optional[int]]:
+    """
+    Extract (start_year, end_year) from a free-form period string.
+
+    Accepts "2000-2026", "2000 to 2026", "since 2015" and similar. Returns
+    (None, None) when no year can be read, in which case no filtering is
+    applied rather than silently emptying the timeline.
+    """
+    if not period:
+        return None, None
+    years = [int(y) for y in _YEAR_RE.findall(str(period))]
+    if not years:
+        return None, None
+    if len(years) == 1:
+        return years[0], None
+    return min(years), max(years)
+
+
+def _template_report(
     district: str,
     state: str,
     period: str,
@@ -121,8 +155,18 @@ def synthesize_historical_records(
     bounds: Optional[List[float]],
 ) -> HistoricalContextReport:
     """
-    Steps 3, 4, 5: Retrieve, filter, and structure historical timeline,
-    event categories, contextual analysis, and source citations.
+    FALLBACK ONLY - a generic regional development template.
+
+    Six fixed events with the district name interpolated in, backed by source
+    entries whose publishers, dates, excerpts and URLs are all invented.  None
+    of it is researched.
+
+    It is returned only when web retrieval or the extraction model is
+    unavailable, so the panel still has something to render.  Every report
+    built from it carries `provenance="synthesized"` on the API response, which
+    is how a consumer tells it apart from `_researched_report` output.
+
+    Prefer `_researched_report`.
     """
     d_clean = district.lower().strip()
     report_id = f"hist_rep_{uuid.uuid4().hex[:8]}"
@@ -372,7 +416,7 @@ async def research_location_history(
         cached_copy.cached = True
         return cached_copy
 
-    report = synthesize_historical_records(
+    report = await _researched_report(
         district=district,
         state=state,
         period=date_range,
@@ -381,5 +425,134 @@ async def research_location_history(
         bounds=bounds,
     )
 
-    _HISTORY_CACHE[cache_key] = report
+    # A fallback report must not be cached: the next attempt should get a
+    # real one rather than being served the template until restart.
+    if report.provenance != "synthesized":
+        _HISTORY_CACHE[cache_key] = report
     return report
+
+
+async def _researched_report(
+    district: str,
+    state: str,
+    period: str,
+    topics: List[str],
+    centroid: Optional[Tuple[float, float]],
+    bounds: Optional[List[float]],
+) -> HistoricalContextReport:
+    """
+    Build the report from documents actually retrieved from the web.
+
+    Pipeline: generate targeted queries -> fetch (Wikipedia + DuckDuckGo) ->
+    have a model extract dated events from what came back -> validate every
+    event against the retrieved set -> assemble.
+
+    Falls back to `_template_report` only when retrieval returns nothing or the
+    model is unavailable, and the returned report says which happened. The
+    caller can always distinguish the two by `provenance`.
+    """
+    from features.location_history import extraction, retrieval
+
+    queries = generate_search_queries(district, state, period, ", ".join(topics))
+    lo, hi = _parse_period(period)
+
+    try:
+        docs = await retrieval.search_many(queries, per_query=4)
+    except Exception as e:  # noqa: BLE001
+        log.warning("location-context retrieval failed entirely: %r", e)
+        docs = []
+
+    if not docs:
+        return _fallback(
+            district, state, period, topics, centroid, bounds,
+            "No sources could be retrieved for this district - the research APIs "
+            "were unreachable or returned nothing.")
+
+    result, why = await extraction.extract_timeline(
+        district=district, state=state, period=period, topics=topics,
+        docs=docs, lo=lo, hi=hi,
+    )
+    if result is None:
+        return _fallback(
+            district, state, period, topics, centroid, bounds,
+            f"{len(docs)} sources were retrieved, but {why}.")
+
+    timeline: List[HistoricalTimelineItem] = result["timeline"]
+    sources = extraction.docs_to_sources(docs)
+
+    # Keep only the sources something actually cites, so the source list is not
+    # padded with documents that contributed nothing to the report.
+    cited_ids = {sid for evt in timeline for sid in evt.source_ids}
+    sources = [s for s in sources if s.id in cited_ids] or sources
+
+    note = (f"Timeline extracted from {len(docs)} retrieved document(s) by "
+            f"{result['model']}; every event cites a source you can open.")
+    if result["rejected"]:
+        note += (f" {len(result['rejected'])} candidate event(s) were dropped for "
+                 "citing nothing retrievable or falling outside the window.")
+
+    return HistoricalContextReport(
+        id=f"hist_rep_{uuid.uuid4().hex[:8]}",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        overview=_overview(district, state, centroid, bounds, period, topics),
+        timeline=timeline,
+        major_events=_categorise(timeline),
+        development_summary=result["development_summary"],
+        context_analysis=result["context_analysis"],
+        sources=sources,
+        search_queries_used=queries,
+        cached=False,
+        provenance="retrieved",
+        provenance_note=note,
+    )
+
+
+def _fallback(
+    district: str, state: str, period: str, topics: List[str],
+    centroid: Optional[Tuple[float, float]], bounds: Optional[List[float]],
+    reason: str,
+) -> HistoricalContextReport:
+    """The generic template, stamped so an API consumer can still tell it apart."""
+    report = _template_report(
+        district=district, state=state, period=period,
+        topics=topics, centroid=centroid, bounds=bounds,
+    )
+    report.provenance = "synthesized"
+    report.provenance_note = reason
+    return report
+
+
+def _overview(district, state, centroid, bounds, period, topics) -> LocationOverview:
+    return LocationOverview(
+        location_name=f"{district}, {state}",
+        district=district,
+        state=state,
+        country="India",
+        unit_id=f"IN-{state[:2].upper()}-{district.upper()}",
+        centroid=centroid,
+        bounds_wgs84=bounds,
+        period_analysed=period,
+        topics=topics or ["Infrastructure", "Disaster History", "Urban Expansion"],
+    )
+
+
+_CATEGORY_LABELS = [
+    ("natural_disasters", "Natural Disasters & Weather Events"),
+    ("infrastructure", "Infrastructure & Transport Projects"),
+    ("government_projects", "Government Projects & Master Plans"),
+    ("environmental", "Environmental & Water Resource Management"),
+    ("urban_development", "Urban Development & Settlement Growth"),
+    ("agriculture", "Agriculture & Land Use"),
+    ("industry_mining", "Industry & Extraction"),
+    ("general", "Other Recorded Events"),
+]
+
+
+def _categorise(timeline: List[HistoricalTimelineItem]) -> List[HistoricalEventCategory]:
+    """Group events by category, omitting categories nothing fell into."""
+    groups = []
+    for key, label in _CATEGORY_LABELS:
+        events = [t for t in timeline if t.category == key]
+        if events:
+            groups.append(HistoricalEventCategory(category=key, label=label, events=events))
+    return groups

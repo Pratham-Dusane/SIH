@@ -51,7 +51,7 @@ export default function Charts({ data }: ChartsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* 1. Scenes Analyzed Over Time (Stacked Area) */}
-      <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <Card className="tint-brand border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Historical Ingest & Analysis (2020 – 2026)</span>
@@ -89,7 +89,7 @@ export default function Charts({ data }: ChartsProps) {
       </Card>
 
       {/* 2. Task Type Mix (Bar Chart) */}
-      <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <Card className="tint-violet border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Remote Sensing Task Distribution</span>
@@ -110,7 +110,7 @@ export default function Charts({ data }: ChartsProps) {
       </Card>
 
       {/* 3. Tool Usage & Average Confidence */}
-      <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <Card className="tint-brand border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Tool Invocations & Accuracy</span>
@@ -131,7 +131,7 @@ export default function Charts({ data }: ChartsProps) {
       </Card>
 
       {/* 4. Confidence & Abstention Trend */}
-      <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <Card className="tint-emerald border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Confidence & Abstention Calibration</span>
@@ -154,7 +154,7 @@ export default function Charts({ data }: ChartsProps) {
       </Card>
 
       {/* 5. Modality Breakdown (Donut) */}
-      <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <Card className="tint-ember border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Sensor & Modality Archive Ratio</span>
@@ -185,7 +185,7 @@ export default function Charts({ data }: ChartsProps) {
       </Card>
 
       {/* 6. Cumulative Change Measurements (Hectares) */}
-      <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <Card className="tint-ember border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
             <span>Documented Surface Changes (Hectares)</span>

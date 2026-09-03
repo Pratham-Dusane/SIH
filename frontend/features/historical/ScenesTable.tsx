@@ -51,7 +51,7 @@ export default function ScenesTable({ scenes }: ScenesTableProps) {
   const pageItems = sorted.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+    <Card className="tint-brand border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
       <CardHeader className="pb-3 border-b border-border/50">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">

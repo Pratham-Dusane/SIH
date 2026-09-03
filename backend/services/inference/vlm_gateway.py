@@ -286,7 +286,8 @@ def gateway_status(backend: Optional[str] = None) -> Dict[str, Any]:
 # Provider calls.  Raw HTTP via httpx - no provider SDKs, so the offline eval
 # image stays small and no extra transitive deps enter requirements.txt.
 # ---------------------------------------------------------------------------
-def _gemini_body(images: List[bytes], instruction: str) -> Dict[str, Any]:
+def _gemini_body(images: List[bytes], instruction: str,
+                 system: Optional[str] = None) -> Dict[str, Any]:
     """
     GenerateContent request body.  Shared verbatim by the AI Studio and Vertex
     transports - the two APIs take the same shape, only URL and auth differ.
@@ -309,7 +310,7 @@ def _gemini_body(images: List[bytes], instruction: str) -> Dict[str, Any]:
         gen_config["thinkingConfig"] = {"thinkingLevel": settings.GEMINI_THINKING_LEVEL}
 
     return {
-        "system_instruction": {"parts": [{"text": SYSTEM}]},
+        "system_instruction": {"parts": [{"text": system or SYSTEM}]},
         "contents": [{"role": "user", "parts": parts}],
         "generationConfig": gen_config,
     }
@@ -334,17 +335,19 @@ def _parse_gemini_response(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def _call_gemini(spec, images: List[bytes], instruction: str) -> Dict[str, Any]:
+async def _call_gemini(spec, images: List[bytes], instruction: str,
+                        system: Optional[str] = None) -> Dict[str, Any]:
     url = ("https://generativelanguage.googleapis.com/v1beta/models/"
            + spec["model"] + ":generateContent")
     r = await _post_with_retry(
-        url, json=_gemini_body(images, instruction),
+        url, json=_gemini_body(images, instruction, system),
         headers={"x-goog-api-key": spec["api_key"],
                  "Content-Type": "application/json"})
     return _parse_gemini_response(r.json())
 
 
-async def _call_openai(spec, images: List[bytes], instruction: str) -> Dict[str, Any]:
+async def _call_openai(spec, images: List[bytes], instruction: str,
+                        system: Optional[str] = None) -> Dict[str, Any]:
     content: List[dict] = [
         {"type": "image_url",
          "image_url": {"url": "data:image/png;base64,"
@@ -357,7 +360,7 @@ async def _call_openai(spec, images: List[bytes], instruction: str) -> Dict[str,
         "temperature": 0.0,
         "max_tokens": settings.VLM_MAX_TOKENS,
         "messages": [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": system or SYSTEM},
             {"role": "user", "content": content},
         ],
     }
@@ -371,7 +374,8 @@ async def _call_openai(spec, images: List[bytes], instruction: str) -> Dict[str,
     return {"text": text.strip(), "raw": data}
 
 
-async def _call_anthropic(spec, images: List[bytes], instruction: str) -> Dict[str, Any]:
+async def _call_anthropic(spec, images: List[bytes], instruction: str,
+                           system: Optional[str] = None) -> Dict[str, Any]:
     content: List[dict] = [
         {"type": "image",
          "source": {"type": "base64", "media_type": "image/png",
@@ -381,7 +385,7 @@ async def _call_anthropic(spec, images: List[bytes], instruction: str) -> Dict[s
     content.append({"type": "text", "text": instruction})
     body = {
         "model": spec["model"],
-        "system": SYSTEM,
+        "system": system or SYSTEM,
         "temperature": 0.0,
         "max_tokens": settings.VLM_MAX_TOKENS,
         "messages": [{"role": "user", "content": content}],
@@ -438,11 +442,12 @@ def _vertex_url(model: str) -> str:
             f"/publishers/google/models/{model}:generateContent")
 
 
-async def _call_vertex(spec, images: List[bytes], instruction: str) -> Dict[str, Any]:
+async def _call_vertex(spec, images: List[bytes], instruction: str,
+                        system: Optional[str] = None) -> Dict[str, Any]:
     if not settings.vertex_project:
         raise VLMUnavailable("VERTEX_PROJECT (or GEE_PROJECT) is not set")
 
-    body = _gemini_body(images, instruction)
+    body = _gemini_body(images, instruction, system)
     # Minting the token does blocking I/O on first use / refresh.
     token = await asyncio.to_thread(_vertex_token)
 
@@ -462,7 +467,8 @@ _DISPATCH = {
 
 
 async def vlm_call(images: List[bytes], instruction: str,
-                   backend: str = "gemini") -> Dict[str, Any]:
+                   backend: str = "gemini",
+                   system: Optional[str] = None) -> Dict[str, Any]:
     """
     Send images + instruction to the configured hosted vision API.
 
@@ -475,7 +481,31 @@ async def vlm_call(images: List[bytes], instruction: str,
     if not images:
         raise VLMUnavailable("no model-ready images available for this scene")
     spec = _backend_spec(backend)
-    out = await _DISPATCH[spec["backend"]](spec, images, instruction)
+    out = await _DISPATCH[spec["backend"]](spec, images, instruction, system)
+    out.setdefault("truncated", False)
+    out.setdefault("blocked", False)
+    out.setdefault("thinking_tokens", None)
+    out["backend"] = spec["backend"]
+    out["model"] = spec["model"]
+    return out
+
+
+async def llm_text_call(instruction: str, system: str,
+                        backend: str = "vertex") -> Dict[str, Any]:
+    """
+    Text-only call against the same hosted backends.
+
+    `vlm_call` deliberately refuses an empty image list - a perception tool with
+    no pixels must fail, not answer from the prompt alone.  This entry point is
+    for the retrieval assistant (§8, F5), where there is legitimately nothing to
+    look at: the context comes from database rows and the caller supplies its
+    own system prompt.  Same credentials, same retry policy, same result shape.
+    """
+    ok, reason = vlm_available(backend)
+    if not ok:
+        raise VLMUnavailable(reason)
+    spec = _backend_spec(backend)
+    out = await _DISPATCH[spec["backend"]](spec, [], instruction, system)
     out.setdefault("truncated", False)
     out.setdefault("blocked", False)
     out.setdefault("thinking_tokens", None)

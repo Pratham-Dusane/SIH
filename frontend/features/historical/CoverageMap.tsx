@@ -43,8 +43,8 @@ export default function CoverageMap({ scenes }: CoverageMapProps) {
   }
 
   return (
-    <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
-      <CardHeader className="pb-2">
+    <Card className="tint-ember border-border/70 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <CardHeader className="pb-2 tint-rule-ember">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Globe className="w-4 h-4 text-primary" />
@@ -55,7 +55,11 @@ export default function CoverageMap({ scenes }: CoverageMapProps) {
           </span>
         </div>
       </CardHeader>
-      <CardContent className="p-0 h-[280px] relative bg-[#090e1a] overflow-hidden">
+      {/* The panel is deliberately dark in dark mode, but the background was
+          hardcoded to #090e1a, so in light mode dark foreground text landed on
+          a near-black card and became unreadable. Both themes now come from
+          tokens. */}
+      <CardContent className="p-0 h-[280px] relative overflow-hidden bg-muted/40 dark:bg-[#090e1a]">
         {/* Interactive Scene footprint list representation */}
         <div className="w-full h-full p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 overflow-y-auto">
           {scenes.map((s) => {

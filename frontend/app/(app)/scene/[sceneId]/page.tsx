@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import TopNav from '@/components/layout/TopNav';
 import EvidenceCanvas from '@/components/evidence/EvidenceCanvas';
-import LayerControls from '@/components/evidence/LayerControls';
 import QueryConsole from '@/components/query/QueryConsole';
 import ExecutionTimeline from '@/components/trace/ExecutionTimeline';
 import AcquisitionDates from '@/components/scene/AcquisitionDates';
+import SceneTitle from '@/components/scene/SceneTitle';
 import Link from 'next/link';
 import { ApiError, fetchScene } from '@/lib/api';
 import { useStore } from '@/lib/store';
@@ -130,7 +130,10 @@ export default function AnalysisWorkspacePage() {
           breadcrumbs={[
             { label: 'Dashboard', href: '/dashboard' },
             { label: 'Scene', href: '/dashboard' },
-            { label: activeScene.name },
+            {
+              label: activeScene.name,
+              node: <SceneTitle scene={activeScene} onRenamed={setActiveScene} />,
+            },
           ]}
           extra={<AcquisitionDates scene={activeScene} onUpdated={setActiveScene} />}
         />
@@ -141,9 +144,6 @@ export default function AnalysisWorkspacePage() {
         {/* Evidence Canvas */}
         <div className="relative flex-1 min-w-0 h-full rounded-2xl overflow-hidden">
           <EvidenceCanvas scene={activeScene} />
-          <div className="absolute bottom-4 left-4 z-20">
-            <LayerControls />
-          </div>
         </div>
 
         {/* Right Rail with unified panels (Console, Enhancement, Annotation, Location Context) */}

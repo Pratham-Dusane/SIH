@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Activity, Sun, Moon } from 'lucide-react';
+import { ChevronRight, Settings, Sun, Moon } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { fetchModelHealth } from '@/lib/api';
 import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth-context';
 
 interface Breadcrumb {
   label: string;
   href?: string;
+  /** Render this instead of the label — used for the editable scene title. */
+  node?: React.ReactNode;
 }
 
 interface TopNavProps {
@@ -20,39 +22,23 @@ interface TopNavProps {
 }
 
 export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
-  const [healthStatus, setHealthStatus] = useState<'healthy' | 'degraded' | 'down'>('healthy');
   const { theme, setTheme, toggleTheme } = useStore();
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem('satquery-theme') as 'light' | 'dark' | null;
-    if (saved) {
-      setTheme(saved);
-    } else {
-      setTheme('light');
-    }
-
-    const check = async () => {
-      const h = await fetchModelHealth();
-      setHealthStatus(h.status);
-    };
-    check();
-    const interval = setInterval(check, 30000);
-    return () => clearInterval(interval);
+    setTheme(saved ?? 'light');
   }, [setTheme]);
 
-  const healthColor = {
-    healthy: 'bg-confidence-high',
-    degraded: 'bg-confidence-medium',
-    down: 'bg-confidence-low',
-  }[healthStatus];
-
-  const healthLabel = {
-    healthy: 'All models loaded',
-    degraded: 'Some models unavailable',
-    down: 'Model server offline',
-  }[healthStatus];
+  // Avatar initials came from a hardcoded "SA". Derived from the signed-in
+  // user, the same way the sidebar does it, so the two never disagree.
+  const displayName =
+    user?.displayName || user?.email?.split('@')[0] || 'ISRO Analyst';
+  const initials =
+    displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    || 'SA';
 
   return (
     <header
@@ -64,7 +50,9 @@ export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
         {breadcrumbs.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1.5 truncate">
             {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />}
-            {crumb.href ? (
+            {crumb.node ? (
+              crumb.node
+            ) : crumb.href ? (
               <Link
                 href={crumb.href}
                 className="text-muted-foreground hover:text-foreground font-medium transition-colors truncate"
@@ -87,25 +75,18 @@ export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
           </div>
         )}
 
-        {/* Model health */}
+        {/* Settings */}
         <Tooltip>
-          <TooltipTrigger>
-            <div
-              id="model-health-indicator"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 cursor-default"
-            >
-              <Activity className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />
-              <div className="relative flex items-center justify-center w-2.5 h-2.5">
-                <div className={cn('w-2 h-2 rounded-full', healthColor)} />
-                {healthStatus === 'healthy' && (
-                  <div className={cn('absolute w-2 h-2 rounded-full animate-ping opacity-30', healthColor)} />
-                )}
-              </div>
-              <span className="text-xs text-muted-foreground hidden sm:inline font-medium">Models</span>
-            </div>
+          {/* Base UI's Trigger composes via `render`, not `asChild`, so the
+              real <Link> keeps middle-click and open-in-new-tab. */}
+          <TooltipTrigger
+            render={<Link href="/settings" aria-label="Settings" />}
+            className="flex items-center justify-center w-8 h-8 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all"
+          >
+            <Settings className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
           </TooltipTrigger>
           <TooltipContent>
-            <p className="text-xs">{healthLabel}</p>
+            <p className="text-xs">Settings</p>
           </TooltipContent>
         </Tooltip>
 
@@ -133,7 +114,7 @@ export default function TopNav({ breadcrumbs = [], extra }: TopNavProps) {
         {/* User avatar */}
         <Avatar className="h-8 w-8 border border-primary/30">
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-            SA
+            {initials}
           </AvatarFallback>
         </Avatar>
       </div>

@@ -80,6 +80,20 @@ class HistoricalContextReport(BaseModel):
     sources: List[SourceItem] = Field(default_factory=list)
     search_queries_used: List[str] = Field(default_factory=list)
     cached: bool = False
+    # Provenance of the timeline itself.
+    #
+    # "retrieved"   - events were extracted from documents actually fetched from
+    #                 the web; every event cites a source URL you can open.
+    # "synthesized" - retrieval or extraction failed and this is the generic
+    #                 development template: the events, publishers, dates and
+    #                 URLs are all invented, and none of it is researched.
+    #                 `provenance_note` says which failure caused it.
+    #
+    # The UI no longer surfaces this distinction (by request), so this field is
+    # the only remaining way an API consumer can tell the two apart. Do not
+    # drop it, and do not default it to "retrieved" at any call site.
+    provenance: str = "retrieved"
+    provenance_note: str = ""
 
 
 class LocationHistoryRequest(BaseModel):
